@@ -4,6 +4,11 @@ body{
     padding: 0px;
 }
 
+.desc {
+    width: 50%;
+    padding: 0px;
+}
+
 .container {
 border: 1px solid black; 
 text-align: left; /* Alinhe o conteúdo ao centro horizontalmente */
