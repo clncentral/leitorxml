@@ -3,15 +3,25 @@
         margin: 0px;
         padding: 0px;
     }
-    div#divarquivo{
-        margin: 4px;
-        height: 25px;
-        border: 1px solid black;  
-    }
+	
 
-    #idFile{
-        margin: 2px;
-    }
+
+.container {
+	border: 1px solid black; 
+	text-align: left; /* Alinhe o conteúdo ao centro horizontalmente */
+	margin: 4px; /* Adicione margem ao redor da div */
+}
+
+.aligned-input {
+  margin: 2px; /* Adicione margem ao redor do input */
+  padding: 2px; /* Adicione preenchimento interno ao input */
+  border: 1px solid #ccc; /* Adicione uma borda para destacar o input */
+}
+
+
+
+
+
 	
 	 #totais th{
         height: 40px;

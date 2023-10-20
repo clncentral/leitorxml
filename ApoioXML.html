@@ -1,0 +1,124 @@
+﻿<html>
+<head>
+        <link rel="stylesheet" href="css/xslt.css">
+        <link rel="stylesheet" href="css/select.css">
+        <link rel="stylesheet" href="css/tamanho.css">
+        <title></title>
+</head>
+<body>
+<div id="divarquivo" class="container">
+        <input type="file" id="idFile" class="aligned-input" onchange="carregar(this)" >
+</div>
+
+<div id="tudo"> <!-- Inicio da Div TUDO -->
+<div class="divbox">
+                <div id="dadosnf" class="t">
+                        <table class="GeralXslt t toggle box">
+                                <tbody id="nf">                                       
+                                </tbody>
+                        </table>
+                </div>
+                <div id="dadosEnxuto" class="t">
+                        <table class="GeralXslt t toggle box">
+                                       <tbody id="enx">       
+                                       </tbody>               
+                        </table>
+                </div>
+</div>
+<label>&RightArrow; Faturas / Tipo NF / Fretes</label>
+<div id="teste" class="divbox">
+        
+                <div id="ve1" class="">
+                                
+                </div>
+                <div id="" class="vencimento">
+                        <table class="GeralXslt toggle box">
+                                       <tbody id="ve2">       
+                                       </tbody>               
+                        </table>
+                </div>
+
+                <div id="frete" class="danfe vencimento">
+       
+                </div>
+                <div id="tpNF" class="danfe vencimento">
+
+                </div>
+
+</div>
+
+
+<div id="tabelaProdutos" class="tbl-aut-uso">
+        <table id="produtos" class="GeralXslt toggle box">
+                <thead>
+                        <tr>
+                                <th>Nº</th>
+                                <th>Ref.</th>
+                                <th class="desc">Descrição do produto</th>
+                                <th>NCM<br>SH</th>
+                                <th>CST</th>
+                                <th>CFOP</th>
+                                <th>CESTE</th>
+                                <th>Emb</th>
+                                <th>QUANT</th>
+                                <th>VALOR<br>UNIT</th>
+                                <th>VALOR<br>TOTAL</th>
+                                <th>Desconto <br>Desonerado</th>
+                                <th>Desp<br>Trib</th>
+                                <th>B.CÁLC<br>ICMS</th>
+				<th>ALÍQ.<br>ICMS</th>
+                                <th>VALOR<br>ICMS</th>
+                                <th>B.ICMS<br>ST</th>
+                                <th>VALOR<br>ICMS_ST</th>
+				<th>CST<br>IPI</th>
+                                <th>VALOR<br>IPI</th>
+                                <th>ALÍQ.<br>IPI</th>
+				<th>CST</th>
+				<th>PIS<br>Conf</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody">
+    
+                    </tbody>
+        </table>
+ 
+</div>
+
+<div class="divTotais">
+        <table id="totais" class="GeralXslt toggle box">
+                <thead>
+                        <tr>
+                                <th>DESCONTOS</th>
+                                <th>ICMS<br>DESONERADO</th>
+                                <th>B.CÁLC<br>ICMS</th>
+                                <th>VALOR<br>ICMS</th>
+                                <th>B.ICMS<br>ST</th>
+                                <th>VALOR<br>ST</th>
+                                <th>DESPESAS</th>
+                                <th>VALOR<br>IPI</th>
+                                <th>VALOR TOTAL<br>MERCADORIA</th>
+                                <th>VALOR TOTAL<br>NF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="totaisNfs">
+    
+                    </tbody>
+        </table>
+</div>
+<br>
+
+
+<div class="divbox">
+                <table class="GeralXslt box">
+                        <tbody id="dadosAdic" onclick="selLinha()">                                       
+                        </tbody>
+                </table>
+</div>
+
+</div> <!-- Fim da Div tudo -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="script/script.js" type="text/javascript"></script>
+<script src="script/moment.js"></script>
+
+</body>
+</html>
