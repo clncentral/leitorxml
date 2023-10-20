@@ -1,0 +1,486 @@
+/*Configurações Gerais do XSLT */
+    body{
+        margin: 0px;
+        padding: 0px;
+    }
+    div#divarquivo{
+        margin: 4px;
+        height: 20px;
+        border: 1px solid black;
+    }
+    #tudo{
+        display: none;
+    }
+    .t{
+        width: calc(100% /2);
+        float: left;
+        margin-bottom: 5px;
+    }
+.t td{
+    border-radius: 4px;
+    border: rgb(0, 0, 0)
+}
+
+    .c1{
+        padding-left: 0px;
+        text-align: left;
+        border: solid 1px #d6c39e;
+        background-color: #fff;
+        width: 30px;
+        }
+    .c2{
+        padding-left: 0px;
+        text-align: right;
+        border: solid 1px #d6c39e;
+        background-color: #fff;
+        width: 75px;
+        }
+
+.vencimento{
+    float: left;
+    padding: 4px;
+}
+.danfe{
+    width: 105px;
+    height: 51px;
+    border: solid 1px #d6c39e;
+    margin: 4px;
+}
+.danfe h5{
+    text-align: end;
+}
+.num{
+    text-align: end;
+}
+
+    
+    div#tabelaProdutos{
+    
+    }
+
+
+
+
+.GeralXslt {
+    font-size: 11px;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: transparent;
+    padding: 0px;
+}
+
+
+
+    .GeralXslt table {
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 8px;
+        /*padding-top: 5px;*/
+    }
+
+
+
+    .GeralXslt a:link {
+        font-size: 11px;
+        color: #d2965c;
+        /*text-decoration: underline;*/
+    }
+
+
+
+    .GeralXslt fieldset {
+        border: solid 0px transparent;
+        margin-top: 0px;
+        padding: 0px;
+        /*clear: both;*/
+        background-color: transparent;
+    }
+
+    .GeralXslt h5.toggle {
+        padding-left: 20px;
+        background-position: 0px 0px;
+    }
+
+    .GeralXslt h5.opened {
+        padding-left: 20px;
+        background-position: 0px 0px;
+    }
+
+    .GeralXslt h5 {
+        padding: 0px;
+        margin: 0px;
+        font-size: 11px;
+    }
+
+.titulo-aba, fieldset legend .titulo-aba {
+    text-align: center !important;
+    border: 0px solid transparent;
+    /*margin-bottom: 5px !important;
+    padding-top: 5px !important;*/
+    padding: 15px 2px 10px 2px;
+    margin: 0px 0px 7px 0px;
+    font-family: Trebuchet MS, Arial, Verdana, Helvetica, sans-serif;
+}
+
+.GeralXslt fieldset legend {
+    text-align: left;
+    border: none;
+    font-size: 14px;
+    height: 15px;
+    font-weight: bold;
+    width: 98%;
+    display: block;
+    /*padding: 0px 0px 8px 20px;
+    margin: 5px 0px 0px 0px;*/
+    vertical-align: middle;
+    color: #b27235;
+    background: none;
+    border: none;
+    /* text-transform: capitalize; */
+    font-family: Trebuchet MS, Arial, Verdana, Helvetica, sans-serif;
+}
+
+fieldset legend {
+    padding: 15px 2px 10px 2px;
+}
+
+
+.fieldset-internal {
+    color: #302E2E;
+    font-weight: bolder;
+    background-color: #FFF;
+    border: solid 1px #c7a460;
+}
+
+.box {
+    width: 100%;
+    border: 1px solid #c7a460;
+    background-color: #f4edd5;
+    margin: 0px 0px 0px 0px;
+    padding: 0px 0px 0px 0px;
+}
+.divbox {
+    width: 99.8%;
+    border: 1px solid #c7a460;
+    background-color: #d0daced5;
+    margin: 0px 0px 0px 0px;
+    padding: 0px 0px 0px 0px;
+}
+#frete{
+    display: none;
+}
+#tpNF{
+    display: none;
+}
+
+    .box label {
+        display: block;
+        /*min-height: 19px;
+    height: auto;*/
+        text-transform: none;
+        vertical-align: middle;
+        /*padding: 4px 0px 0px 6px;*/
+        font-family: Trebuchet MS, Arial, Verdana, Helvetica, sans-serif;
+        font-size: 11px;
+        min-height: 15px;
+        font-weight: normal;
+        color: #6f5e39;
+        text-align: left;
+        padding: 2px;
+    }
+
+    .box span {
+        height: auto !important;
+        height: 15px;
+        min-height: 15px;
+        display: block;
+        background-position: center;
+        border: solid 1px #d6c39e;
+        background-color: #fbfbf5;
+        padding: 2px 2px 2px 6px;
+    }
+/*
+    .box td {
+        vertical-align: top;
+    } alinha o texto na parte de cima
+*/
+tr.col-10 td {
+    width: 10%;
+}
+
+tr.col-5 td {
+    width: 20%;
+}
+
+tr.col-4 td {
+    width: 25%;
+}
+
+tr.col-3 td {
+    width: 33.333%;
+}
+
+tr.col-2 td {
+    width: 50%;
+}
+
+.notprint {
+    overflow: hidden;
+    display: none;
+}
+
+i.eng {
+    font-size: 9px;
+}
+
+#Versao {
+    font-size: 10px;
+    text-align: right;
+}
+
+#print-header {
+    display: block;
+    height: 100px;
+}
+
+#print-header-logo {
+    display: block;
+    float: left;
+    width: 96px;
+    height: 96px;
+    background: no-repeat scroll;
+}
+
+#print-header-titulo {
+    display: block;
+    float: left;
+    padding-top: 40px;
+    font-family: Verdana, Arial, Helvetica;
+    font-size: 18px;
+}
+
+#print-header-titulo-param {
+    display: block;
+    text-align: center;
+    font-family: Verdana, Arial, Helvetica;
+    font-size: 22px;
+    font-weight: bolder;
+}
+
+#print-nfe-info {
+    font-size: 11px;
+    font-family: Verdana, Arial, Helvetica;
+}
+
+#footer {
+    font-family: Verdana, Arial, Helvetica;
+    font-size: 11px;
+}
+
+div.tbl-aut-uso {
+    background-color: #eee;
+    border-radius: 5px;
+    padding: 2px 2px 2px 2px;
+}
+
+    div.tbl-aut-uso span.subtitle {
+        font-weight: bolder;
+        background-color: #eee;
+        font-size: 11px;
+    }
+
+    div.tbl-aut-uso table {
+        background-color: White;
+        padding-top: 5px;
+        margin-bottom: 5px;
+        border-radius: 5px;
+    }
+
+        div.tbl-aut-uso table td {
+            font-family: Verdana, Arial, Helvetica;
+            font-size: 11px;
+        }
+
+            div.tbl-aut-uso table td.itm {
+                padding-left: 20px;
+                width: 25%;
+            }
+
+            div.tbl-aut-uso table td.val {
+                padding-left: 20px;
+            }
+
+
+
+span#tipo-ambiente {
+    border: 1px solid #880;
+    margin-left: 5px;
+    margin-top: 5px;
+    font-weight: bolder;
+    background-color: #ffc;
+    height: 20px;
+}
+
+    span#tipo-ambiente img {
+        margin-top: 2px;
+    }
+
+
+
+
+
+/* Controle visualização extra */
+
+.toggle {
+    background: url('../imagens/ico_mais.gif' ) no-repeat 8px 0px;
+        background-color: #ece8df;
+    cursor: pointer;
+    background-position: 6px 6px;
+    padding-left: 0px;
+    text-indent: 0px;
+    border: solid 1px rgb(236, 236, 236);
+}
+ .toggle span {
+        height: auto !important;
+        min-height: 15px;
+        display: block;
+        background-position: center;
+        border: solid 0px transparent;
+        background-color: transparent;
+        padding: 2px 2px 2px 6px;
+    }
+
+
+
+.toggle td, th {
+    
+        border: solid 1px #d6c39e;
+        background-color: #fff;/* #fbfbf5;*/
+}
+
+
+
+
+.togglable .box {
+        border: solid 0px transparent;
+}
+
+.opened {
+    background: url( '../imagens/ico_menos.gif' ) no-repeat 8px 0px;
+    background-position: 6px 6px;
+}
+
+
+
+
+
+/* Visualização Produtos e Serviços */
+
+
+
+td.fixo-prod-serv-numero {
+    width: 4%;
+    padding-left: 3px;
+}
+
+/*table.toggle tr.highlighted td.fixo-prod-serv-numero {
+    background-color: transparent;
+}*/
+
+
+
+table.toggle tr.highlighted td {
+    background-color: #f9f5ea;
+}
+
+
+
+td.fixo-prod-serv-descricao {
+    width: 57%;
+    font-size: 11px;
+}
+
+td.fixo-prod-serv-qtd {
+    width: 11%;
+}
+
+
+
+td.fixo-prod-serv-uc {
+    width: 15%;
+}
+
+td.fixo-prod-serv-vb {
+    width: 13%;
+}
+
+
+
+
+
+/*  Visualização Internet  */
+#botoes_nft {
+    list-style-type: none;
+    list-style-image: none;
+    margin: 0;
+    padding: 0;
+}
+
+    #botoes_nft li, .nftselected {
+        cursor: pointer;
+        float: left;
+        display: inline;
+        clear: none;
+        font-family: Arial, Verdana, Helvetica, sans-serif;
+        font-size: 11px;
+        color: #6d6e71;
+        margin: 0px 1px 0px 0px;
+        /*padding: 5px 2px 0px 2px;*/
+        border-left: 1px solid #E5E3DA;
+        border-right: 1px solid #E5E3DA;
+        border-top: 1px solid #E5E3DA;
+        /*border-bottom: 1px solid #f7e2c2;*/
+        border-radius: 3px 3px 0px 0px;
+        -moz-border-radius: 3px 3px 0px 0px;
+        -webkit-border-radius: 3px 3px 0px 0px;
+        background-color: #f8f8f8;
+        cursor: pointer;
+    }
+
+        #botoes_nft li b {
+            display: block;
+            font-size: 12px !important;
+            font-family: tahoma, arial, helvetica;
+            padding: 5px 2px 1px 2px;
+            font-weight: 200;
+        }
+
+        #botoes_nft li.nftselected b {
+            margin: -2px -1px -2px -1px;
+            background-color: #fcfaf6;
+            border-left: 1px solid #f7e2c2;
+            border-top: 3px solid #f7e2c2;
+            border-right: 1px solid #f7e2c2;
+            border-bottom: 1px solid #fcfaf6;
+            color: #811c0d;
+            font-weight: bolder;
+            padding: 5px 2px 0px 2px;
+            border-radius: 3px 3px 0px 0px;
+            -moz-border-radius: 3px 3px 0px 0px;
+            -webkit-border-radius: 3px 3px 0px 0px;
+        }
+
+
+.nft {
+    display: none;
+}
+
+.bigger {
+    width: 200px;
+}
+
+.aba_container {
+    padding: 15px 2px 10px 2px;
+    margin: 0px 0px 7px 0px;
+    background-color: #fcfaf6;
+    border: solid 1px #f7e2c2;
+}
