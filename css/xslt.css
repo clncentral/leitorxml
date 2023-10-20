@@ -10,12 +10,13 @@
 	border: 1px solid black; 
 	text-align: left; /* Alinhe o conteúdo ao centro horizontalmente */
 	margin: 4px; /* Adicione margem ao redor da div */
+	border: 1px solid #000;
 }
 
 .aligned-input {
   margin: 2px; /* Adicione margem ao redor do input */
   padding: 2px; /* Adicione preenchimento interno ao input */
-  border: 1px solid #ccc; /* Adicione uma borda para destacar o input */
+ /* border: none; /* Adicione uma borda para destacar o input */
 }
 
 
