@@ -5,13 +5,12 @@ body{
 }
 
 .desc {
-    width: 50%;
-    padding: 0px;
-}
-body {
-    font-family: sans-serif;
+    width: 40%;
 }
 
+.ref {
+    width: 7%;
+}
 
 .container {
 border: 1px solid black; 
@@ -112,7 +111,6 @@ padding: 2px 2px 2px 2px;
 }
 
 .toggle {
-
 border: solid 2px rgb(236, 236, 236);
 }
 
