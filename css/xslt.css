@@ -5,8 +5,12 @@
     }
     div#divarquivo{
         margin: 4px;
-        height: 20px;
-        border: 1px solid black;
+        height: 25px;
+        border: 1px solid black;  
+    }
+
+    #idFile{
+        margin: 2px;
     }
     #tudo{
         display: none;
