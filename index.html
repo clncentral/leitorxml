@@ -1,11 +1,11 @@
-﻿<html>
+<html>
 <head>
         <link rel="stylesheet" href="css/novo.css">
         <title></title>
 </head>
 <body>
 <div id="divarquivo" class="container">
-        <input type="file" id="idFile" class="aligned-input" onchange="carregar(this)" >
+        <input type="file" id="idFile" accept=".xml" class="aligned-input" onchange="carregar(this)" >
 </div>
 
 <div id="tudo"> <!-- Inicio da Div TUDO -->
@@ -46,12 +46,12 @@
 </div>
 
 
-<div id="tabelaProdutos" class="tbl-aut-uso">
-        <table id="produtos" class="GeralXslt toggle box">
+<div id="tabelaProdutos" class="tbl-aut-uso divbox">
+        <table id="produtos" class="GeralXslt toggle box tth">
                 <thead>
-                        <tr>
+                        <tr class="table-row">
                                 <th>Nº</th>
-                                <th>Ref.</th>
+                                <th class="ref">Ref.</th>
                                 <th class="desc">Descrição do produto</th>
                                 <th>NCM<br>SH</th>
                                 <th>CST</th>
@@ -64,15 +64,15 @@
                                 <th>Desconto <br>Desonerado</th>
                                 <th>Desp<br>Trib</th>
                                 <th>B.CÁLC<br>ICMS</th>
-				<th>ALÍQ.<br>ICMS</th>
+								<th>ALÍQ.<br>ICMS</th>
                                 <th>VALOR<br>ICMS</th>
                                 <th>B.ICMS<br>ST</th>
                                 <th>VALOR<br>ICMS_ST</th>
-				<th>CST<br>IPI</th>
+								<th>CST<br>IPI</th>
                                 <th>VALOR<br>IPI</th>
                                 <th>ALÍQ.<br>IPI</th>
-				<th>CST</th>
-				<th>PIS<br>Conf</th>
+								<th>CST</th>
+								<th>PIS<br>Conf</th>
                         </tr>
                     </thead>
                     <tbody id="tbody">
@@ -81,9 +81,9 @@
         </table>
  
 </div>
-
-<div class="divTotais">
-        <table id="totais" class="GeralXslt toggle box">
+<br>
+<div class="divTotais divbox">
+        <table id="totais" class="GeralXslt toggle box tot">
                 <thead>
                         <tr>
                                 <th>DESCONTOS</th>
