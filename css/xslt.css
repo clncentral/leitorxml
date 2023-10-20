@@ -5,13 +5,29 @@
     }
     div#divarquivo{
         margin: 4px;
-        height: 36px;
+        height: 25px;
         border: 1px solid black;  
     }
 
     #idFile{
         margin: 2px;
     }
+	
+	 #totais th{
+        height: 40px;
+
+    }
+	
+    #totaisNfs td{
+		text-align: center;
+        color: red;
+		height: 30px;
+		font-size: 20px;
+		font-weight: bolder;
+
+    }
+
+
     #tudo{
         display: none;
     }
@@ -20,20 +36,11 @@
         float: left;
         margin-bottom: 5px;
     }
-
 .t td{
     border-radius: 4px;
     border: rgb(0, 0, 0)
 }
 
-#totaisNfs td{
-   text-align: center;
-   border-radius: 4px;
-    border: rgb(0, 0, 0);
-    color: red;
-    font-size: 20px;
-    
-}
     .c1{
         padding-left: 0px;
         text-align: left;
