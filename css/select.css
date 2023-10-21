@@ -1,0 +1,50 @@
+body{
+  font-family:sans-serif;  
+}
+
+.sombra{
+  width:80%;
+  margin:0 auto;
+  border:0;
+  box-shadow: 0 5px 30px darkgrey;
+  border-spacing: 0;
+}
+
+.sombra thead th{
+  font-weight: bold;
+  background-color: black;
+  color:white;
+  
+  padding:5px 10px;
+}
+
+.sombra tr td:last-child{
+  text-align: right;
+}
+
+/**Cores**/
+
+.sombra tr:nth-child(odd){
+  background-color: rgb(197, 89, 89);
+}
+
+/**Cor quando passar por cima**/
+.sombra tr:hover td{
+  background-color: #feffb7;
+}
+
+/**Cor quando selecionado**/
+.sombra tr.selecionado td{
+  background-color: #aff7ff;
+}
+
+
+button#visualizarDados{
+  background-color: white;
+  border: 1px solid black;
+  width:50%;
+  margin: 10px auto;
+  padding:10px 0;
+  display: block;
+  color: black;
+}
