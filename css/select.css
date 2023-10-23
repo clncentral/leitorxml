@@ -34,7 +34,7 @@ body{
 }
 
 /**Cor quando selecionado    tr.table-row.selected**/
-.sombra tr.selected td{
+tr.selected{
   background-color: #aff7ff;
 }
 
