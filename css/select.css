@@ -33,8 +33,8 @@ body{
   background-color: #feffb7;
 }
 
-/**Cor quando selecionado**/
-.sombra tr.selecionado td{
+/**Cor quando selecionado    tr.table-row.selected**/
+.sombra tr.selected td{
   background-color: #aff7ff;
 }
 
