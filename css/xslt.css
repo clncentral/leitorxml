@@ -63,100 +63,19 @@
     text-align: end;
 }
 
+
+
+
+
 .GeralXslt {
-    font-size: 12px;
+    font-size: 11px;
     font-family: Arial, Helvetica, sans-serif;
     background-color: transparent;
-    padding: 1px;
-}
-.GeralXslt-vencimento {
-    font-size: 14px;
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: transparent;
-    padding: 1px;
+    padding: 0px;
 }
 
 
-    .GeralXslt table {
-        width: 100%;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 8px;
-        /*padding-top: 5px;*/
-    }
 
-
-
-    .GeralXslt a:link {
-        font-size: 11px;
-        color: #d2965c;
-        /*text-decoration: underline;*/
-    }
-
-
-
-    .GeralXslt fieldset {
-        border: solid 0px transparent;
-        margin-top: 0px;
-        padding: 0px;
-        /*clear: both;*/
-        background-color: transparent;
-    }
-
-    .GeralXslt h5.toggle {
-        padding-left: 20px;
-        background-position: 0px 0px;
-    }
-
-    .GeralXslt h5.opened {
-        padding-left: 20px;
-        background-position: 0px 0px;
-    }
-
-    .GeralXslt h5 {
-        padding: 0px;
-        margin: 0px;
-        font-size: 11px;
-    }
-
-.titulo-aba, fieldset legend .titulo-aba {
-    text-align: center !important;
-    border: 0px solid transparent;
-    /*margin-bottom: 5px !important;
-    padding-top: 5px !important;*/
-    padding: 15px 2px 10px 2px;
-    margin: 0px 0px 7px 0px;
-    font-family: Trebuchet MS, Arial, Verdana, Helvetica, sans-serif;
-}
-
-.GeralXslt fieldset legend {
-    text-align: left;
-    border: none;
-    font-size: 14px;
-    height: 15px;
-    font-weight: bold;
-    width: 98%;
-    display: block;
-    /*padding: 0px 0px 8px 20px;
-    margin: 5px 0px 0px 0px;*/
-    vertical-align: middle;
-    color: #b27235;
-    background: none;
-    border: none;
-    /* text-transform: capitalize; */
-    font-family: Trebuchet MS, Arial, Verdana, Helvetica, sans-serif;
-}
-
-.fieldset legend {
-    padding: 15px 2px 10px 2px;
-}
-
-
-.fieldset-internal {
-    color: #302E2E;
-    font-weight: bolder;
-    background-color: #FFF;
-    border: solid 1px #c7a460;
-}
 
 .box {
     width: 99.8%;
@@ -176,11 +95,11 @@
 }
 
 .cx1{
-	height: 70px;
+	height: 85px;
 }
 
 .cx2{
-	height: 55px;
+	height: 66px;
 	display: flex;
     align-items: center;
 }
@@ -248,9 +167,6 @@ tr.col-2 td {
     display: none;
 }
 
-i.eng {
-    font-size: 9px;
-}
 
 
 div.tbl-aut-uso {
@@ -259,11 +175,6 @@ div.tbl-aut-uso {
     padding: 2px 2px 2px 2px;
 }
 
-    div.tbl-aut-uso span.subtitle {
-        font-weight: bolder;
-        background-color: #eee;
-        font-size: 11px;
-    }
 
     div.tbl-aut-uso table {
         background-color: White;
@@ -275,18 +186,15 @@ div.tbl-aut-uso {
         div.tbl-aut-uso table td {
             font-family: Verdana, Arial, Helvetica;
             font-size: 11px;
+			padding-left: 2px;
+			padding-right: 2px;
         }
 
-            div.tbl-aut-uso table td.itm {
-                padding-left: 20px;
-                width: 25%;
-            }
-
-            div.tbl-aut-uso table td.val {
-                padding-left: 20px;
-            }
 
 
+table.table-row th{
+	padding: 2px;
+}
 
 span#tipo-ambiente {
     border: 1px solid #880;
@@ -307,24 +215,7 @@ span#tipo-ambiente {
 
 /* Controle visualização extra */
 
-.toggle {
-    background: url('../imagens/ico_mais.gif' ) no-repeat 8px 0px;
-        background-color: #ece8df;
-    cursor: pointer;
-    background-position: 6px 6px;
-    padding-left: 0px;
-    text-indent: 0px;
-    border: solid 3px rgb(236, 236, 236);
-}
- .toggle span {
-        height: auto !important;
-        min-height: 15px;
-        display: block;
-        background-position: center;
-        border: solid 0px transparent;
-        background-color: transparent;
-        padding: 2px 2px 2px 6px;
-    }
+
 
 
 
@@ -367,7 +258,7 @@ span#tipo-ambiente {
 }
 
 .ref {
-    width: 7%;
+    width: 8.5%;
 }
 
 .container {
