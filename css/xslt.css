@@ -3,6 +3,9 @@
         margin: 0px;
         padding: 0px;
     }
+	
+	
+	
     div#divarquivo{
         margin: 4px;
         border: 1px solid black;
@@ -10,14 +13,22 @@
     #tudo{
         display: none;
     }
-    .t{
-        width: calc(100% /2);
-        float: left;
-        margin-bottom: 5px;
-    }
-.t td{
+.t{
+	width: calc(99.8% /2);
+	float: left;
+	margin-bottom: 5px;
+}
+.t td {
     border-radius: 4px;
     border: rgb(0, 0, 0)
+
+	padding: 10px;
+	white-space: nowrap; /* Evitar quebrar a linha */
+	overflow: hidden;
+	text-overflow: ellipsis; /* Exibir "..." para texto cortado */
+	max-width: 100px; /* Largura máxima da célula */
+	cursor: pointer; /* Adicionar um cursor de mão */
+	
 }
 
     .c1{
@@ -147,19 +158,32 @@
 }
 
 .box {
-    width: 100%;
+    width: 99.8%;
     border: 1px solid #c7a460;
     background-color: #f4edd5;
     margin: 0px 0px 0px 0px;
     padding: 0px 0px 0px 0px;
+	
+
 }
 .divbox {
+	position: relative;
     width: 99.8%;
     border: 1px solid #c7a460;
     background-color: #d0daced5;
-    margin: 0px 0px 0px 0px;
-    padding: 0px 0px 0px 0px;
+    
 }
+
+.cx1{
+	height: 85px;
+}
+
+.cx2{
+	height: 66px;
+	display: flex;
+    align-items: center;
+}
+
 #frete{
     display: none;
 }
@@ -227,49 +251,6 @@ i.eng {
     font-size: 9px;
 }
 
-#Versao {
-    font-size: 10px;
-    text-align: right;
-}
-
-#print-header {
-    display: block;
-    height: 100px;
-}
-
-#print-header-logo {
-    display: block;
-    float: left;
-    width: 96px;
-    height: 96px;
-    background: no-repeat scroll;
-}
-
-#print-header-titulo {
-    display: block;
-    float: left;
-    padding-top: 40px;
-    font-family: Verdana, Arial, Helvetica;
-    font-size: 18px;
-}
-
-#print-header-titulo-param {
-    display: block;
-    text-align: center;
-    font-family: Verdana, Arial, Helvetica;
-    font-size: 22px;
-    font-weight: bolder;
-}
-
-#print-nfe-info {
-    font-size: 11px;
-    font-family: Verdana, Arial, Helvetica;
-}
-
-#footer {
-    font-family: Verdana, Arial, Helvetica;
-    font-size: 11px;
-}
 
 div.tbl-aut-uso {
     background-color: #eee;
@@ -359,110 +340,6 @@ span#tipo-ambiente {
         border: solid 0px transparent;
 }
 
-.opened {
-    background: url( '../imagens/ico_menos.gif' ) no-repeat 8px 0px;
-    background-position: 6px 6px;
-}
-
-
-
-
-
-/* Visualização Produtos e Serviços */
-
-
-
-td.fixo-prod-serv-numero {
-    width: 4%;
-    padding-left: 3px;
-}
-
-/*table.toggle tr.highlighted td.fixo-prod-serv-numero {
-    background-color: transparent;
-}*/
-
-
-
-table.toggle tr.highlighted td {
-    background-color: #f9f5ea;
-}
-
-
-
-td.fixo-prod-serv-descricao {
-    width: 57%;
-    font-size: 11px;
-}
-
-td.fixo-prod-serv-qtd {
-    width: 11%;
-}
-
-
-
-td.fixo-prod-serv-uc {
-    width: 15%;
-}
-
-td.fixo-prod-serv-vb {
-    width: 13%;
-}
-
-
-
-
-
-/*  Visualização Internet  */
-#botoes_nft {
-    list-style-type: none;
-    list-style-image: none;
-    margin: 0;
-    padding: 0;
-}
-
-    #botoes_nft li, .nftselected {
-        cursor: pointer;
-        float: left;
-        display: inline;
-        clear: none;
-        font-family: Arial, Verdana, Helvetica, sans-serif;
-        font-size: 11px;
-        color: #6d6e71;
-        margin: 0px 1px 0px 0px;
-        /*padding: 5px 2px 0px 2px;*/
-        border-left: 1px solid #E5E3DA;
-        border-right: 1px solid #E5E3DA;
-        border-top: 1px solid #E5E3DA;
-        /*border-bottom: 1px solid #f7e2c2;*/
-        border-radius: 3px 3px 0px 0px;
-        -moz-border-radius: 3px 3px 0px 0px;
-        -webkit-border-radius: 3px 3px 0px 0px;
-        background-color: #f8f8f8;
-        cursor: pointer;
-    }
-
-        #botoes_nft li b {
-            display: block;
-            font-size: 12px !important;
-            font-family: tahoma, arial, helvetica;
-            padding: 5px 2px 1px 2px;
-            font-weight: 200;
-        }
-
-        #botoes_nft li.nftselected b {
-            margin: -2px -1px -2px -1px;
-            background-color: #fcfaf6;
-            border-left: 1px solid #f7e2c2;
-            border-top: 3px solid #f7e2c2;
-            border-right: 1px solid #f7e2c2;
-            border-bottom: 1px solid #fcfaf6;
-            color: #811c0d;
-            font-weight: bolder;
-            padding: 5px 2px 0px 2px;
-            border-radius: 3px 3px 0px 0px;
-            -moz-border-radius: 3px 3px 0px 0px;
-            -webkit-border-radius: 3px 3px 0px 0px;
-        }
 
 
 .nft {

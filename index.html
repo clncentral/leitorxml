@@ -13,39 +13,43 @@
 </div>
 
 <div id="tudo"> <!-- Inicio da Div TUDO -->
-<div class="divbox">
-                <div id="dadosnf" class="t">
-                        <table class="GeralXslt t toggle box">
-                                <tbody id="nf">                                       
-                                </tbody>
-                        </table>
-                </div>
-                <div id="dadosEnxuto" class="t">
-                        <table class="GeralXslt t toggle box">
-                                       <tbody id="enx">       
-                                       </tbody>               
-                        </table>
-                </div>
+	
+<div class="cx1 divbox ">
+	<div id="dadosnf" class="t">
+		<table class="GeralXslt t toggle box">
+			<tbody id="nf">                                       
+			</tbody>
+		</table>
+	</div>	
+	
+	<div id="dadosEnxuto" class="t">
+		<table class="GeralXslt t toggle box">
+			<tbody id="enx">       
+			</tbody>               
+		</table>
+	</div>
 </div>
-<label>&RightArrow; Faturas / Tipo NF / Fretes</label>
-<div id="teste" class="divbox">
+
+<div id="teste" class="cx2 divbox">
         
-                <div id="ve1" class="">
-                                
-                </div>
-                <div id="" class="vencimento">
-                        <table class="GeralXslt toggle box">
-                                       <tbody id="ve2" class="GeralXslt toggle box">       
-                                       </tbody>               
-                        </table>
-                </div>
+	<div id="ve1" class="">
 
-                <div id="frete" class="danfe vencimento">
-       
-                </div>
-                <div id="tpNF" class="danfe vencimento">
+	</div>
+	
+	<div id="" class="vencimento">
+		<table class="GeralXslt toggle box">
+			<tbody id="ve2" class="GeralXslt toggle box">       
+			</tbody>               
+		</table>
+	</div>
 
-                </div>
+	<div id="frete" class="danfe vencimento">
+	</div>
+	
+	<div id="tpNF" class="danfe vencimento">
+	</div>
+
+	<button class="mostrar" onclick="toggleColumns(['coluna1', 'coluna-3'])">Tabela Completa</button>
 
 </div>
 
@@ -53,35 +57,37 @@
 <div id="tabelaProdutos" class="tbl-aut-uso divbox">
         <table id="produtos" class="GeralXslt toggle box">
                 <thead>
-                        <tr class="table-row">
-                                <th>Nº</th>
-                                <th class="ref">Ref.</th>
-                                <th class="desc">Descrição do produto</th>
-                                <th>NCM<br>SH</th>
-                                <th>CST</th>
-                                <th>CFOP</th>
-                                <th>CESTE</th>
-                                <th>Emb</th>
-                                <th>QUANT</th>
-                                <th>VALOR<br>UNIT</th>
-                                <th>VALOR<br>TOTAL</th>
-                                <th>Desconto <br>Desonerado</th>
-                                <th>Desp<br>Trib</th>
-                                <th>B.CÁLC<br>ICMS</th>
-								<th>ALÍQ.<br>ICMS</th>
-                                <th>VALOR<br>ICMS</th>
-                                <th>B.ICMS<br>ST</th>
-                                <th>VALOR<br>ICMS_ST</th>
-								<th>CST<br>IPI</th>
-                                <th>VALOR<br>IPI</th>
-                                <th>ALÍQ.<br>IPI</th>
-								<th>CST</th>
-								<th>PIS<br>Conf</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody" class="sombra">
-    
-                    </tbody>
+					<tr class="table-row">
+						<th>Nº</th>
+						<th class="ref">Ref.</th>
+						<th class="desc">Descrição do produto</th>
+						<th>NCM<br>SH</th>
+						<th>CST</th>
+						<th>CFOP</th>
+						<th class="coluna1 coluna-oculta" style="color: red;" >CESTE</th>
+						<th>Emb</th>
+						<th>QUANT</th>
+						<th>VALOR<br>UNIT</th>
+						<th>VALOR<br>TOTAL</th>
+						<th>Desconto <br>Desonerado</th>
+						<th>Desp<br>Trib</th>
+						<th>B.CÁLC<br>ICMS</th>
+						<th>ALÍQ.<br>ICMS</th>
+						<th>VALOR<br>ICMS</th>
+						<th>B.ICMS<br>ST</th>
+						<th>VALOR<br>ICMS_ST</th>
+						<th>VALOR<br>IPI</th>
+						<th>ALÍQ.<br>IPI</th>
+						<th class="coluna1 coluna-oculta"style="color: red;">MVA</th>
+						<th class="coluna1 coluna-oculta"style="color: red;">CST IPI</th>
+						<th class="coluna1 coluna-oculta"style="color: red;">CST</th>
+						<th class="coluna1 coluna-oculta"style="color: red;">PIS</th>
+						<th class="coluna1 coluna-oculta"style="color: red;">Conf</th>
+					</tr>
+				</thead>
+				<tbody id="tbody" class="sombra">
+
+				</tbody>
         </table>
  
 </div>
@@ -121,6 +127,26 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 <script src="script/script.js" type="text/javascript"></script>
 <script src="script/moment.js"></script>
+
+<script>
+
+function toggleColumns(classNames) {
+            var tableContainer = document.getElementById('tabelaProdutos');
+            var table = tableContainer.getElementsByTagName('table')[0];
+
+            for (var i = 0; i < classNames.length; i++) {
+                var cells = table.getElementsByClassName(classNames[i]);
+                for (var j = 0; j < cells.length; j++) {
+                    var cell = cells[j];
+                    if (cell.classList.contains('coluna-oculta')) {
+                        cell.classList.remove('coluna-oculta');
+                    } else {
+                        cell.classList.add('coluna-oculta');
+                    }
+                }
+            }
+        }
+</script>
 
 </body>
 </html>

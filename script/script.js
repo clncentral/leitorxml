@@ -22,60 +22,47 @@ function carregarXML(xml) {
 
   
 	$(xmlDoc).find("infNFe>det").each( function() {
-    var unidade, vlunid, quntidade, pis, vtotal
+    var unidade, vlunid, quntidade, pis, confis, vtotal
         $(this).find("prod>uCom").text() == $(this).find("prod>uTrib").text() ? unidade = $(this).find("prod>uCom").text() : unidade = $(this).find("prod>uCom").text()+"<br>"+$(this).find("prod>uTrib").text()
         $(this).find("prod>qCom").text() == $(this).find("prod>qTrib").text() ? quntidade = Number($(this).find("prod>qCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : quntidade = Number($(this).find("prod>qCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3})+"<br>"+Number($(this).find("prod>qTrib").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3})
         $(this).find("prod>vUnCom").text() == $(this).find("prod>vUnTrib").text() ? vlunid = Number($(this).find("prod>vUnCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : vlunid = Number($(this).find("prod>vUnCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +"<br>"+Number($(this).find("prod>vUnTrib").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        pis = Number($(this).find("imposto>PIS>>pPIS").text()).toFixed(2)+"<br>"+Number($(this).find("imposto>COFINS>>pCOFINS").text()).toFixed(2)
+        pis = Number($(this).find("imposto>PIS>>pPIS").text()).toFixed(2)
+		confis = Number($(this).find("imposto>COFINS>>pCOFINS").text()).toFixed(2)
         vtotal = Number($(this).find("prod>vProd").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})
         var info = ""
-          info += "<tr class='table-row'>"
-          info += "<td>"+$(this).attr("nItem")+"</td>"
-          info += "<td>"+$(this).find("prod>cProd").text()+"<br>"+$(this).find("prod>cEAN").text()+"</td>"
-          info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+"</td>"
-          info += "<td>"+$(this).find("prod>NCM").text()+"</td>"
-          info += "<td>"+$(this).find("imposto>ICMS>>orig").text()+$(this).find("imposto>ICMS>>CST").text()+"</td>"
-          info += "<td>"+$(this).find("prod>CFOP").text()+"</td>"
-          info += "<td>"+$(this).find("prod>CEST").text()+"</td>"
-          info += "<td>"+unidade+"</td>"
-          info += "<td class='num'>"+quntidade+"</td>"
-          info += "<td class='num'>"+vlunid+"</td>"
-          info += "<td class='num'>"+vtotal+"</td>"
-          info += "<td>"+$(this).find("prod>vDesc").text()+"<br>"+$(this).find("imposto>ICMS>>vICMSDeson").text()+"</td>"
-          info += "<td>"+$(this).find("prod>vOutro").text()+"</td>"
-          info += "<td>"+Number($(this).find("imposto>ICMS>>vBC").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-	  info += "<td>"+Number($(this).find("imposto>ICMS>>pICMS").text())+"</td>"
-          info += "<td>"+Number($(this).find("imposto>ICMS>>vICMS").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-          info += "<td>"+Number($(this).find("imposto>ICMS>>vBCST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-          info += "<td>"+Number($(this).find("imposto>ICMS>>vICMSST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-          info += "<td>"+$(this).find("imposto>IPI>IPINT>CST").text()+"</td>"
-          info += "<td>"+Number($(this).find("imposto>IPI>>vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-          info += "<td>"+Number($(this).find("imposto>IPI>>pIPI").text())+"</td>"
-	  info += "<td>"+$(this).find("imposto>PIS>>CST").text()+"<br>"+$(this).find("imposto>COFINS>>CST").text()+"</td>"
-	  info += "<td>"+pis+"</td>"
-          "</tr>";
+			info += "<tr class='table-row'>"
+			info += "<td>"+$(this).attr("nItem")+"</td>"
+			info += "<td>"+$(this).find("prod>cProd").text()+"<br>"+$(this).find("prod>cEAN").text()+"</td>"
+			info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+"</td>"
+			info += "<td>"+$(this).find("prod>NCM").text()+"</td>"
+			info += "<td>"+$(this).find("imposto>ICMS>>orig").text()+$(this).find("imposto>ICMS>>CST").text()+"</td>"
+			info += "<td>"+$(this).find("prod>CFOP").text()+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>CEST").text()+"</td>"
+			info += "<td>"+unidade+"</td>"
+			info += "<td class='num'>"+quntidade+"</td>"
+			info += "<td class='num'>"+vlunid+"</td>"
+			info += "<td class='num'>"+vtotal+"</td>"
+			info += "<td>"+$(this).find("prod>vDesc").text()+"<br>"+$(this).find("imposto>ICMS>>vICMSDeson").text()+"</td>"
+			info += "<td>"+$(this).find("prod>vOutro").text()+"</td>"
+			info += "<td>"+Number($(this).find("imposto>ICMS>>vBC").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+			info += "<td>"+Number($(this).find("imposto>ICMS>>pICMS").text())+"</td>"
+			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMS").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+			info += "<td>"+Number($(this).find("imposto>ICMS>>vBCST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMSST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+			
+			info += "<td>"+Number($(this).find("imposto>IPI>>vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+			info += "<td>"+Number($(this).find("imposto>IPI>>pIPI").text())+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>pMVAST").text()+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>IPI>IPINT>CST").text()+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>PIS>>CST").text()+"<br>"+$(this).find("imposto>COFINS>>CST").text()+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+pis+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+confis+"</td>"
+			"</tr>";
         $("#tbody").append(info);
         $("#divarquivo").css('display', 'none')
         $("#dadosEnxuto").css('top', '1px')
 
-              
-        //Teste
-
-
-
-// Obtém todas as linhas da tabela
-const tableRows = document.querySelectorAll('.table-row');
-
-// Adiciona um ouvinte de evento de clique a cada linha
-tableRows.forEach((row) => {
-  row.addEventListener('click', () => {
-    // Alternar a classe 'selected' na linha clicada
-    row.classList.toggle('selected');
-  });
-});
-
-
-  
+ 
 });
 
 
@@ -251,7 +238,35 @@ tableRows.forEach((row) => {
        })
 
 
+//Selecionar
+
+// selecionar 
+	   
+var tabela = document.getElementById("tabelaProdutos");
+var linhas = tabela.getElementsByTagName("tr");
+
+for(var i = 0; i < linhas.length; i++){
+	var linha = linhas[i];
+	linha.addEventListener("click", function(){
+//Adicionar ao atual
+	selLinha(this, false); //Selecione apenas um
+//selLinha(this, true); //Selecione quantos quiser
+});
 }
-//Teste
 
+/**
+Caso passe true, você pode selecionar multiplas linhas.
+Caso passe false, você só pode selecionar uma linha por vez.
+**/
+function selLinha(linha, multiplos){
+	if(!multiplos){
+		var linhas = linha.parentElement.getElementsByTagName("tr");
+	for(var i = 0; i < linhas.length; i++){
+		var linha_ = linhas[i];
+		linha_.classList.remove("selecionado");    
+}
+}
+		linha.classList.toggle("selecionado");
+}
 
+}
