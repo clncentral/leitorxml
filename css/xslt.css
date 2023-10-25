@@ -32,18 +32,18 @@
 }
 
     .c1{
-        padding-left: 0px;
+        padding-left: 2px;
         text-align: left;
         border: solid 1px #d6c39e;
         background-color: #fff;
-        width: 30px;
+        width: 40px;
         }
     .c2{
-        padding-left: 0px;
+        padding-rigth: 2px;
         text-align: right;
         border: solid 1px #d6c39e;
         background-color: #fff;
-        width: 75px;
+        width: 80px;
         }
 
 .vencimento{
@@ -71,7 +71,7 @@
     font-size: 11px;
     font-family: Arial, Helvetica, sans-serif;
     background-color: transparent;
-    padding: 0px;
+    padding: 1px;
 }
 
 
