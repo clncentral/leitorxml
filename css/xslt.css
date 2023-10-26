@@ -73,13 +73,16 @@
     font-family: Arial, Helvetica, sans-serif;
     background-color: transparent;
     padding: 1px;
+
 }
 
 
 
 
+
+
 .box {
-    width: 99.8%;
+    width: 99.7%;
     border: 1px solid #c7a460;
     background-color: #f4edd5;
     margin: 0px 0px 0px 0px;
@@ -89,19 +92,19 @@
 }
 .divbox {
 	position: relative;
-	width: 99.8%;
-	border: 1px solid #c7a460;
-	background-color: #d0daced5;
+    width: 99.7%;
+    border: 1px solid #c7a460;
+    background-color: #d0daced5;
 	overflow: auto;
-
+    
 }
 
 .cx1{
-	height: 70px;
+	/*height: 70px;*/
 }
 
 .cx2{
-	height: 55px;
+	/*height: 55px;*/
 	display: flex;
     align-items: center;
 }
@@ -178,7 +181,6 @@ tr.col-2 td {
 div.tbl-aut-uso {
     background-color: #eee;
     border-radius: 5px;
-    padding: 2px 2px 2px 2px;
 }
 
 
@@ -265,12 +267,14 @@ span#tipo-ambiente {
 
 .ref {
 	padding: 2px;
-    width: auto;
+    width: 95px;
 }
 
 .nitem{
-    width: 3px;
+	text-align: center;
+    width: 15px;
 }
+
 
 
 .container {

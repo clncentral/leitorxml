@@ -31,7 +31,7 @@ function carregarXML(xml) {
         vtotal = Number($(this).find("prod>vProd").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})
         var info = ""
 			info += "<tr class='table-row'>"
-			info += "<td>"+$(this).attr("nItem")+"</td>"
+			info += "<td class='nitem'>"+$(this).attr("nItem")+"</td>"
 			info += "<td>"+$(this).find("prod>cProd").text()+"<br>"+$(this).find("prod>cEAN").text()+"</td>"
 			info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+"</td>"
 			info += "<td>"+$(this).find("prod>NCM").text()+"</td>"
