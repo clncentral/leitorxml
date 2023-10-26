@@ -263,7 +263,8 @@ span#tipo-ambiente {
 }
 
 .ref {
-    width: 8.5%;
+	padding: 2px;
+    width: auto;
 }
 
 .container {
