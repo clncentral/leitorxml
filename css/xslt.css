@@ -267,6 +267,11 @@ span#tipo-ambiente {
     width: auto;
 }
 
+.nitem{
+    width: 3px;
+}
+
+
 .container {
 border: 1px solid black; 
 text-align: left; /* Alinhe o conteúdo ao centro horizontalmente */
