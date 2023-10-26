@@ -49,7 +49,7 @@
 	<div id="tpNF" class="danfe vencimento tbl-aut-uso">
 	</div>
 
-	<button class="mostrar" onclick="toggleColumns(['coluna1', 'coluna-3'])">Tabela Completa</button>
+	<button id="botao" class="mostrar" onclick="toggleColumns(['coluna1', 'coluna-3'])">Mostrar +</button>
 
 </div>
 
@@ -69,8 +69,9 @@
 						<th>QUANT</th>
 						<th>VALOR<br>UNIT</th>
 						<th>VALOR<br>TOTAL</th>
-						<th>Desc.<br>Deson</th>
-						<th>Desp<br>Trib</th>
+						<th class='coluna1 coluna-oculta'  style="color: red;">Desc.</th>
+						<th class='coluna1 coluna-oculta' style="color: red;">Deson</th>
+						<th class='coluna1 coluna-oculta' style="color: red;">Desp Trib</th>
 						<th>B.CÁLC<br>ICMS</th>
 						<th>ALÍQ.<br>ICMS</th>
 						<th>VALOR<br>ICMS</th>
@@ -78,11 +79,11 @@
 						<th>VALOR<br>ICMS_ST</th>
 						<th>VALOR<br>IPI</th>
 						<th>ALÍQ.<br>IPI</th>
-						<th class="coluna1 coluna-oculta"style="color: red;">MVA</th>
-						<th class="coluna1 coluna-oculta"style="color: red;">CST IPI</th>
-						<th class="coluna1 coluna-oculta"style="color: red;">CST</th>
-						<th class="coluna1 coluna-oculta"style="color: red;">PIS</th>
-						<th class="coluna1 coluna-oculta"style="color: red;">Conf</th>
+						<th class="coluna1 coluna-oculta" style="color: red;">MVA</th>
+						<th class="coluna1 coluna-oculta" style="color: red;">CST IPI</th>
+						<th class="coluna1 coluna-oculta" style="color: red;">CST</th>
+						<th class="coluna1 coluna-oculta" style="color: red;">PIS</th>
+						<th class="coluna1 coluna-oculta" style="color: red;">Conf</th>
 					</tr>
 				</thead>
 				<tbody id="tbody" class="sombra">
@@ -145,6 +146,13 @@ function toggleColumns(classNames) {
                     }
                 }
             }
+			var botao = document.getElementById("botao");
+			if (botao.innerHTML === "Mostrar +") {
+				botao.innerHTML = "Mostrar -";
+			} else {
+				botao.innerHTML = "Mostrar +";
+			}
+			
         }
 </script>
 
