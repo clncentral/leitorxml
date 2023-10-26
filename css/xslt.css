@@ -89,10 +89,11 @@
 }
 .divbox {
 	position: relative;
-    width: 99.8%;
-    border: 1px solid #c7a460;
-    background-color: #d0daced5;
-    
+	width: 99.8%;
+	border: 1px solid #c7a460;
+	background-color: #d0daced5;
+	overflow: auto;
+
 }
 
 .cx1{
