@@ -213,7 +213,7 @@ function carregarXML(xml) {
        })
 
        $(xmlDoc).find("nfeProc").each( function() {
-        var chave = "Nf: "+$(this).find("ide>nNF").text()
+        var chave = " - Nf: "+$(this).find("ide>nNF").text()
 
 
         $('title').append(chave)
