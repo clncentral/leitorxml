@@ -213,10 +213,8 @@ function carregarXML(xml) {
        })
 
        $(xmlDoc).find("nfeProc").each( function() {
-        var chave = "EA - Nf: "+$(this).find("ide>nNF").text()
-
-	var minhaTag = document.querySelector("title");
-        $('minhaTag') = chave;
+        var chave = " Nf: "+$(this).find("ide>nNF").text()
+        $('title').append(chave)
        })
 
 
