@@ -215,8 +215,8 @@ function carregarXML(xml) {
        $(xmlDoc).find("nfeProc").each( function() {
         var chave = "EA - Nf: "+$(this).find("ide>nNF").text()
 
-
-        $('title') = chave;
+	var minhaTag = document.querySelector("title");
+        $('minhaTag') = chave;
        })
 
 
