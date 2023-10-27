@@ -1,4 +1,3 @@
-/*Configurações Gerais do XSLT */
     body{
         margin: 0px;
         padding: 0px;
@@ -105,7 +104,7 @@
 }
 
 .cx2{
-	/*height: 55px;*/
+	height: 55px;
 	display: flex;
     align-items: center;
 }
@@ -269,4 +268,152 @@ padding: 4px; /* Adicione preenchimento interno ao input */
     height: 30px;
     font-size: 20px;
     font-weight: bolder;
+}
+
+
+body{
+  font-family:sans-serif;  
+}
+
+.sombra{
+  width:80%;
+  margin:0 auto;
+  border:0;
+  box-shadow: 0 5px 30px darkgrey;
+  border-spacing: 0;
+}
+
+.sombra thead th{
+  font-weight: bold;
+  background-color: black;
+  color:white;
+  
+  padding:5px 10px;
+}
+
+.sombra tr td:last-child{
+  text-align: right;
+}
+
+/**Cores**/
+
+.sombra tr:nth-child(odd){
+  background-color: rgb(197, 89, 89);
+}
+
+/**Cor quando passar por cima**/
+.sombra tr:hover td{
+  background-color: #feffb7;
+}
+
+/**Cor quando selecionado**/
+#tbody tr.selecionado td{
+  background-color: #aff7ff;
+}
+
+
+
+button#visualizarDados{
+  background-color: white;
+  border: 1px solid black;
+  width:50%;
+  margin: 10px auto;
+  padding:10px 0;
+  display: block;
+  color: black;
+}
+
+
+
+.coluna-oculta {
+	display: none;
+}
+
+.mostrar {
+	position: absolute;
+	right: 0px;
+	margin: 10px;
+	
+	
+	
+	
+	background-color: #007bff; /* Cor de fundo do botão */
+    color: #fff; /* Cor do texto do botão */
+    padding: 10px 20px; /* Preenchimento interno */
+    font-size: 16px; /* Tamanho da fonte */
+    border: none; /* Sem borda */
+    border-radius: 5px; /* Borda arredondada */
+    cursor: pointer; /* Cursor de mão ao passar o mouse */
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2); /* Sombra suave */
+    transition: background-color 0.2s; /* Transição suave de cor de fundo*/
+}
+
+.mostrar:hover {
+    background-color: #0056b3; /* Mudar a cor de fundo ao passar o mouse */
+}
+
+
+
+#cabeca{
+    width: 100%;
+    height: 234px;
+    background-position: center;
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-image: url('../img/cabeca.png')
+    align-items: center;
+}
+div.borda{
+
+    border: 1px solid rgb(54, 0, 248);
+    border-radius: 4px;
+}
+#cabeca div{
+    float: left;
+}
+
+.emitente{
+    width: 560px;
+    height: calc(160px / 1.5);
+    text-align: center;
+    vertical-align: middle;
+   
+}
+.emitente table{
+    margin-top: 10px;
+    width: 100%;
+    text-align: center;
+}
+.danfe{
+    width: 230px;
+    height: calc(160px / 1.5);
+}
+
+.chave{
+    width: 560px;
+    height: calc(79px / 1.5);
+}
+.auto{
+    width: 560px;
+    height: calc(79px / 1.5);
+}
+.natureza{
+    width: 792px;
+    height: calc(33px / 1.5);
+}
+.protocolo{
+    width: 560px;
+    height: calc(33px / 1.5);
+}
+.ie{
+    width: 450px;
+    height: calc(33px / 1.5);
+}
+.ies{
+    width: 450px;
+    height: calc(33px / 1.5);
+}
+.cnpj-emit{
+    width: 450px;
+    height: calc(33px / 1.5);
 }
