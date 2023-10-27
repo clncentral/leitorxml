@@ -216,7 +216,7 @@ function carregarXML(xml) {
         var chave = "Nf: "+$(this).find("ide>nNF").text()
 
 		var tl = document.getElementById("titulo");
-		tl.innerHTML = "";
+		tl.innerHTML = ""
         $('title').append(chave)
        })
 
