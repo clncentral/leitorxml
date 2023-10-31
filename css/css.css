@@ -441,6 +441,11 @@ div.borda{
 .fechar {
     float: right;
     cursor: pointer;
+	font-size: 32px;
+	color: red;	
+}
+.fechar:hover {
+	color: blue;
 }
 
 .titulo-inovador {
