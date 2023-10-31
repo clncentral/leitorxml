@@ -90,8 +90,10 @@ function carregarXML(xml) {
         var tpNF = $(this).find("ide>tpNF").text()
         if(tpNF == 0){
           tpNF = 'Entrada'
-          $('body').css('color', 'red')
-          $(alert(`NF TIPO: 0 - ENTRADA`))          
+          $("#tudo").css('color', 'red')
+		  document.getElementById('tudo').style.display = 'none'
+		  document.getElementById("alerta").style.display = "block";
+          //$(alert(`NF TIPO: 0 - ENTRADA`))          
         }else{
           tpNF = 'Saida'
         }

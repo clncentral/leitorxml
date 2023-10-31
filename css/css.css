@@ -417,3 +417,44 @@ div.borda{
     width: 450px;
     height: calc(33px / 1.5);
 }
+
+
+#alerta {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #f3f3f3;
+	background-color: rgba(211,211,211, 0.7);
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+	z-index: 9999;
+}
+
+.oculto {
+    display: none;
+}
+
+.fechar {
+    float: right;
+    cursor: pointer;
+}
+
+.titulo-inovador {
+            font-family: "Helvetica Neue", sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff5733;
+            letter-spacing: 2px;
+        }
+		
+		.paragrafo-moderno {
+            font-family: "Arial", sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            text-align: justify;
+            color: #333;
+        }

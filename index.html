@@ -12,6 +12,14 @@
 	</head>
 <body>
 
+<div id="alerta" class="oculto">
+	<span class="fechar" onclick="fecharAlerta()">&times;</span>
+	<p class="titulo-inovador"> &#9940; Atenção!!</p>
+    <p class="paragrafo-moderno">Essa NF é do Tipo Entrada.<br>
+	Geralmente esse tipo de notas são operações interda de cada empresa, sendo assim não devemos dar entrada a menos que nossa emprea tenha feito uma venda e esta esteja devolvendo para nós. 	&#128513;</p>
+	
+</div>
+
 <div id="divarquivo" >
         <input type="file" id="idFile" accept=".xml" class="aligned-input" onchange="carregar(this)" >
 </div>
@@ -157,6 +165,11 @@ function toggleColumns(classNames) {
 			}
 			
         }
+		
+		function fecharAlerta() {
+    document.getElementById("alerta").style.display = "none";
+	document.getElementById('tudo').style.display = 'block'
+}
 </script>
 
 </body>
