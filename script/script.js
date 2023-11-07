@@ -155,7 +155,7 @@ function carregarXML(xml) {
         enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
         enx +="</tr>"
         enx += "<tr>"
-        enx += "<td colspan='3'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
+        enx += "<td colspan='4'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
 	enx += "<td><label>Emissão</label>"+emiss+"</td>"
 	enx += "<td><label>Saída</label>"+saida+"</td>"
         enx += "</tr>"
