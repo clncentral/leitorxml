@@ -152,7 +152,7 @@ function carregarXML(xml) {
 
 	}
         enx += "<td><label>Município</label>"+$(this).find("enderDest>xMun").text()+", "+$(this).find("enderDest>UF").text()+" - Cód.: "+$(this).find("enderDest>cMun").text()+"</td>"
-        enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
+        enx += "<td colspan='3'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
         enx +="</tr>"
         enx += "<tr>"
         enx += "<td colspan='4'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
