@@ -1,4 +1,4 @@
-﻿
+
 function carregar(fileInput) {
     var file = fileInput.files[0];
     var fileURL = URL.createObjectURL(file);
@@ -45,6 +45,7 @@ function carregarXML(xml) {
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>vDesc").text()+"</td>"
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>vICMSDeson").text()+"</td>"
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>vOutro").text()+"</td>"
+			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>vFCPST").text()+"</td>"
 			info += "<td>"+Number($(this).find("imposto>ICMS>>vBC").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
 			info += "<td>"+Number($(this).find("imposto>ICMS>>pICMS").text())+"</td>"
 			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMS").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
@@ -152,10 +153,10 @@ function carregarXML(xml) {
 
 	}
         enx += "<td><label>Município</label>"+$(this).find("enderDest>xMun").text()+", "+$(this).find("enderDest>UF").text()+" - Cód.: "+$(this).find("enderDest>cMun").text()+"</td>"
-        enx += "<td colspan='3'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
+        enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
         enx +="</tr>"
         enx += "<tr>"
-        enx += "<td colspan='4'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
+        enx += "<td colspan='3'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
 	enx += "<td><label>Emissão</label>"+emiss+"</td>"
 	enx += "<td><label>Saída</label>"+saida+"</td>"
         enx += "</tr>"
@@ -233,6 +234,7 @@ function carregarXML(xml) {
         infAdic += "<td>"+Number($(this).find("vBCST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
         infAdic += "<td>"+Number($(this).find("vST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
         infAdic += "<td>"+Number($(this).find("vOutro").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
+        infAdic += "<td>"+Number($(this).find("vFCPST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
         infAdic += "<td>"+Number($(this).find("vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
         infAdic += "<td>"+Number($(this).find("vProd").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
 	      infAdic += "<td>"+Number($(this).find("vNF").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
