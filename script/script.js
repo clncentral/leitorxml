@@ -33,7 +33,7 @@ function carregarXML(xml) {
 			info += "<tr class='table-row'>"
 			info += "<td class='nitem'>"+$(this).attr("nItem")+"</td>"
 			info += "<td>"+$(this).find("prod>cProd").text()+"<br>"+$(this).find("prod>cEAN").text()+"</td>"
-			info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+"</td>"
+			info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+" - "+"<font style='color: red;'>"+$(this).find("prod>xPed").text()+"</font></td>"
 			info += "<td>"+$(this).find("prod>NCM").text()+"</td>"
 			info += "<td>"+$(this).find("imposto>ICMS>>orig").text()+$(this).find("imposto>ICMS>>CST").text()+"</td>"
 			info += "<td>"+$(this).find("prod>CFOP").text()+"</td>"
@@ -194,7 +194,8 @@ function carregarXML(xml) {
         infAdic += "<tr>"
         infAdic += "<tr><td>"+$(this).find("infAdFisc").text()+"</td></tr>"
         infAdic += "<tr><td>"+$(this).find("infCpl").text()+"</td></tr>"
-	infAdic += "<tr><td>"+"NF de Ref.: "+$(this).find("ide>NFref").text()+"</td></tr>"
+		infAdic += "<tr><td style='color: red; font-weight: bold; font-size: 16px;'>"+"Pedido: "+$(this).find("compra>xPed").text()+"</td></tr>"
+		infAdic += "<tr><td>"+"NF de Ref.: "+$(this).find("ide>NFref").text()+"</td></tr>"
        "</tr>"
         $("#dadosAdic").append(infAdic)
        })
