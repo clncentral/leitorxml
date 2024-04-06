@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="Um Leitor de Arquivos XML NFe, com os campos necessarios para uma boa análise">
+		<link rel="stylesheet" href="css/css.css">
+		
+		<link rel="icon" href="img/crfxml.ico" type="image/x-icon">
+		<title id="titulo">EA - XML</title>
+	
+	</head>
+	
+	<style>
+
+		.parabola {
+    width: 90%;
+    max-width: 800px;
+    margin-top: 150px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  h1 {
+    color: #4CAF50; /* cor verde */
+  }
+		</style>
+	
+	
+<body>
+
+<div id="alerta" class="oculto">
+	<span class="fechar" onclick="fecharAlerta()">&#10007;
+
+</span>
+	<p class="titulo-inovador"> &#9940; Atenção!!</p>
+    <p class="paragrafo-moderno">Essa NF é do Tipo Entrada.<br>
+	Geralmente esse tipo de notas são operações interda de cada empresa, sendo assim não devemos dar entrada a menos que nossa emprea tenha feito uma venda e esta esteja devolvendo para nós. 	&#128513;</p>
+	
+</div>
+
+<div id="divarquivo" >
+        <input type="file" id="idFile" accept=".xml" class="aligned-input" onchange="carregar(this)" >
+</div>
+
+<div id="divarquivo2" class="parabola">
+  <h1>Parábola da demissão da 🐜 desmotivada</h1>
+  <p>Todos os dias, uma 🐜 chegava cedinho ao escritório e pegava duro no trabalho. A 🐜 era produtiva e feliz.</p>
+  <p>O gerente 🐝 estranhou a 🐜 trabalhar sem supervisão. Se ela era produtiva sem supervisão, seria ainda mais se fosse supervisionada. E colocou uma 🪳, que preparava belíssimos relatórios e tinha muita experiência, como supervisora.</p>
+  <p>A primeira preocupação da 🪳 foi a de padronizar o horário de entrada e saída da 🐜.</p>
+  <p>Logo, a 🪳 precisou de uma secretária para ajudar a preparar os relatórios e contratou também uma &#128375; para organizar os arquivos e controlar as ligações telefônicas.</p>
+  <p>O 🐝 ficou encantado com os relatórios da 🪳 e pediu também gráficos com indicadores e análise das tendências que eram mostradas em reuniões.</p>
+  <p>A 🪳, então, contratou uma 🪰, e comprou um computador com impressora colorida.</p>
+  <p>Logo, a 🐜 produtiva e feliz, começou a se lamentar de toda aquela movimentação de papéis e reuniões!</p>
+  <p>O 🐝 concluiu que era o momento de criar a função de gestor para a área onde a 🐜 produtiva e feliz, trabalhava. O cargo foi dado a uma cigarra, que mandou colocar carpete no seu escritório e comprar uma cadeira especial…</p>
+  <p>A nova gestora cigarra logo precisou de um computador e de uma assistente a pulga (sua assistente na empresa anterior) para ajudá-la a preparar um plano estratégico de melhorias e um controle do orçamento para a área onde trabalhava a 🐜, que já não cantarolava mais e cada dia se tornava mais chateada.</p>
+  <p>A cigarra, então, convenceu o gerente 🐝, que era preciso fazer uma pesquisa de clima. Mas, o 🐝, ao rever as finanças, se deu conta de que a unidade na qual a 🐜 trabalhava já não rendia como antes e contratou a &#129417;, uma prestigiada consultora, muito famosa, para que fizesse um diagnóstico da situação.</p>
+  <p>A &#129417; permaneceu três meses nos escritórios e emitiu um volumoso relatório, com vários volumes que concluía: Há muita gente nesta empresa!</p>
+  <p>E adivinha quem o 🐝 mandou demitir?</p>
+  <p>A 🐜, claro, porque ela andava muito desmotivada e aborrecida.</p>
+</div>
+
+<div id="tudo"> <!-- Inicio da Div TUDO -->
+	
+<div class="cx1 divbox ">
+	<div id="dadosnf" class="t">
+		<table class="GeralXslt t toggle box" style="padding: 2px;">
+			<tbody id="nf">                                       
+			</tbody>
+		</table>
+	</div>	
+	
+	<div id="dadosEnxuto" class="t">
+		<table class="GeralXslt t toggle box" style="padding: 2px;">
+			<tbody id="enx">       
+			</tbody>               
+		</table>
+	</div>
+</div>
+
+<div id="teste" class="cx2 divbox">
+        
+	<div id="ve1" class="">
+
+	</div>
+	
+	<div id="" class="vencimento">
+		<table class="GeralXslt tbl-aut-uso" style="padding: 2px;">
+			<tbody id="ve2" class="GeralXslt toggle box table-row">       
+			</tbody>               
+			</table>
+	</div>
+
+	<div id="frete" class="danfe vencimento tbl-aut-uso" style="padding: 2px;">
+	</div>
+	
+	<div id="tpNF" class="danfe vencimento tbl-aut-uso" style="padding: 2px;">
+	</div>
+
+	<button id="botao" class="mostrar" onclick="toggleColumns(['coluna1', 'coluna-3'])">Mostrar +</button>
+
+</div>
+
+
+<div id="tabelaProdutos" class="tbl-aut-uso divbox">
+	<table id="produtos" class="GeralXslt toggle box table-row cx3">
+		<thead>
+			<tr>
+				<th class ="nitem">Nº</th>
+				<th class="ref">Ref.</th>
+				<th class="desc">Descrição do produto</th>
+				<th>NCM<br>SH</th>
+				<th>CST</th>
+				<th>CFOP</th>
+				<th class="coluna1 coluna-oculta" style="color: red;" >CESTE</th>
+				<th>Emb</th>
+				<th>QUANT</th>
+				<th>VALOR<br>UNIT</th>
+				<th>VALOR<br>TOTAL</th>
+				<th class='coluna1 coluna-oculta'  style="color: red;">Desc.</th>
+				<th class='coluna1 coluna-oculta' style="color: red;">Deson</th>
+				<th class='coluna1 coluna-oculta' style="color: red;">Desp Trib</th>
+				<th class='coluna1 coluna-oculta' style="color: red;">FCP ST</th>
+				<th>B.CÁLC<br>ICMS</th>
+				<th>ALÍQ.<br>ICMS</th>
+				<th>VALOR<br>ICMS</th>
+				<th>B.ICMS<br>ST</th>
+				<th>VALOR<br>ICMS_ST</th>
+				<th>VALOR<br>IPI</th>
+				<th>ALÍQ.<br>IPI</th>
+				<th class="coluna1 coluna-oculta" style="color: red;">MVA</th>
+				<th class="coluna1 coluna-oculta" style="color: red;">CST IPI</th>
+				<th class="coluna1 coluna-oculta" style="color: red;">CST</th>
+				<th class="coluna1 coluna-oculta" style="color: red;">PIS</th>
+				<th class="coluna1 coluna-oculta" style="color: red;">Conf</th>
+			</tr>
+		</thead>
+		<tbody id="tbody" class="sombra">
+		
+		</tbody>
+	</table>
+ </div>
+<br>
+<div class="tbl-aut-uso divbox">
+        <table id="totais" class="GeralXslt toggle box">
+                <thead>
+                        <tr>
+                                <th>DESCONTOS</th>
+                                <th>ICMS<br>DESONERADO</th>
+                                <th>B.CÁLC<br>ICMS</th>
+                                <th>VALOR<br>ICMS</th>
+                                <th>B.ICMS<br>ST</th>
+                                <th>VALOR<br>ST</th>
+                                <th>DESPESAS</th>
+								<th>FCP ST</th>
+                                <th>VALOR<br>IPI</th>
+                                <th>VALOR TOTAL<br>MERCADORIA</th>
+                                <th>VALOR TOTAL<br>NF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="totaisNfs" class="sombra">
+    
+                    </tbody>
+        </table>
+</div>
+<br>
+
+
+<div class="divbox">
+                <table class="GeralXslt box">
+                        <tbody id="dadosAdic" onclick="selLinha()">                                       
+                        </tbody>
+                </table>
+</div>
+
+</div> <!-- Fim da Div tudo -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="script/script.js" type="text/javascript"></script>
+<script src="script/moment.js"></script>
+
+<script>
+
+function toggleColumns(classNames) {
+            var tableContainer = document.getElementById('tabelaProdutos');
+            var table = tableContainer.getElementsByTagName('table')[0];
+
+            for (var i = 0; i < classNames.length; i++) {
+                var cells = table.getElementsByClassName(classNames[i]);
+                for (var j = 0; j < cells.length; j++) {
+                    var cell = cells[j];
+                    if (cell.classList.contains('coluna-oculta')) {
+                        cell.classList.remove('coluna-oculta');
+                    } else {
+                        cell.classList.add('coluna-oculta');
+                    }
+                }
+            }
+			var botao = document.getElementById("botao");
+			if (botao.innerHTML === "Mostrar +") {
+				botao.innerHTML = "Mostrar -";
+			} else {
+				botao.innerHTML = "Mostrar +";
+			}
+			
+        }
+		
+		function fecharAlerta() {
+    document.getElementById("alerta").style.display = "none";
+	document.getElementById('tudo').style.display = 'block'
+}
+</script>
+
+</body>
+</html>
