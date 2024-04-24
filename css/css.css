@@ -447,19 +447,3 @@ div.borda{
 .fechar:hover {
 	color: blue;
 }
-
-.titulo-inovador {
-            font-family: "Helvetica Neue", sans-serif;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff5733;
-            letter-spacing: 2px;
-        }
-		
-		.paragrafo-moderno {
-            font-family: "Arial", sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            text-align: justify;
-            color: #333;
-        }
