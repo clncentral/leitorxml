@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function() {
         novoTopico.appendChild(novoLink);
 
         const hoje = new Date();
-        const umaSemanaEmMillis = 7 * 24 * 60 * 60 * 1000;
+        const umaSemanaEmMillis = 3 * 24 * 60 * 60 * 1000;
         const dataTopico = new Date(data);
         if (hoje - dataTopico <= umaSemanaEmMillis) {
             novoTopico.classList.add("novo");
