@@ -16,8 +16,8 @@
 }
 
 .column {
-  width: 15%; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
-  padding: 10px; /* Adiciona um espaçamento interno para separar as colunas */
+  width: 20%; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
+  padding: 2px; /* Adiciona um espaçamento interno para separar as colunas */
 }
 
 .topicos {
