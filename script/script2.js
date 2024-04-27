@@ -56,9 +56,11 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Exemplo de adição de tópicos
-    adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
-    adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
-    adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
-    adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
+	
+	adicionarTopico("O Preço da Fúria", "hist/o_preco_da_furia.html", "2024-04-30");
+	adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
+	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
+	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
+	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
     // Adicionar mais tópicos conforme necessário
 });
