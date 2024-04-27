@@ -32,4 +32,10 @@
 
 .novo {
   color: red;
+  font-size: 16px;
+}
+
+.velho {
+  color: black;
+  font-size: 12px;
 }

@@ -13,6 +13,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Função para adicionar um novo tópico
     function adicionarTopico(titulo, link, data) {
+        const dataTopico = new Date(data);
+        const hoje = new Date();
+
+        // Verifica se a data do tópico é maior que a data atual
+        if (dataTopico > hoje) {
+            return; // Não adiciona o tópico se a data for futura
+        }
+
         // Verifica se é necessário criar uma nova coluna
         if (colunas.length === 0 || colunas[colunas.length - 1].children.length >= 10) {
             criarNovaColuna(); // Cria uma nova coluna
@@ -25,7 +33,17 @@ document.addEventListener("DOMContentLoaded", function() {
         const novoTopico = document.createElement("div");
         novoTopico.classList.add("topico");
         const icone = document.createElement("span");
-        icone.textContent = "•"; // Caractere especial
+
+        // Define o símbolo do ícone com base na data do tópico
+        const umaSemanaEmMillis = 4 * 24 * 60 * 60 * 1000;
+        if (hoje - dataTopico <= umaSemanaEmMillis) {
+            icone.textContent = "⇒"; // Símbolo para tópicos recentes
+			novoTopico.classList.add("novo");
+        } else {
+            icone.textContent = "⇓"; // Símbolo para tópicos antigos
+			novoTopico.classList.add("velho");
+        }
+        
         icone.style.marginRight = "5px"; // Espaçamento entre o ícone e o título
         novoTopico.appendChild(icone);
         const novoLink = document.createElement("a");
@@ -34,18 +52,11 @@ document.addEventListener("DOMContentLoaded", function() {
         novoLink.target = "_blank";
         novoTopico.appendChild(novoLink);
 
-        const hoje = new Date();
-        const umaSemanaEmMillis = 4 * 24 * 60 * 60 * 1000;
-        const dataTopico = new Date(data);
-        if (hoje - dataTopico <= umaSemanaEmMillis) {
-            novoTopico.classList.add("novo");
-        }
-
         colunaMenosCheia.appendChild(novoTopico); // Adiciona o tópico à coluna menos cheia
     }
 
     // Exemplo de adição de tópicos
-    adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-26");
+    adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
     adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
     adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
     adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
