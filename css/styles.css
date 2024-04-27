@@ -16,7 +16,7 @@
 }
 
 .column {
-  width: 20%; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
+  width: auto; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
   padding: 2px; /* Adiciona um espaçamento interno para separar as colunas */
 }
 
