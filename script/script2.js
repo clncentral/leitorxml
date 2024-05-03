@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // Exemplo de adição de tópicos
 	//adicionarTopico("#", "hist/#.html", "2024-05-01");
 	//adicionarTopico("#", "hist/#.html", "2024-05-01");
-	//adicionarTopico("#", "hist/#.html", "2024-05-01");
+	adicionarTopico("Acessibilidade", "hist/acessibilidade.html", "2024-05-03");
 	adicionarTopico("Imortais", "hist/imortais.html", "2024-05-03");
 	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-02");
 	adicionarTopico("O Preço da Fúria", "hist/o_preco_da_furia.html", "2024-04-30");
