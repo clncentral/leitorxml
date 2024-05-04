@@ -33,3 +33,15 @@ p em {
     font-style: italic;
     color: #ddd;
 }
+
+
+.container {
+            position: relative;
+        }
+
+        .botoes-leitura {
+            position: absolute;
+            top: 0;
+            right: 0;
+            margin-top: 10px;
+        }
