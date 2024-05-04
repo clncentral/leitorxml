@@ -1,7 +1,7 @@
 // Variável global para armazenar o objeto SpeechSynthesisUtterance
 var utterance;
 
-// Variável global para controlar se a leitura está pausada
+// Variável global para controlar se a leitura está pausad
 var leituraPausada = false;
 
 // Variável global para armazenar os parágrafos da história
@@ -9,11 +9,12 @@ var paragrafos = [];
 var indiceAtual = 0;
 
 // Função para iniciar a leitura da história
+// Função para iniciar a leitura da história
 function iniciarLeitura() {
     // Obtém todos os parágrafos da história
     paragrafos = document.getElementsByClassName('paragrafo');
-	
-	// Reinicia o índice dos parágrafos
+    
+    // Reinicia o índice dos parágrafos
     indiceAtual = 0;
 
     // Inicializa o objeto SpeechSynthesisUtterance
@@ -27,6 +28,11 @@ function iniciarLeitura() {
 
     // Limpa o texto existente do objeto utterance
     utterance.text = '';
+
+    // Adiciona um evento para ler o próximo parágrafo quando a leitura do atual terminar
+    utterance.onend = function(event) {
+        lerProximoParagrafo();
+    };
 
     // Inicia a leitura do primeiro parágrafo
     lerProximoParagrafo();
