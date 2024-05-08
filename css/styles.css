@@ -17,7 +17,10 @@
 
 .column {
   width: auto; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
-  padding: 2px; /* Adiciona um espaçamento interno para separar as colunas */
+  padding: 10px; /* Adiciona um espaçamento interno para separar as colunas */
+  border-left: 5px solid #ddd; /* Cor da linha */
+  padding-left: 10px; /* Espaçamento entre a linha e o conteúdo */
+  box-shadow: 5px 0 5px -5px rgba(0, 0, 0, 0.5);
 }
 
 .topicos {
