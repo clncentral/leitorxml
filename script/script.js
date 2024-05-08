@@ -87,8 +87,12 @@ function carregarXML(xml) {
           nf += "</tr>"
         $("#nf").append(nf)
        })
+			// Teste se Autorizada
+		// Verifica se a tag nfeProc está presente no XML
+	if ($(xmlDoc).find("nfeProc").length > 0) {
+    // Se a tag nfeProc estiver presente, execute o código relacionado a ela
 
-       $(xmlDoc).find("nfeProc").each( function() {
+    $(xmlDoc).find("nfeProc").each( function() {
         var tpNF = $(this).find("ide>tpNF").text()
         if(tpNF == 0){
           tpNF = 'Entrada'
@@ -170,14 +174,133 @@ function carregarXML(xml) {
           $(alert(`Atenção!! Essa NF Não é do Enxuto.\nNF do ${razao}`))
 		loja =  razao
         }
-	$("#lj").css('color', 'red')
+		$("#lj").css('color', 'red')
       })
 
-      $(xmlDoc).find("nfeProc").each( function() {
-        //Function not utili        
-
-
+} else {
+    // Se a tag nfeProc não estiver presente, faça o tratamento apropriado aqui...
+    alert("XML inválido. XML Recebido Antes de Autorizada na SEFAZ");
+	
+    // Ou execute qualquer outra ação necessária para lidar com esse cenário
+	
+	$(xmlDoc).find("infNFe").each( function() {
+        var nf = ""
+          nf += "<tr>"
+          nf += "<td><label>Razão</label/>"+$(this).find("emit>xNome").text()+"</td>"
+          nf += "<td style='width: 120px;'><label>CNPJ Emit.</label/>"+$(this).find("emit>CNPJ").text()+"</td>"
+          nf += "<td style='width: 120px;'><label>IE Emit.</label/>"+$(this).find("emit>IE").text()+"</td>"
+          nf += "<td><label>Município</label/>"+$(this).find("enderEmit>xMun").text()+", "+$(this).find("enderEmit>UF").text()+" - Cód.: "+$(this).find("enderEmit>cMun").text()+"</td>"
+          nf +="</tr>"
+          nf += "<tr>"
+          nf += "<td colspan='4'><label>Natureza da Operação</label/>"+$(this).find("ide>natOp").text()+"</td>"
+          nf += "</tr>"
+        $("#nf").append(nf)
        })
+	
+	$(xmlDoc).find("infNFe").each( function() {
+        var tpNF = $(this).find("ide>tpNF").text()
+        if(tpNF == 0){
+          tpNF = 'Entrada'
+          $("#tudo").css('color', 'red')
+		  document.getElementById('tudo').style.display = 'none'
+		  document.getElementById("alerta").style.display = "block";
+          //$(alert(`NF TIPO: 0 - ENTRADA`))          
+        }else{
+          tpNF = 'Saida'
+        }
+        var razao = $(this).find("dest>xNome").text()
+        var loja
+        switch(String($(this).find("dest>CNPJ").text()) & String($(this).find("dest>IE").text())){
+            case '05789313000194' & '244762219116':
+            loja = 'Central'
+            break
+            case '05789313000607' & '276000625118':
+            loja = 'Loja 02'
+            break
+            case '05789313000518' & '244121997119':
+            loja = 'Loja 03'
+            break
+            case '05789313000437' & '587055882112':
+            loja = 'Loja 06'
+            break
+            case'05789313000356' & '535114683110':
+            loja = 'Loja 07'
+            break
+            case'05789313000780' & '244341560119':
+            loja = 'Loja 08'
+            break
+            case '05789313000860' & '417146805119':
+            loja = 'Loja 09'
+            break
+            case'05789313000275' & '587144653116':
+            loja = 'Loja 10'
+            break
+            case'05789313001247' & '671185036117':
+            loja = 'CD'
+            break
+            case'05789313001328' & '122100090119':
+            loja = 'Exn Aquí'
+            break
+            default:
+            loja = "ERRO: CNPJ/IE"
+            
+            break
+        }
+	var dataemissao =  new Date($(this).find("ide>dhEmi").text())
+	var datasaida = new Date($(this).find("ide>dhSaiEnt").text())
+	var emiss =  dataemissao.toLocaleDateString()
+	var saida =  datasaida.toLocaleDateString()
+        var enx = ""
+        enx += "<tr>"
+        enx += "<td><label>Nro NF</label/>"+$(this).find("ide>nNF").text()+"</td>"
+        if(tpNF == 'Entrada'){
+          enx += "<td><label>Tipo</label/>"+tpNF+"</td>"
+        }
+        if(loja == "ERRO: CNPJ/IE"){
+		enx += "<td id='rz'><label>Razão</label/>"+razao+"</td>"
+	}else{
+		enx += "<td id='lj'><label>Loja</label/>"+loja+"</td>"
+
+	}
+        enx += "<td><label>Município</label>"+$(this).find("enderDest>xMun").text()+", "+$(this).find("enderDest>UF").text()+" - Cód.: "+$(this).find("enderDest>cMun").text()+"</td>"
+        enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
+        enx +="</tr>"
+        enx += "<tr>"
+        enx += "<td colspan='3'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
+	enx += "<td><label>Emissão</label>"+emiss+"</td>"
+	enx += "<td><label>Saída</label>"+saida+"</td>"
+        enx += "</tr>"
+        $("#enx").append(enx)
+        $("head").append('<script src="script/slect.js"></script>')
+        if(loja == 'ERRO: CNPJ/IE'){
+          $('body').css('color', 'red')
+	  $('#rz').css({'font-family': 'Verdana', 'color':'blue' })
+	
+          $(alert(`Atenção!! Essa NF Não é do Enxuto.\nNF do ${razao}`))
+		loja =  razao
+        }
+		$("#lj").css('color', 'red')
+		
+      })
+	  $("body").append("<div id='mensagemNF'>XML Inválido, não Autorizado!!</div>");
+    // Adicione estilos CSS para a mensagem
+    $("#mensagemNF").css({
+        "position": "absolute",
+		"top": "93px",
+		"right": "50%",
+		"transform": "translateX(50%)",
+		"padding": "10px",
+		"background-color": "pink",
+		"color": "white",
+		"font-size": "36px",
+		"font-weight": "bold",
+		"border-radius": "5px",
+		"z-index": "9999"
+    });
+	 
+}
+
+
        $(xmlDoc).find("cobr>dup").each( function() {
         var vencimento = ""
         vencimento += "<tr>"

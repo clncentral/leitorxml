@@ -57,12 +57,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Exemplo de adição de tópicos
 	//adicionarTopico("#", "hist/#.html", "2024-05-01");
-	adicionarTopico("Jornada da Criatividade", "hist/lira.html", "2024-05-08");
-	adicionarTopico("\"O Canudo\"", "hist/empresa.html", "2024-05-07");
-	adicionarTopico("A Lição do Riacho", "hist/riacho.html", "2024-05-06");
-	adicionarTopico("Acessibilidade", "hist/acessibilidade.html", "2024-05-04");
-	adicionarTopico("Imortais", "hist/imortais.html", "2024-05-03");
-	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-02");
+	//adicionarTopico("#", "hist/#.html", "2024-05-01");
+	//adicionarTopico("#", "hist/#.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
+	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-01");
 	adicionarTopico("O Preço da Fúria", "hist/o_preco_da_furia.html", "2024-04-30");
 	adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
 	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
