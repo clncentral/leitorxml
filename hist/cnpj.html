@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Consulta de CNPJ</title>
+  <link rel="icon" href="../img/crfxml.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../css/historia.css">
+  <style>
+    .indent {
+      margin-left: 20px; /* Ajuste o valor conforme necessário para a indentação desejada */
+    }
+  </style>
+  <script>
+    async function consultarCNPJ() {
+      var cnpj = document.getElementById("cnpjInput").value;
+      var url = "https://publica.cnpj.ws/cnpj/" + cnpj;
+
+      try {
+        let response = await fetch(url);
+        let responseCode = response.status;
+        let resultDiv = document.getElementById("result");
+
+        if (responseCode == 200) {
+          let responseData = await response.json();
+          
+          let estabelecimento = responseData.estabelecimento;
+
+          resultDiv.innerHTML = `
+		  <br>
+		  <p class="indent"><strong>CNPJ:</strong> ${estabelecimento.cnpj}</p>
+		  <p class="indent"><strong>Situação CNPJ:</strong> ${estabelecimento.situacao_cadastral}</p>
+            <p class="indent"><strong>Inscrição Estadual:</strong> ${estabelecimento.inscricoes_estaduais.length > 0 ? estabelecimento.inscricoes_estaduais[0].inscricao_estadual : "N/A"}</p>
+            <p class="indent"><strong>Situação IE:</strong> ${estabelecimento.inscricoes_estaduais[0].ativo}</p>
+            <p class="indent"><strong>Cidade:</strong> ${estabelecimento.cidade.nome}</p>
+            <p class="indent"><strong>Bairro:</strong> ${estabelecimento.bairro}</p>
+            <p class="indent"><strong>Logradouro:</strong> ${estabelecimento.logradouro}</p>
+            <p class="indent"><strong>CEP:</strong> ${estabelecimento.cep}</p>
+            <p class="indent"><strong>Número:</strong> ${estabelecimento.numero}</p>
+          `;
+        } else if (responseCode == 400 || responseCode == 404) {
+          resultDiv.innerHTML = '<p class="indent">CNPJ não encontrado ou inválido.</p>';
+        } else {
+          resultDiv.innerHTML = `<p class="indent">Erro: ${responseCode}</p>`;
+        }
+      } catch (error) {
+        document.getElementById("result").innerHTML = `<p class="indent">Erro: ${error.message}</p>`;
+      }
+    }
+  </script>
+</head>
+<body>
+<div class="container">	
+  <h1>Consulta de CNPJ</h1>
+  <label for="cnpjInput">Digite o CNPJ:</label>
+  <input type="text" id="cnpjInput" name="cnpjInput">
+  <button onclick="consultarCNPJ()">Consultar</button>
+  <div id="result"></div>
+  </div>
+</body>
+</html>
