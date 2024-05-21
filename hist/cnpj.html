@@ -3,15 +3,71 @@
 <head>
   <title>Consulta de CNPJ</title>
   <link rel="icon" href="../img/crfxml.ico" type="image/x-icon">
-    <link rel="stylesheet" href="../css/historia.css">
+  <link rel="stylesheet" href="../css/historia.css">
   <style>
+   body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+	text-align: center;
+      display: block;
+      margin-bottom: 10px;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 30%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+	  align-items: center;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .result-section {
+      margin-top: 20px;
+      text-align: left; /* Alinha o resultado à esquerda */
+    }
+    .result-section strong {
+      color: #333;
+    }
+    .result-section p {
+      margin: 5px 0;
+      color: #555;
+    }
     .indent {
-      margin-left: 20px; /* Ajuste o valor conforme necessário para a indentação desejada */
+      margin-left: 20px;
     }
   </style>
   <script>
+    function limparCNPJ(cnpj) {
+      return cnpj.replace(/[^\d]/g, '');
+    }
+
     async function consultarCNPJ() {
-      var cnpj = document.getElementById("cnpjInput").value;
+      var cnpjInput = document.getElementById("cnpjInput").value;
+      var cnpj = limparCNPJ(cnpjInput); // Limpar o CNPJ antes de usar
       var url = "https://publica.cnpj.ws/cnpj/" + cnpj;
 
       try {
@@ -21,20 +77,41 @@
 
         if (responseCode == 200) {
           let responseData = await response.json();
-          
           let estabelecimento = responseData.estabelecimento;
+          let outros = responseData;
+          let inscricoesEstaduais = estabelecimento.inscricoes_estaduais;
+
+          // Construir a string das inscrições estaduais com UF
+          let inscricoesStr = inscricoesEstaduais.map(ie => {
+            let status = ie.ativo ? "Ativo" : "Inativo";
+            return `<strong>IE:</strong> ${ie.inscricao_estadual}\tUF: ${ie.estado.sigla}\tStatus: ${status}<br>`;
+          }).join('');
 
           resultDiv.innerHTML = `
-		  <br>
-		  <p class="indent"><strong>CNPJ:</strong> ${estabelecimento.cnpj}</p>
-		  <p class="indent"><strong>Situação CNPJ:</strong> ${estabelecimento.situacao_cadastral}</p>
-            <p class="indent"><strong>Inscrição Estadual:</strong> ${estabelecimento.inscricoes_estaduais.length > 0 ? estabelecimento.inscricoes_estaduais[0].inscricao_estadual : "N/A"}</p>
-            <p class="indent"><strong>Situação IE:</strong> ${estabelecimento.inscricoes_estaduais[0].ativo}</p>
-            <p class="indent"><strong>Cidade:</strong> ${estabelecimento.cidade.nome}</p>
-            <p class="indent"><strong>Bairro:</strong> ${estabelecimento.bairro}</p>
-            <p class="indent"><strong>Logradouro:</strong> ${estabelecimento.logradouro}</p>
-            <p class="indent"><strong>CEP:</strong> ${estabelecimento.cep}</p>
-            <p class="indent"><strong>Número:</strong> ${estabelecimento.numero}</p>
+            <div class="result-section">
+              <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
+              <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} \tSituação CNPJ: ${estabelecimento.situacao_cadastral}</p>
+			  <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
+            </div>
+            <div class="result-section">
+              <p><strong>Inscrições Estaduais:</strong></p>
+              <p class="indent">${inscricoesStr || "N/A"}</p>
+            </div>
+            <div class="result-section">
+              <p><strong>Endereço:</strong></p>
+              <p class="indent"><strong>Estado:</strong> ${estabelecimento.estado.nome}</p>
+              <p class="indent"><strong>Cidade:</strong> ${estabelecimento.cidade.nome} \tCód. IBGE: ${estabelecimento.cidade.ibge_id}</p>
+              <p class="indent"><strong>Bairro:</strong> ${estabelecimento.bairro}</p>
+              <p class="indent"><strong>Logradouro:</strong> ${estabelecimento.logradouro}</p>
+              <p class="indent"><strong>Número:</strong> ${estabelecimento.numero} \t<strong>Complemento:</strong> ${estabelecimento.complemento}</p>
+              <p class="indent"><strong>CEP:</strong> ${estabelecimento.cep}</p>
+            </div>
+            <div class="result-section">
+              <p><strong>Contatos:</strong></p>
+              <p class="indent"><strong>Telefone 1:</strong> ${estabelecimento.ddd1 ? `(${estabelecimento.ddd1}) ` : ""}${estabelecimento.telefone1 || "N/A"}</p>
+              <p class="indent"><strong>Telefone 2:</strong> ${estabelecimento.ddd2 ? `(${estabelecimento.ddd2}) ` : ""}${estabelecimento.telefone2 || "N/A"}</p>
+              <p class="indent"><strong>E-mail:</strong> ${estabelecimento.email || "N/A"}</p>
+            </div>
           `;
         } else if (responseCode == 400 || responseCode == 404) {
           resultDiv.innerHTML = '<p class="indent">CNPJ não encontrado ou inválido.</p>';
@@ -45,15 +122,23 @@
         document.getElementById("result").innerHTML = `<p class="indent">Erro: ${error.message}</p>`;
       }
     }
+
+    // Adicionar evento para pressionar Enter
+    document.addEventListener("DOMContentLoaded", function() {
+      var cnpjInput = document.getElementById("cnpjInput");
+      cnpjInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+          consultarCNPJ();
+        }
+      });
+    });
   </script>
 </head>
 <body>
-<div class="container">	
+<div class="container">
   <h1>Consulta de CNPJ</h1>
-  <label for="cnpjInput">Digite o CNPJ:</label>
-  <input type="text" id="cnpjInput" name="cnpjInput">
-  <button onclick="consultarCNPJ()">Consultar</button>
+  <label for="cnpjInput"><input type="text" id="cnpjInput" name="cnpjInput"></label>
   <div id="result"></div>
-  </div>
+</div>
 </body>
 </html>
