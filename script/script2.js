@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("A Grande Purgação", "hist/cap3.html", "2024-05-29");
 	adicionarTopico("A Ascensão de Uther", "hist/cap2.html", "2024-05-28");
 	adicionarTopico("A Lenda de Cornelius Sigan", "hist/cap1.html", "2024-05-27");
-	adicionarTopico("Ilha perdida", "hist/icaro.html", "2024-05-27");
+	adicionarTopico("Ilha perdida", "hist/icaro.html", "2024-05-29");
 	adicionarTopico("Jornada da Criatividade", "hist/lira.html", "2024-05-08");
 	adicionarTopico("\"O Canudo\"", "hist/empresa.html", "2024-05-07");
 	adicionarTopico("A Lição do Riacho", "hist/riacho.html", "2024-05-06");
