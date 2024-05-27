@@ -57,8 +57,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Exemplo de adição de tópicos
 	 // Exemplo de adição de tópicos
-	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
-	adicionarTopico("Ilha perdida", "hist/icaro.html", "2024-05-09");
+	adicionarTopico("Ilha perdida", "hist/cap6.html", "2024-06-04");
+	adicionarTopico("Ilha perdida", "hist/cap5.html", "2024-06-03");
+	adicionarTopico("Ilha perdida", "hist/cap4.html", "2024-05-31");
+	adicionarTopico("Ilha perdida", "hist/cap3.html", "2024-05-29");
+	adicionarTopico("Ilha perdida", "hist/cap2.html", "2024-05-28");
+	adicionarTopico("Ilha perdida", "hist/cap1.html", "2024-05-27");
 	adicionarTopico("Jornada da Criatividade", "hist/lira.html", "2024-05-08");
 	adicionarTopico("\"O Canudo\"", "hist/empresa.html", "2024-05-07");
 	adicionarTopico("A Lição do Riacho", "hist/riacho.html", "2024-05-06");
@@ -70,5 +74,6 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
 	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
 	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
+	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
     // Adicionar mais tópicos conforme necessário
 });
