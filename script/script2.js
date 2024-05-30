@@ -57,7 +57,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Exemplo de adição de tópicos
 	 // Exemplo de adição de tópicos
-	adicionarTopico("#", "hist/cap6.html", "2024-06-04");
+	adicionarTopico("#", "hist/cap7.html", "2024-06-05");
+	adicionarTopico("A Chegada de Merlin", "hist/cap6.html", "2024-06-04");
 	adicionarTopico("O Nascimento de Merlin", "hist/cap5.html", "2024-06-03");
 	adicionarTopico("O Crescimento de Arthur", "hist/cap4.html", "2024-05-31");
 	adicionarTopico("A Grande Purgação", "hist/cap3.html", "2024-05-29");
