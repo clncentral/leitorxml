@@ -5,7 +5,7 @@
   <link rel="icon" href="../img/crfxml.ico" type="image/x-icon">
   <link rel="stylesheet" href="../css/historia.css">
   <style>
-   body {
+    body {
       font-family: Arial, sans-serif;
       background-color: #f5f5f5;
       margin: 0;
@@ -20,7 +20,7 @@
       color: #333;
     }
     label {
-	text-align: center;
+      text-align: center;
       display: block;
       margin-bottom: 10px;
       color: #555;
@@ -31,7 +31,7 @@
       margin-bottom: 20px;
       border: 1px solid #ddd;
       border-radius: 5px;
-	  align-items: center;
+      align-items: center;
     }
     button {
       width: 100%;
@@ -47,7 +47,7 @@
     }
     .result-section {
       margin-top: 20px;
-      text-align: left; /* Alinha o resultado à esquerda */
+      text-align: left;
     }
     .result-section strong {
       color: #333;
@@ -59,10 +59,43 @@
     .indent {
       margin-left: 20px;
     }
+    hr {
+      border: 0;
+      border-top: 1px solid #ccc;
+      margin: 20px 0;
+    }
   </style>
   <script>
     function limparCNPJ(cnpj) {
       return cnpj.replace(/[^\d]/g, '');
+    }
+
+    async function consultarCEP(cep) {
+      var url = "https://viacep.com.br/ws/" + cep + "/json/";
+      try {
+        let response = await fetch(url);
+        let responseCode = response.status;
+        let resultDiv = document.getElementById("cepResult");
+
+        if (responseCode == 200) {
+          let responseData = await response.json();
+          resultDiv.innerHTML = `
+            <div class="result-section">
+              <p><strong>CEP:</strong> ${responseData.cep}</p>
+              <p><strong>Logradouro:</strong> ${responseData.logradouro}</p>
+              <p><strong>Complemento:</strong> ${responseData.complemento}</p>
+              <p><strong>Bairro:</strong> ${responseData.bairro}</p>
+              <p><strong>Localidade:</strong> ${responseData.localidade}</p>
+              <p><strong>UF:</strong> ${responseData.uf}</p>
+              <p><strong>IBGE:</strong> ${responseData.ibge}</p>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p class="indent">Erro ao consultar o CEP: ${responseCode}</p>`;
+        }
+      } catch (error) {
+        document.getElementById("cepResult").innerHTML = `<p class="indent">Erro: ${error.message}</p>`;
+      }
     }
 
     async function consultarCNPJ() {
@@ -91,7 +124,7 @@
             <div class="result-section">
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
               <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} \tSituação CNPJ: ${estabelecimento.situacao_cadastral}</p>
-			  <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
+              <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
             </div>
             <div class="result-section">
               <p><strong>Inscrições Estaduais:</strong></p>
@@ -113,6 +146,10 @@
               <p class="indent"><strong>E-mail:</strong> ${estabelecimento.email || "N/A"}</p>
             </div>
           `;
+
+          // Consultar o CEP do estabelecimento
+          consultarCEP(estabelecimento.cep);
+
         } else if (responseCode == 400 || responseCode == 404) {
           resultDiv.innerHTML = '<p class="indent">CNPJ não encontrado ou inválido.</p>';
         } else {
@@ -135,10 +172,13 @@
   </script>
 </head>
 <body>
-<div class="container">
-  <h1>Consulta de CNPJ</h1>
-  <label for="cnpjInput"><input type="text" id="cnpjInput" name="cnpjInput"></label>
-  <div id="result"></div>
-</div>
+  <div class="container">
+    <h1>Consulta de CNPJ</h1>
+    <label for="cnpjInput"><input type="text" id="cnpjInput" name="cnpjInput"></label>
+    <div id="result"></div>
+    <hr>
+    <h1>Validação de CEP</h1>
+    <div id="cepResult"></div>
+  </div>
 </body>
 </html>
