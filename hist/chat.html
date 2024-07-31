@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Analytic</title>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7TXFPSSW0"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-Y7TXFPSSW0');
+    </script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script>
+        // Sua configuração do Firebase
+        var firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        var database = firebase.database();
+    </script>
+    <style>
+        #chatbox {
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 300px;
+            height: 400px;
+            overflow-y: scroll;
+        }
+        #messageInput {
+            width: calc(100% - 20px);
+        }
+        #messages {
+            list-style-type: none;
+            padding: 0;
+        }
+        #usernameInput {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google Analytic</h1>
+    <div id="chatbox">
+        <ul id="messages"></ul>
+    </div>
+    <input id="messageInput" type="text" placeholder="Digite sua mensagem">
+    <input id="usernameInput" type="text" placeholder="Digite seu nome">
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verifica se o nome do usuário já está armazenado
+            var storedUsername = localStorage.getItem('username');
+            if (!storedUsername) {
+                var username = prompt('Por favor, digite seu nome:');
+                if (username) {
+                    localStorage.setItem('username', username);
+                }
+            } else {
+                document.getElementById('usernameInput').value = storedUsername;
+            }
+        });
+
+        document.getElementById('messageInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            var message = document.getElementById('messageInput').value;
+            var username = localStorage.getItem('username') || 'Anônimo';
+            if (message.trim() !== '') {
+                database.ref('messages').push().set({
+                    username: username,
+                    message: message,
+                    timestamp: new Date().toISOString()
+                });
+                document.getElementById('messageInput').value = ''; // Limpar o campo de entrada após enviar
+            }
+        }
+
+        database.ref('messages').on('child_added', function(snapshot) {
+            var data = snapshot.val();
+            var message = data.username + ' diz: ' + data.message;
+            var li = document.createElement('li');
+            li.textContent = message;
+            document.getElementById('messages').appendChild(li);
+        });
+    </script>
+</body>
+</html>
