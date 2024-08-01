@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Central</title> <!-- Atualize o título aqui -->
+    <title>Chat Central</title>
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7TXFPSSW0"></script>
     <script>
@@ -50,8 +50,8 @@
         #chatbox {
             border: 1px solid #ccc;
             padding: 20px;
-            width: 400px;
-            height: 500px;
+            width: 600px;
+            height: 700px;
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             display: flex;
@@ -71,6 +71,14 @@
             margin-bottom: 10px;
             border-radius: 5px;
             background-color: #f1f1f1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-time {
+            font-size: 0.8em;
+            color: #777;
+            text-align: right;
         }
 
         #messageInputContainer {
@@ -103,7 +111,7 @@
 </head>
 <body>
     <div id="chatbox">
-        <h1>CRF Connect</h1>
+        <h1>Chat Central</h1>
         <input id="usernameInput" type="text" placeholder="Digite seu nome">
         <ul id="messages"></ul>
         <div id="messageInputContainer">
@@ -136,27 +144,43 @@
             var message = document.getElementById('messageInput').value;
             var username = localStorage.getItem('username') || 'Anônimo';
             if (message.trim() !== '') {
+                var now = new Date();
+                var timestamp = now.toISOString();
                 database.ref('messages').push().set({
                     username: username,
                     message: message,
-                    timestamp: new Date().toISOString()
+                    timestamp: timestamp
                 });
                 document.getElementById('messageInput').value = ''; // Limpar o campo de entrada após enviar
             }
         }
 
+        var lastUsername = '';
         database.ref('messages').on('child_added', function(snapshot) {
             var data = snapshot.val();
             var message = data.username + ' diz: ' + data.message;
-            var li = document.createElement('li');
-            li.textContent = message;
-            li.classList.add('new-message'); // Adiciona classe de nova mensagem
-            document.getElementById('messages').appendChild(li);
+            var messageTime = new Date(data.timestamp).toLocaleString('pt-BR');
             
-            // Remove a classe de nova mensagem após alguns segundos
-            setTimeout(function() {
-                li.classList.remove('new-message');
-            }, 5000);
+            var li;
+            if (data.username === lastUsername) {
+                // Se o usuário é o mesmo, adicione a mensagem ao último li
+                var lastLi = document.getElementById('messages').lastChild;
+                lastLi.innerHTML += '<br>' + data.message;
+                lastLi.querySelector('.message-time').textContent = messageTime;
+            } else {
+                // Se o usuário é diferente, crie um novo li
+                li = document.createElement('li');
+                li.innerHTML = data.username + ' diz: ' + data.message + '<div class="message-time">' + messageTime + '</div>';
+                li.classList.add('new-message'); // Adiciona classe de nova mensagem
+                document.getElementById('messages').appendChild(li);
+                
+                // Remove a classe de nova mensagem após alguns segundos
+                setTimeout(function() {
+                    li.classList.remove('new-message');
+                }, 5000);
+
+                lastUsername = data.username; // Atualiza o último usuário
+            }
         });
     </script>
 </body>
