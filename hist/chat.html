@@ -32,32 +32,79 @@
         var database = firebase.database();
     </script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
         #chatbox {
             border: 1px solid #ccc;
-            padding: 10px;
-            width: 300px;
-            height: 400px;
-            overflow-y: scroll;
+            padding: 20px;
+            width: 400px;
+            height: 500px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
         }
-        #messageInput {
-            width: calc(100% - 20px);
-        }
+
         #messages {
             list-style-type: none;
             padding: 0;
+            margin: 0;
+            flex-grow: 1;
+            overflow-y: auto;
         }
-        #usernameInput {
+
+        #messages li {
+            padding: 10px;
             margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f1f1f1;
+        }
+
+        #messageInputContainer {
+            display: flex;
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        #usernameInput {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: calc(100% - 22px);
         }
     </style>
 </head>
 <body>
-    <h1>Google Analytico</h1>
     <div id="chatbox">
+        <h1>Google Analytic</h1>
+        <input id="usernameInput" type="text" placeholder="Digite seu nome">
         <ul id="messages"></ul>
+        <div id="messageInputContainer">
+            <input id="messageInput" type="text" placeholder="Digite sua mensagem">
+        </div>
     </div>
-    <input id="messageInput" type="text" placeholder="Digite sua mensagem">
-    <input id="usernameInput" type="text" placeholder="Digite seu nome">
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -67,6 +114,7 @@
                 var username = prompt('Por favor, digite seu nome:');
                 if (username) {
                     localStorage.setItem('username', username);
+                    document.getElementById('usernameInput').value = username;
                 }
             } else {
                 document.getElementById('usernameInput').value = storedUsername;
