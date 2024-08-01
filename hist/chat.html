@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
-    <link rel="icon" href="../img/crfxml.ico" type="image/x-icon">
-  <link rel="stylesheet" href="../css/historia.css">
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7TXFPSSW0"></script>
     <script>
@@ -18,7 +16,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <script>
-        // Sua configuração do Firebase
         var firebaseConfig = {
             apiKey: "AIzaSyBcqNPzEhjhqiomi1dIeey7pnHB_3XUQ34",
             authDomain: "leitorxml-bc52e.firebaseapp.com",
@@ -29,7 +26,6 @@
             appId: "1:735146466178:web:a4398db9f0dd2253704d9b",
             measurementId: "G-PBXN0SVCPR"
         };
-        // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         var database = firebase.database();
     </script>
@@ -50,14 +46,14 @@
         }
 
         #chatbox {
-            border: 1px solid #ccc;
-            padding: 20px;
             width: 60vw;
             height: 80vh;
+            border: 1px solid #ccc;
+            padding: 20px;
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             display: flex;
-            flex-direction: column;            
+            flex-direction: column;
         }
 
         #messages {
@@ -96,25 +92,50 @@
             font-size: 16px;
         }
 
-        #usernameInput {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-bottom: 10px;
-            width: calc(100% - 22px);
-            display: none;
+        .new-message {
+            background-color: #d4edda;
         }
 
-        .new-message {
-            background-color: #d4edda; /* Light green background for new messages */
+        #settings {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        #settings input[type="color"] {
+            width: 50px;
+        }
+
+        #settings select,
+        #settings input[type="checkbox"] {
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
     <div id="chatbox">
-        <h1>CRF Connect</h1>
-        <input id="usernameInput" type="text" placeholder="Digite seu nome">
+        <h1>Chat Central</h1>
+        <div id="settings">
+            <div>
+                <label for="usernameInput">Nome:</label>
+                <input id="usernameInput" type="text" placeholder="Digite seu nome">
+                <label for="colorInput">Cor:</label>
+                <input id="colorInput" type="color">
+            </div>
+            <div>
+                <label for="fontSelect">Fonte:</label>
+                <select id="fontSelect">
+                    <option value="Arial">Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                </select>
+                <label for="boldCheckbox">Negrito</label>
+                <input id="boldCheckbox" type="checkbox">
+                <label for="italicCheckbox">Itálico</label>
+                <input id="italicCheckbox" type="checkbox">
+            </div>
+        </div>
         <ul id="messages"></ul>
         <div id="messageInputContainer">
             <input id="messageInput" type="text" placeholder="Digite sua mensagem">
@@ -123,8 +144,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Verifica se o nome do usuário já está armazenado
             var storedUsername = localStorage.getItem('username');
+            var storedColor = localStorage.getItem('color') || '#000000';
+            var storedFont = localStorage.getItem('font') || 'Arial';
+            var storedBold = localStorage.getItem('bold') === 'true';
+            var storedItalic = localStorage.getItem('italic') === 'true';
+
             if (!storedUsername) {
                 var username = prompt('Por favor, digite seu nome:');
                 if (username) {
@@ -134,6 +159,31 @@
             } else {
                 document.getElementById('usernameInput').value = storedUsername;
             }
+
+            document.getElementById('colorInput').value = storedColor;
+            document.getElementById('fontSelect').value = storedFont;
+            document.getElementById('boldCheckbox').checked = storedBold;
+            document.getElementById('italicCheckbox').checked = storedItalic;
+
+            document.getElementById('colorInput').addEventListener('input', function() {
+                var color = document.getElementById('colorInput').value;
+                localStorage.setItem('color', color);
+            });
+
+            document.getElementById('fontSelect').addEventListener('change', function() {
+                var font = document.getElementById('fontSelect').value;
+                localStorage.setItem('font', font);
+            });
+
+            document.getElementById('boldCheckbox').addEventListener('change', function() {
+                var bold = document.getElementById('boldCheckbox').checked;
+                localStorage.setItem('bold', bold);
+            });
+
+            document.getElementById('italicCheckbox').addEventListener('change', function() {
+                var italic = document.getElementById('italicCheckbox').checked;
+                localStorage.setItem('italic', italic);
+            });
         });
 
         document.getElementById('messageInput').addEventListener('keypress', function(event) {
@@ -145,43 +195,47 @@
         function sendMessage() {
             var message = document.getElementById('messageInput').value;
             var username = localStorage.getItem('username') || 'Anônimo';
+            var color = localStorage.getItem('color') || '#000000';
+            var font = localStorage.getItem('font') || 'Arial';
+            var bold = localStorage.getItem('bold') === 'true' ? 'bold' : 'normal';
+            var italic = localStorage.getItem('italic') === 'true' ? 'italic' : 'normal';
             if (message.trim() !== '') {
                 var now = new Date();
                 var timestamp = now.toISOString();
                 database.ref('messages').push().set({
                     username: username,
                     message: message,
+                    color: color,
+                    font: font,
+                    bold: bold,
+                    italic: italic,
                     timestamp: timestamp
                 });
-                document.getElementById('messageInput').value = ''; // Limpar o campo de entrada após enviar
+                document.getElementById('messageInput').value = '';
             }
         }
 
         var lastUsername = '';
         database.ref('messages').on('child_added', function(snapshot) {
             var data = snapshot.val();
-            var message = data.username + ' diz: ' + data.message;
             var messageTime = new Date(data.timestamp).toLocaleString('pt-BR');
-            
+
             var li;
             if (data.username === lastUsername) {
-                // Se o usuário é o mesmo, adicione a mensagem ao último li
                 var lastLi = document.getElementById('messages').lastChild;
                 lastLi.innerHTML += '<br>' + data.message;
                 lastLi.querySelector('.message-time').textContent = messageTime;
             } else {
-                // Se o usuário é diferente, crie um novo li
                 li = document.createElement('li');
-                li.innerHTML = data.username + ' diz: ' + data.message + '<div class="message-time">' + messageTime + '</div>';
-                li.classList.add('new-message'); // Adiciona classe de nova mensagem
+                li.innerHTML = `<span style="color:${data.color}; font-family:${data.font}; font-weight:${data.bold}; font-style:${data.italic};">${data.username} diz: ${data.message}</span><div class="message-time">${messageTime}</div>`;
+                li.classList.add('new-message');
                 document.getElementById('messages').appendChild(li);
-                
-                // Remove a classe de nova mensagem após alguns segundos
+
                 setTimeout(function() {
                     li.classList.remove('new-message');
                 }, 5000);
 
-                lastUsername = data.username; // Atualiza o último usuário
+                lastUsername = data.username;
             }
         });
     </script>
