@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
+    <title>Chat Central</title>
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7TXFPSSW0"></script>
     <script>
@@ -54,6 +54,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         #messages {
@@ -141,103 +142,129 @@
             <input id="messageInput" type="text" placeholder="Digite sua mensagem">
         </div>
     </div>
+    <!-- Áudio de notificação -->
+    <audio id="notificationSound" src="blin.mp3" preload="auto"></audio>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var storedUsername = localStorage.getItem('username');
-            var storedColor = localStorage.getItem('color') || '#000000';
-            var storedFont = localStorage.getItem('font') || 'Arial';
-            var storedBold = localStorage.getItem('bold') === 'true';
-            var storedItalic = localStorage.getItem('italic') === 'true';
+        var unreadMessages = 0;
 
-            if (!storedUsername) {
-                var username = prompt('Por favor, digite seu nome:');
-                if (username) {
-                    localStorage.setItem('username', username);
-                    document.getElementById('usernameInput').value = username;
-                }
-            } else {
-                document.getElementById('usernameInput').value = storedUsername;
-            }
-
-            document.getElementById('colorInput').value = storedColor;
-            document.getElementById('fontSelect').value = storedFont;
-            document.getElementById('boldCheckbox').checked = storedBold;
-            document.getElementById('italicCheckbox').checked = storedItalic;
-
-            document.getElementById('colorInput').addEventListener('input', function() {
-                var color = document.getElementById('colorInput').value;
-                localStorage.setItem('color', color);
-            });
-
-            document.getElementById('fontSelect').addEventListener('change', function() {
-                var font = document.getElementById('fontSelect').value;
-                localStorage.setItem('font', font);
-            });
-
-            document.getElementById('boldCheckbox').addEventListener('change', function() {
-                var bold = document.getElementById('boldCheckbox').checked;
-                localStorage.setItem('bold', bold);
-            });
-
-            document.getElementById('italicCheckbox').addEventListener('change', function() {
-                var italic = document.getElementById('italicCheckbox').checked;
-                localStorage.setItem('italic', italic);
-            });
-        });
-
-        document.getElementById('messageInput').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        });
-
-        function sendMessage() {
-            var message = document.getElementById('messageInput').value;
-            var username = localStorage.getItem('username') || 'Anônimo';
-            var color = localStorage.getItem('color') || '#000000';
-            var font = localStorage.getItem('font') || 'Arial';
-            var bold = localStorage.getItem('bold') === 'true' ? 'bold' : 'normal';
-            var italic = localStorage.getItem('italic') === 'true' ? 'italic' : 'normal';
-            if (message.trim() !== '') {
-                var now = new Date();
-                var timestamp = now.toISOString();
-                database.ref('messages').push().set({
-                    username: username,
-                    message: message,
-                    color: color,
-                    font: font,
-                    bold: bold,
-                    italic: italic,
-                    timestamp: timestamp
-                });
-                document.getElementById('messageInput').value = '';
-            }
+        function updateTitle() {
+            var baseTitle = 'Chat Central';
+            document.title = unreadMessages > 0 ? `(${unreadMessages}) ${baseTitle}` : baseTitle;
         }
 
-        var lastUsername = '';
-        database.ref('messages').on('child_added', function(snapshot) {
-            var data = snapshot.val();
-            var messageTime = new Date(data.timestamp).toLocaleString('pt-BR');
+        function playNotificationSound() {
+            var audio = document.getElementById('notificationSound');
+            audio.play();
+        }
 
-            var li;
-            if (data.username === lastUsername) {
-                var lastLi = document.getElementById('messages').lastChild;
-                lastLi.innerHTML += '<br>' + data.message;
-                lastLi.querySelector('.message-time').textContent = messageTime;
-            } else {
-                li = document.createElement('li');
-                li.innerHTML = `<span style="color:${data.color}; font-family:${data.font}; font-weight:${data.bold}; font-style:${data.italic};">${data.username} diz: ${data.message}</span><div class="message-time">${messageTime}</div>`;
-                li.classList.add('new-message');
-                document.getElementById('messages').appendChild(li);
+        function scrollToBottom() {
+            var messagesContainer = document.getElementById('messages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
 
-                setTimeout(function() {
-                    li.classList.remove('new-message');
-                }, 5000);
+        document.addEventListener('DOMContentLoaded', function() {
+    var storedUsername = localStorage.getItem('username');
+    var storedColor = localStorage.getItem('color') || '#000000';
+    var storedFont = localStorage.getItem('font') || 'Arial';
+    var storedBold = localStorage.getItem('bold') === 'true';
+    var storedItalic = localStorage.getItem('italic') === 'true';
 
-                lastUsername = data.username;
-            }
+    if (!storedUsername) {
+        var username = prompt('Por favor, digite seu nome:');
+        if (username) {
+            localStorage.setItem('username', username);
+            document.getElementById('usernameInput').value = username;
+        }
+    } else {
+        document.getElementById('usernameInput').value = storedUsername;
+    }
+
+    document.getElementById('colorInput').value = storedColor;
+    document.getElementById('fontSelect').value = storedFont;
+    document.getElementById('boldCheckbox').checked = storedBold;
+    document.getElementById('italicCheckbox').checked = storedItalic;
+
+    document.getElementById('colorInput').addEventListener('input', function() {
+        var color = document.getElementById('colorInput').value;
+        localStorage.setItem('color', color);
+    });
+
+    document.getElementById('fontSelect').addEventListener('change', function() {
+        var font = document.getElementById('fontSelect').value;
+        localStorage.setItem('font', font);
+    });
+
+    document.getElementById('boldCheckbox').addEventListener('change', function() {
+        var bold = document.getElementById('boldCheckbox').checked;
+        localStorage.setItem('bold', bold);
+    });
+
+    document.getElementById('italicCheckbox').addEventListener('change', function() {
+        var italic = document.getElementById('italicCheckbox').checked;
+        localStorage.setItem('italic', italic);
+    });
+});
+
+document.getElementById('messageInput').addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+function sendMessage() {
+    var message = document.getElementById('messageInput').value;
+    var username = localStorage.getItem('username') || 'Anônimo';
+    var color = localStorage.getItem('color') || '#000000';
+    var font = localStorage.getItem('font') || 'Arial';
+    var bold = localStorage.getItem('bold') === 'true' ? 'bold' : 'normal';
+    var italic = localStorage.getItem('italic') === 'true' ? 'italic' : 'normal';
+    if (message.trim() !== '') {
+        var now = new Date();
+        var timestamp = now.toISOString();
+        database.ref('messages').push().set({
+            username: username,
+            message: message,
+            color: color,
+            font: font,
+            bold: bold,
+            italic: italic,
+            timestamp: timestamp
         });
+        document.getElementById('messageInput').value = '';
+        scrollToBottom(); // Rolar para baixo após enviar a mensagem
+    }
+}
+
+var lastUsername = '';
+database.ref('messages').on('child_added', function(snapshot) {
+    var data = snapshot.val();
+    var messageTime = new Date(data.timestamp).toLocaleTimeString();
+    var li = document.createElement('li');
+    li.innerHTML = `<span style="color: ${data.color}; font-family: ${data.font}; font-weight: ${data.bold}; font-style: ${data.italic};">${data.username} diz: ${data.message}</span><span class="message-time">${messageTime}</span>`;
+
+    document.getElementById('messages').appendChild(li);
+
+    var currentUsername = localStorage.getItem('username') || 'Anônimo';
+
+    if (data.username !== currentUsername) { // Verifica se a mensagem é de outro usuário
+        unreadMessages++;
+        updateTitle();
+        playNotificationSound();
+    } else {
+        unreadMessages = 0;
+        updateTitle();
+    }
+
+    scrollToBottom(); // Rolar para baixo quando uma nova mensagem é adicionada
+    lastUsername = data.username;
+});
+
+document.getElementById('messages').addEventListener('scroll', function() {
+    unreadMessages = 0;
+    updateTitle();
+});
+
     </script>
 </body>
 </html>
