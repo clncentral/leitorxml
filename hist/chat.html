@@ -111,6 +111,10 @@
         .new-message {
             background-color: #d4edda;
         }
+		
+		.ocuta{
+			display: none;
+		}
 
         #settings {
             display: flex;
@@ -132,10 +136,11 @@
     <div id="chatContainer">
         <div id="chatbox">
             <h1>CRF Chat</h1>
-            <div id="settings">
+            <ul id="messages"></ul>
+			<div id="settings">
                 <div>
-                    <label for="usernameInput">Nome:</label>
-                    <input id="usernameInput" type="text" placeholder="Digite seu nome">
+                    <label class="ocuta" for="usernameInput">Nome:</label>
+                    <input  class="ocuta" id="usernameInput" type="text" placeholder="Digite seu nome">
                     <label for="colorInput">Cor:</label>
                     <input id="colorInput" type="color">
                 </div>
@@ -153,7 +158,6 @@
                     <input id="italicCheckbox" type="checkbox">
                 </div>
             </div>
-            <ul id="messages"></ul>
             <div id="messageInputContainer">
                 <input id="messageInput" type="text" placeholder="Digite sua mensagem">
             </div>
