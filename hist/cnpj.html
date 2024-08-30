@@ -114,6 +114,17 @@
           let outros = responseData;
           let inscricoesEstaduais = estabelecimento.inscricoes_estaduais;
 
+          // Simples Nacional e MEI
+          let simples = responseData.simples || {};
+          let simplesInfo = `
+            Simples Nacional: ${simples.simples === "Sim" ? "Sim" : "Não"} 
+            \tData de Opção: ${simples.data_opcao_simples || "N/A"} 
+            \tExclusão: ${simples.data_exclusao_simples ? `Sim (${simples.data_exclusao_simples})` : "Não"}
+            \tMEI: ${simples.mei === "Sim" ? "Sim" : "Não"} 
+            \tData de Opção MEI: ${simples.data_opcao_mei || "N/A"} 
+            \tExclusão MEI: ${simples.data_exclusao_mei ? `Sim (${simples.data_exclusao_mei})` : "Não"}
+          `;
+
           // Construir a string das inscrições estaduais com UF
           let inscricoesStr = inscricoesEstaduais.map(ie => {
             let status = ie.ativo ? "Ativo" : "Inativo";
@@ -125,6 +136,7 @@
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
               <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} \tSituação CNPJ: ${estabelecimento.situacao_cadastral}</p>
               <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
+              <p><strong>Simples Nacional e MEI:</strong> ${simplesInfo}</p>
             </div>
             <div class="result-section">
               <p><strong>Inscrições Estaduais:</strong></p>
