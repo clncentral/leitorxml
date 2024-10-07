@@ -124,6 +124,11 @@
             \tData de Opção MEI: ${simples.data_opcao_mei || "N/A"} 
             \tExclusão MEI: ${simples.data_exclusao_mei ? `Sim (${simples.data_exclusao_mei})` : "Não"}
           `;
+		  
+		  // Natureza Jurídica
+          let naturezaJuridica = `
+            <p><strong>Natureza Jurídica:</strong> ${outros.natureza_juridica.id} - ${outros.natureza_juridica.descricao}</p>
+          `;
 
           // Construir a string das inscrições estaduais com UF
           let inscricoesStr = inscricoesEstaduais.map(ie => {
@@ -136,6 +141,7 @@
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
               <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} \tSituação CNPJ: ${estabelecimento.situacao_cadastral}</p>
               <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
+              ${naturezaJuridica}
               <p><strong>Simples Nacional e MEI:</strong> ${simplesInfo}</p>
             </div>
             <div class="result-section">
