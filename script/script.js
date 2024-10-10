@@ -53,7 +53,7 @@ function carregarXML(xml) {
 			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMSST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
 			
 			info += "<td>"+Number($(this).find("imposto>IPI>>vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td>"+Number($(this).find("imposto>IPI>>pIPI").text())+"</td>"
+			info += "<td>"+Number($(this).find("imposto>IPI>>pIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>pMVAST").text()+"</td>"
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>IPI>IPINT>CST").text()+"</td>"
 			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>PIS>>CST").text()+"<br>"+$(this).find("imposto>COFINS>>CST").text()+"</td>"
