@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player de Rádio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0; /* Cor de fundo suave */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Altura total da tela */
+            margin: 0;
+        }
+        .container {
+            display: flex;
+            align-items: center;
+            background-color: #fff; /* Fundo branco para o container */
+            padding: 20px; /* Espaçamento interno */
+            border-radius: 10px; /* Bordas arredondadas */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Sombra leve */
+        }
+        .video-js {
+            width: 400px; /* Largura do vídeo */
+            height: 45px; /* Altura do vídeo */
+            margin-right: 20px; /* Espaçamento à direita do vídeo */
+        }
+        select {
+            padding: 10px; /* Espaçamento interno do seletor */
+            border-radius: 5px; /* Bordas arredondadas */
+            border: 1px solid #ccc; /* Borda do seletor */
+            background-color: #f9f9f9; /* Cor de fundo do seletor */
+            font-size: 14px; /* Tamanho da fonte */
+            cursor: pointer; /* Cursor em forma de ponteiro */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <video id="radio" autoplay playsinline class="video-js" controls poster="" title="Massa FM">
+            <source id="radioSource" src="https://stm01.virtualcast.com.br:8028/massacampinas">
+            Seu navegador não suporta HTML5.
+        </video>
+        <select id="radioSelector">
+            <option value="#">Escolha - Opção</option>
+            <option value="https://stm01.virtualcast.com.br:8028/massacampinas">Massa FM</option>
+            <option value="https://8577.brasilstream.com.br/stream">Rádio Laser</option>
+            <option value="https://9794.brasilstream.com.br/stream">Cidade</option>
+            <option value="https://stm11.xcast.com.br:11276/stream">Nativa</option>
+            <option value="https://stm2.xcast.com.br:11264/stream">Band Campinas</option>
+        </select>
+    </div>
+
+    <script>
+        // Seleciona o elemento de vídeo e o seletor de rádio
+        const videoElement = document.getElementById('radio');
+        const radioSelector = document.getElementById('radioSelector');
+        const radioSource = document.getElementById('radioSource');
+
+        // Adiciona um evento de mudança ao seletor de rádio
+        radioSelector.addEventListener('change', function() {
+            // Atualiza o src do vídeo com o valor selecionado
+            radioSource.src = this.value;
+
+            // Reinicia o vídeo para aplicar a nova fonte
+            videoElement.load();
+            videoElement.play();
+        });
+    </script>
+</body>
+</html>
