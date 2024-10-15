@@ -83,6 +83,6 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
 	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
 	adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
-	adicionarTopico("Chat", "hist/radio.html", "2024-05-08");
+	adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
     // Adicionar mais tópicos conforme necessário
 });
