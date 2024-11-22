@@ -112,47 +112,51 @@
           let responseData = await response.json();
           let estabelecimento = responseData.estabelecimento;
           let outros = responseData;
+          let simples = responseData.simples || {}; // Certifique-se de que simples está definido
           let inscricoesEstaduais = estabelecimento.inscricoes_estaduais;
 
           // Simples Nacional e MEI
-          let simples = responseData.simples || {};
-          let simplesInfo = `
-            Simples Nacional: ${simples.simples === "Sim" ? "Sim" : "Não"} 
-            \tData de Opção: ${simples.data_opcao_simples || "N/A"} 
-            \tExclusão: ${simples.data_exclusao_simples ? `Sim (${simples.data_exclusao_simples})` : "Não"}
-            \tMEI: ${simples.mei === "Sim" ? "Sim" : "Não"} 
-            \tData de Opção MEI: ${simples.data_opcao_mei || "N/A"} 
-            \tExclusão MEI: ${simples.data_exclusao_mei ? `Sim (${simples.data_exclusao_mei})` : "Não"}
+          let simplesCor = simples.simples === "Sim" ? "green" : "red";
+          let meiCor = simples.mei === "Sim" ? "green" : "red";
+
+          let simplesStatus = `
+            <p><strong>Simples Nacional:</strong> 
+              <span style="color:${simplesCor}; font-weight: bold;">
+                ${simples.simples === "Sim" ? "Sim" : "Não"}
+              </span>
+            </p>
+            <p><strong>MEI:</strong> 
+              <span style="color:${meiCor}; font-weight: bold;">
+                ${simples.mei === "Sim" ? "Sim" : "Não"}
+              </span>
+            </p>
           `;
-		  
-		  // Natureza Jurídica
+
+          // Natureza Jurídica
           let naturezaJuridica = `
             <p><strong>Natureza Jurídica:</strong> ${outros.natureza_juridica.id} - ${outros.natureza_juridica.descricao}</p>
           `;
 
-         let inscricoesStr = inscricoesEstaduais.map(ie => {
-    let status = ie.ativo === true ? "Ativo" : "Inativo";
-	let corStatus = ie.ativo === true ? "green" : "red"; // Define a cor com base no status
-    return `<strong>IE:</strong> ${ie.inscricao_estadual} 
-            \t<strong>UF:</strong> ${ie.estado.sigla} 
-            \t<strong>Status:</strong> <span style="color: ${corStatus};">${status}</span><br>`;
-}).join('');
-
+          // Inscrições Estaduais
+          let inscricoesStr = inscricoesEstaduais.map(ie => {
+            let status = ie.ativo === true ? "Ativo" : "Inativo";
+            let corStatus = ie.ativo === true ? "green" : "red";
+            return `<strong>IE:</strong> ${ie.inscricao_estadual} 
+                    \t<strong>UF:</strong> ${ie.estado.sigla} 
+                    \t<strong>Status:</strong> <span style="color: ${corStatus};">${status}</span><br>`;
+          }).join('');
 
           resultDiv.innerHTML = `
             <div class="result-section">
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
               <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} 
-		<span style="color: ${estabelecimento.situacao_cadastral === "Ativa" ? "green" : "red"};">
-        ${estabelecimento.situacao_cadastral}
-    </span>
-</p>
-
+                <span style="color: ${estabelecimento.situacao_cadastral === "Ativa" ? "green" : "red"};">
+                  ${estabelecimento.situacao_cadastral}
+                </span>
+              </p>
               <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
               ${naturezaJuridica}
-              <p><strong>Simples Nacional e MEI:</strong> ${simplesInfo}</p>
-            </div>
-            <div class="result-section">
+              ${simplesStatus}
               <p><strong>Inscrições Estaduais:</strong></p>
               <p class="indent">${inscricoesStr || "N/A"}</p>
             </div>
