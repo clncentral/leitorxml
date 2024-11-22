@@ -130,16 +130,24 @@
             <p><strong>Natureza Jurídica:</strong> ${outros.natureza_juridica.id} - ${outros.natureza_juridica.descricao}</p>
           `;
 
-          // Construir a string das inscrições estaduais com UF
-          let inscricoesStr = inscricoesEstaduais.map(ie => {
-            let status = ie.ativo ? "Ativo" : "Inativo";
-            return `<strong>IE:</strong> ${ie.inscricao_estadual}\tUF: ${ie.estado.sigla}\tStatus: ${status}<br>`;
-          }).join('');
+         let inscricoesStr = inscricoesEstaduais.map(ie => {
+    let status = ie.ativo === true ? "Ativo" : "Inativo";
+	let corStatus = ie.ativo === true ? "green" : "red"; // Define a cor com base no status
+    return `<strong>IE:</strong> ${ie.inscricao_estadual} 
+            \t<strong>UF:</strong> ${ie.estado.sigla} 
+            \t<strong>Status:</strong> <span style="color: ${corStatus};">${status}</span><br>`;
+}).join('');
+
 
           resultDiv.innerHTML = `
             <div class="result-section">
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
-              <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} \tSituação CNPJ: ${estabelecimento.situacao_cadastral}</p>
+              <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} 
+		<span style="color: ${estabelecimento.situacao_cadastral === "Ativa" ? "green" : "red"};">
+        ${estabelecimento.situacao_cadastral}
+    </span>
+</p>
+
               <p><strong>Atividade Eco Principal:</strong> ${estabelecimento.atividade_principal.id} - ${estabelecimento.atividade_principal.descricao}</p>
               ${naturezaJuridica}
               <p><strong>Simples Nacional e MEI:</strong> ${simplesInfo}</p>
