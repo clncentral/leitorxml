@@ -3,46 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="../img/radio.ico" type="image/x-icon">
     <title>Player de Rádio</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0; /* Cor de fundo suave */
+            background-color: #f0f0f0;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* Altura total da tela */
+            height: 100vh;
             margin: 0;
         }
         .container {
             display: flex;
             align-items: center;
-            background-color: #fff; /* Fundo branco para o container */
-            padding: 20px; /* Espaçamento interno */
-            border-radius: 10px; /* Bordas arredondadas */
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Sombra leve */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
-        .video-js {
-            width: 400px; /* Largura do vídeo */
-            height: 45px; /* Altura do vídeo */
-            margin-right: 20px; /* Espaçamento à direita do vídeo */
+        audio {
+            width: 400px;
+            margin-right: 20px;
         }
         select {
-            padding: 10px; /* Espaçamento interno do seletor */
-            border-radius: 5px; /* Bordas arredondadas */
-            border: 1px solid #ccc; /* Borda do seletor */
-            background-color: #f9f9f9; /* Cor de fundo do seletor */
-            font-size: 14px; /* Tamanho da fonte */
-            cursor: pointer; /* Cursor em forma de ponteiro */
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            font-size: 14px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <video id="radio" autoplay playsinline class="video-js" controls poster="" title="Massa FM">
-            <source id="radioSource" src="https://stm01.virtualcast.com.br:8028/massacampinas">
+        <audio id="radioPlayer" controls autoplay>
+            <source id="radioSource" src="https://stm01.virtualcast.com.br:8028/massacampinas" type="audio/mpeg">
             Seu navegador não suporta HTML5.
-        </video>
+        </audio>
         <select id="radioSelector">
             <option value="#">Escolha - Opção</option>
             <option value="https://stm01.virtualcast.com.br:8028/massacampinas">Massa FM</option>
@@ -54,20 +54,80 @@
     </div>
 
     <script>
-        // Seleciona o elemento de vídeo e o seletor de rádio
-        const videoElement = document.getElementById('radio');
-        const radioSelector = document.getElementById('radioSelector');
+	document.addEventListener('DOMContentLoaded', function () {
+    const radioPlayer = document.getElementById('radioPlayer');
+    radioPlayer.volume = 0.3; // Define o volume inicial como 30%
+	});
+        const radioPlayer = document.getElementById('radioPlayer');
         const radioSource = document.getElementById('radioSource');
+        const radioSelector = document.getElementById('radioSelector');
 
-        // Adiciona um evento de mudança ao seletor de rádio
-        radioSelector.addEventListener('change', function() {
-            // Atualiza o src do vídeo com o valor selecionado
-            radioSource.src = this.value;
+        // Atualiza o stream ao mudar a seleção
+        radioSelector.addEventListener('change', function () {
+            const selectedValue = this.value;
 
-            // Reinicia o vídeo para aplicar a nova fonte
-            videoElement.load();
-            videoElement.play();
+            if (selectedValue && selectedValue !== "#") {
+                radioSource.src = selectedValue; // Altera a URL da rádio
+                radioPlayer.load(); // Recarrega o player
+                radioPlayer.play(); // Inicia o áudio
+            }
         });
+		
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const player = document.getElementById('player');
+        const startButton = document.getElementById('start');
+        const replayButton = document.getElementById('replay');
+
+        let audioBuffer = [];
+        let isRecording = false;
+        let streamSource;
+
+        // Inicia o rádio
+        async function startRadio() {
+            const stream = await fetchStream("https://stm01.virtualcast.com.br:8028/massacampinas");
+            const sourceNode = audioContext.createMediaStreamSource(stream);
+            const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+            sourceNode.connect(processor);
+            processor.connect(audioContext.destination);
+
+            processor.onaudioprocess = (e) => {
+                if (isRecording) {
+                    const channelData = e.inputBuffer.getChannelData(0);
+                    audioBuffer.push(new Float32Array(channelData));
+                    // Limite o tamanho do buffer para, por exemplo, 10 minutos
+                    if (audioBuffer.length > (audioContext.sampleRate * 600 / 4096)) {
+                        audioBuffer.shift();
+                    }
+                }
+            };
+
+            isRecording = true;
+        }
+
+        // Função para buscar o stream
+        async function fetchStream(url) {
+            const response = await fetch(url);
+            const audioBlob = await response.blob();
+            return new MediaStream([audioBlob]);
+        }
+
+        // Reproduz do início
+        function replayRadio() {
+            const audioData = audioBuffer.flat(); // Une todas as partes do buffer
+            const audioBufferSource = audioContext.createBufferSource();
+            const buffer = audioContext.createBuffer(1, audioData.length, audioContext.sampleRate);
+
+            buffer.copyToChannel(new Float32Array(audioData), 0, 0);
+            audioBufferSource.buffer = buffer;
+            audioBufferSource.connect(audioContext.destination);
+            audioBufferSource.start();
+        }
+
+        // Eventos dos botões
+        startButton.addEventListener('click', startRadio);
+        replayButton.addEventListener('click', replayRadio);
+
     </script>
 </body>
 </html>
