@@ -82,8 +82,8 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
 	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
 	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
-	adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
-	//adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
+	//adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
+	adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
 	
 	adicionarTopico("Apoio", "https://apoio.enxuto.com.br/restricted/cln_nf.xhtml", "2024-05-08");
 	adicionarTopico("e-ColdWeb", "http://10.1.1.4/eFormsColdweb/Account/Login", "2024-05-08");
