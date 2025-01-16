@@ -84,5 +84,14 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
 	adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
 	adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
+	
+	adicionarTopico("Apoio", "https://apoio.enxuto.com.br/restricted/cln_nf.xhtml", "2024-05-08");
+	adicionarTopico("e-ColdWeb", "http://10.1.1.4/eFormsColdweb/Account/Login", "2024-05-08");
+	adicionarTopico("e-Monitor", "http://10.1.1.4/eFormseMonitor/Account/Login", "2024-05-08");
+	adicionarTopico("e-Mail", "https://outlook.office.com/mail/", "2024-05-08");
+	adicionarTopico("Chamados", "https://suporte.enxuto.com.br/marketplace/formcreator/front/wizard.php", "2024-05-08");
+	adicionarTopico("Portal Plus", "https://enxuto.portalfornecedores.com.br/login", "2024-05-08");
+	adicionarTopico("Consulta CFOP", "https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm#Sa%C3%ADdas_Outros_Estados_5000", "2024-05-08");
+	
     // Adicionar mais tópicos conforme necessário
 });
