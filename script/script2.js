@@ -92,6 +92,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Chamados", "https://suporte.enxuto.com.br/marketplace/formcreator/front/wizard.php", "2024-05-08");
 	adicionarTopico("Portal Plus", "https://enxuto.portalfornecedores.com.br/login", "2024-05-08");
 	adicionarTopico("Consulta CFOP", "https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm#Sa%C3%ADdas_Outros_Estados_5000", "2024-05-08");
+	adicionarTopico("Radios", "https://erp.bluesoft.com.br/flex/seguranca/login/login.action?redirectTo=/Core/mainMenu/index.action", "2024-05-08");
 	
     // Adicionar mais tópicos conforme necessário
 });
