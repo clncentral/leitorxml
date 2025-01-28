@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Exemplo de adição de tópicos
 	 // Exemplo de adição de tópicos
+	/*
 	adicionarTopico("A Morte de Arthur", "hist/cap12.html", "2024-06-12");
 	adicionarTopico("Mordred", "hist/cap11.html", "2024-06-11");
 	adicionarTopico("Coração de Cavaleiro", "hist/cap10.html", "2024-06-10");
@@ -81,10 +82,11 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
 	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
 	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
-	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
-	//adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
-	adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
 	
+	adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
+	adicionarTopico("Radios", "hist/radio.html", "2024-05-08");
+	*/
+	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
 	adicionarTopico("Apoio", "https://apoio.enxuto.com.br/restricted/cln_nf.xhtml", "2024-05-08");
 	adicionarTopico("e-ColdWeb", "http://10.1.1.4/eFormsColdweb/Account/Login", "2024-05-08");
 	adicionarTopico("e-Monitor", "http://10.1.1.4/eFormseMonitor/Account/Login", "2024-05-08");
