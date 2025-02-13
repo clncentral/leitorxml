@@ -248,7 +248,9 @@ span#tipo-ambiente {
 }
 
 
-
+input#idFile {
+    width: 98%;
+}
 
 
 .aligned-input {
