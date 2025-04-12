@@ -83,11 +83,12 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
 	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
 	
-	adicionarTopico("Chat", "hist/chat.html", "2024-05-08");
+	
 	
 	*/
 	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
 	adicionarTopico("Google", "https://www.google.com.br/?hl=pt-BR", "2024-05-08");
+	adicionarTopico("Youtube", "https://www.youtube.com/", "2024-05-08");
 	
     // Adicionar mais tópicos conforme necessário
 });
