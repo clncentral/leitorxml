@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
 	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
 	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
-	adicionarTopico("Formiga desmotivada", "hist/a_demissao_da_formiga.html", "2024-04-20");
+	adicionarTopico("Formiga desmotivada", "https://open.spotify.com/playlist/5wMbIGMnM1Dpj2BcCHZZlO", "2024-04-20");
 	
 	
 	
@@ -89,6 +89,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
 	adicionarTopico("Google", "https://www.google.com.br/?hl=pt-BR", "2024-05-08");
 	adicionarTopico("Youtube", "https://www.youtube.com/", "2024-05-08");
+	adicionarTopico("SpotFy", "https://open.spotify.com/playlist/5wMbIGMnM1Dpj2BcCHZZlO", "2024-04-20");
 	
     // Adicionar mais tópicos conforme necessário
 });
