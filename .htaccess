@@ -1,0 +1,17 @@
+# Ativar o mecanismo de reescrita
+RewriteEngine On
+
+# Redirecionar para HTTPS se não estiver usando
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Reescrita amigável de URLs (ex: /pagina -> index.php?url=pagina)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
+
+# Definir página padrão
+DirectoryIndex index.php index.html
+
+# Desabilitar listagem de diretórios
+Options -Indexes
