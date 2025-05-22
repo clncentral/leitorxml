@@ -149,6 +149,7 @@
           resultDiv.innerHTML = `
             <div class="result-section">
               <p><strong>Razão Social:</strong> ${outros.razao_social}</p>
+              <p><strong>Razão Social:</strong> ${estabelecimento.cnpj}</p>
               <p><strong>CNPJ:</strong> ${estabelecimento.cnpj} 
                 <span style="color: ${estabelecimento.situacao_cadastral === "Ativa" ? "green" : "red"};">
                   ${estabelecimento.situacao_cadastral}
