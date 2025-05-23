@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Leitor de CNPJ em PDF</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+</head>
+<body>
+  <h1>Leitor de CNPJ da NF</h1>
+  <input type="file" id="upload" accept="application/pdf">
+  <pre id="output"></pre>
+
+  <script>
+    const nossasRaizes = ['28.021.619', '05.789.313'];
+
+    document.getElementById('upload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const typedArray = new Uint8Array(this.result);
+        const pdf = await pdfjsLib.getDocument(typedArray).promise;
+
+        let textoCompleto = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map(item => item.str).join(' ');
+          textoCompleto += strings + '\n';
+        }
+
+        const cnpjs = [...textoCompleto.matchAll(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g)].map(m => m[0]);
+
+        const unicos = [...new Set(cnpjs.map(c => c.trim()))];
+        const nossos = unicos.filter(c => nossasRaizes.some(r => c.startsWith(r)));
+        const fornecedores = unicos.filter(c => !nossasRaizes.some(r => c.startsWith(r)));
+
+        document.getElementById('output').textContent = `
+🧾 CNPJs encontrados:
+${unicos.join('\n')}
+
+🏠 Nosso(s) CNPJ(s):
+${nossos.join('\n')}
+
+🚚 Fornecedor(es):
+${fornecedores.join('\n')}
+        `.trim();
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
+</body>
+</html>
