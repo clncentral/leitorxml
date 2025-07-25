@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Busca de Arquivos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .tabela-resultados {
+            margin-top: 20px;
+        }
+
+        .btn-arquivo {
+            font-size: 0.9em;
+        }
+
+        #statusPasta {
+            font-size: 0.9em;
+            color: #0d6efd;
+        }
+
+        .t {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="mb-4 text-center">
+        <button class="btn btn-primary" onclick="selecionarPasta()">📂 Selecionar Pasta</button>
+        <div id="statusPasta"></div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8 mb-2">
+            <input type="text" id="busca" class="form-control form-control-lg"
+                   placeholder="Digite parte do nome do arquivo e pressione Enter">
+        </div>
+        <div class="col-md-4 mb-2">
+            <select id="extensao" class="form-select form-select-lg">
+                <option value=".pdf">PDF</option>
+                <option value=".docx">DOCX</option>
+                <option value=".xlsx">XLSX</option>
+                <option value=".txt">TXT</option>
+                <option value="*">Todos os tipos</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="tabela-resultados">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+            <tr>
+                <th>Nome do Arquivo</th>
+                <th>Caminho</th>
+                <th class="t">Abrir</th>
+            </tr>
+            </thead>
+            <tbody id="resultados"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let pastaRaiz;
+
+    async function selecionarPasta() {
+        try {
+            pastaRaiz = await window.showDirectoryPicker({ mode: 'read' });
+            document.getElementById("statusPasta").textContent = "📁 Pasta selecionada com sucesso!";
+        } catch (e) {
+            alert("Erro ao selecionar pasta.");
+        }
+    }
+
+    document.getElementById("busca").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            buscarArquivos();
+        }
+    });
+
+    async function buscarArquivos() {
+        const termo = document.getElementById("busca").value.toLowerCase();
+        const extensaoSelecionada = document.getElementById("extensao").value.toLowerCase();
+        const tbody = document.getElementById("resultados");
+        tbody.innerHTML = "";
+
+        if (!pastaRaiz) {
+            alert("Selecione uma pasta primeiro.");
+            return;
+        }
+
+        await buscarRecursivo(pastaRaiz, termo, extensaoSelecionada, tbody, "");
+    }
+
+    async function buscarRecursivo(diretorio, termo, extensao, tbody, caminhoRelativo) {
+        for await (const entrada of diretorio.values()) {
+            const novoCaminho = caminhoRelativo ? `${caminhoRelativo}/${entrada.name}` : entrada.name;
+
+            if (entrada.kind === "file") {
+                const nomeArquivo = entrada.name.toLowerCase();
+                const correspondeExtensao = extensao === "*" || nomeArquivo.endsWith(extensao);
+                const correspondeBusca = nomeArquivo.includes(termo);
+
+                if (correspondeExtensao && correspondeBusca) {
+                    const linha = document.createElement("tr");
+
+                    const nomeCell = document.createElement("td");
+                    nomeCell.textContent = entrada.name;
+
+                    const caminhoCell = document.createElement("td");
+                    caminhoCell.textContent = caminhoRelativo || "/";
+
+                    const abrirCell = document.createElement("td");
+                    const link = document.createElement("a");
+                    const arquivo = await entrada.getFile();
+                    link.href = URL.createObjectURL(arquivo);
+                    link.target = "_blank";
+                    link.textContent = "Abrir";
+                    link.className = "btn btn-sm btn-outline-primary btn-arquivo";
+                    abrirCell.appendChild(link);
+
+                    linha.appendChild(nomeCell);
+                    linha.appendChild(caminhoCell);
+                    linha.appendChild(abrirCell);
+                    tbody.appendChild(linha);
+                }
+
+            } else if (entrada.kind === "directory") {
+                await buscarRecursivo(entrada, termo, extensao, tbody, novoCaminho);
+            }
+        }
+    }
+</script>
+</body>
+</html>
