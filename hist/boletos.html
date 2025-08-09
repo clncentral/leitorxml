@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Leitor de Boleto – Valor e Vencimento</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0b0d12; --card:#141824; --text:#e8ecf1; --muted:#9aa4b2; --accent:#3aa3ff; --line:#283255; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
+  .wrap{max-width:980px;margin:36px auto;padding:20px}
+  .card{background:var(--card);border:1px solid #22283a;border-radius:14px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+  h1{font-size:20px;margin:0 0 14px}
+  label{display:block;margin:.6rem 0 .25rem;color:var(--muted)}
+  input[type="text"], input[type="url"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2b3350;background:#0f1320;color:var(--text);outline:none}
+  input[readonly]{opacity:.95}
+  .grid{display:grid;gap:12px;margin-top:16px}
+  .grid.cols-2{grid-template-columns:1fr 1fr}
+  .grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+  .help{margin-top:12px;color:var(--muted);font-size:13px}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;background:#1a2135;border:1px solid var(--line);color:#b9c5d9}
+  .ok{color:#1ee592}.warn{color:#ffd36e}.err{color:#ff7a7a}
+  .row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .btn{background:var(--accent);border:none;color:#001025;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn-outline{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .muted{color:var(--muted)}
+  table{width:100%;border-collapse:separate;border-spacing:0;margin-top:18px}
+  th,td{padding:10px 12px;border-bottom:1px solid #22283a}
+  thead th{position:sticky;top:0;background:#151a27;border-bottom:1px solid #2a3248;z-index:1}
+  tbody tr:nth-child(even){background:#0f1320}
+  .right{text-align:right}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  .fade{opacity:.8}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Leitor de Boleto</h1>
+
+      <!-- Entrada direta -->
+      <label for="linha">Linha digitável (cole com ou sem pontos/espaços)</label>
+      <input id="linha" type="text" placeholder="Ex.: 03399.32915.73100.000097.50463.901012.7.11890000241500">
+
+      <!-- PDF via URL ou arquivo local -->
+      <div class="grid cols-3" style="margin-top:12px">
+        <div>
+          <label for="pdfUrl">URL de PDF (usa pdf.js 2.10.377)</label>
+          <input id="pdfUrl" type="url" placeholder="https://.../boleto.pdf">
+        </div>
+        <div>
+          <label for="pdfFile">PDF local</label>
+          <input id="pdfFile" type="file" accept="application/pdf">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button id="btnLerLinha" class="btn" type="button">Ler linha</button>
+          <button id="btnLerUrl" class="btn btn-outline" type="button">Ler URL</button>
+          <button id="btnLerFile" class="btn btn-outline" type="button">Ler arquivo</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <span id="tipo" class="badge muted">—</span>
+        <span id="status" class="badge muted">Aguardando…</span>
+        <span id="total" class="badge muted">0 linhas</span>
+        <button id="limpar" class="btn" type="button">Limpar</button>
+      </div>
+
+      <!-- Resultado unitário -->
+      <div class="grid cols-2">
+        <div>
+          <label for="valor">Valor a pagar</label>
+          <input id="valor" type="text" readonly placeholder="—">
+        </div>
+        <div>
+          <label for="venc">Vencimento</label>
+          <input id="venc" type="text" readonly placeholder="—">
+        </div>
+      </div>
+
+      <!-- Tabela multi -->
+      <table id="tabela" style="display:none">
+        <thead>
+          <tr>
+            <th style="width:80px">Parcela</th>
+            <th>Código (linha digitável)</th>
+            <th style="width:160px">Vencimento</th>
+            <th style="width:160px" class="right">Valor</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <div class="help" id="ajuda">
+        Para <span class="badge">cobrança (47 dígitos)</span> calculo <b>valor</b> e <b>vencimento</b>.<br>
+        Para <span class="badge">arrecadação (48 começando com 8)</span>, o <b>vencimento</b> não é padronizado; o <b>valor</b> só vem quando o 3º dígito é <b>6</b>.
+      </div>
+    </div>
+  </div>
+
+  <!-- Mesma versão do seu exemplo que funciona -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script>
+(function(){
+  // ---------- Utilidades ----------
+  const $ = s => document.querySelector(s);
+  const elLinha = $('#linha'), elValor = $('#valor'), elVenc = $('#venc');
+  const elTipo  = $('#tipo'), elStatus = $('#status'), elTotal = $('#total');
+  const elAjuda = $('#ajuda'), elTabela = $('#tabela'), elTbody = $('#tbody');
+  const btnLerLinha = $('#btnLerLinha'), btnLerUrl = $('#btnLerUrl'), btnLerFile = $('#btnLerFile'), btnLimpar = $('#limpar');
+  const elPdfUrl = $('#pdfUrl'), elPdfFile = $('#pdfFile');
+
+  // visor de debug (opcional)
+  let dbg = document.getElementById('dbg');
+  if(!dbg){
+    dbg = document.createElement('pre');
+    dbg.id = 'dbg';
+    dbg.style.cssText = 'margin-top:10px;padding:10px;border:1px solid #22283a;background:#0f1320;color:#9aa4b2;display:none;white-space:pre-wrap;max-height:220px;overflow:auto';
+    elAjuda.after(dbg);
+  }
+
+  const BASE_OLD = new Date(Date.UTC(1997, 9, 7));   // 07/10/1997
+  const BASE_NEW = new Date(Date.UTC(2025, 1, 22));  // 22/02/2025
+
+  const stripDigits = s => (s||'').replace(/\D+/g,'');
+  const onlyDigits  = s => /^[0-9]+$/.test(s||'');
+
+  const toBRL = cents => (cents == null || isNaN(cents)) ? '—' :
+    (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+  function fmtDateUTC(d){
+    if (!d) return '—';
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth()+1).padStart(2,'0');
+    const day = String(d.getUTCDate()).padStart(2,'0');
+    return `${day}/${m}/${y}`;
+  }
+  function addDaysUTC(base, days){
+    const d = new Date(base.getTime());
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
+  }
+
+  // ---------- Cobrança (47) ----------
+  function parseCobranca47(digits){
+    const campo5 = digits.slice(-14); // 4 fator + 10 valor
+    const fator = parseInt(campo5.slice(0,4),10);
+    const valorCents = parseInt(campo5.slice(4),10);
+    return { tipo:'cobranca', banco: digits.slice(0,3),
+             fator: isNaN(fator)?null:fator,
+             valorCents: isNaN(valorCents)?null:valorCents };
+  }
+  function calcVencCobranca(fator){
+    if (!fator) return null;
+    if (fator >= 1000) return addDaysUTC(BASE_NEW, fator - 1000);
+    return addDaysUTC(BASE_OLD, fator);
+  }
+
+  // ---------- Arrecadação (48 -> 44 barcode) ----------
+  function parseArrecadacao48_fromLD(digits48){
+    const b1 = digits48.slice(0,12), b2 = digits48.slice(12,24),
+          b3 = digits48.slice(24,36), b4 = digits48.slice(36,48);
+    const barcode = b1.slice(0,11)+b2.slice(0,11)+b3.slice(0,11)+b4.slice(0,11);
+    return parseArrecadacao_fromBarcode44(barcode);
+  }
+  function parseArrecadacao_fromBarcode44(barcode44){
+    if (barcode44.length!==44 || barcode44[0]!=='8') return {tipo:'desconhecido'};
+    const segmento  = barcode44[1];
+    const tipoValor = barcode44[2]; // 6 = valor efetivo, 7 = referência
+    const valorStr  = barcode44.slice(4,15); // 11 dígitos centavos
+    const valorCents = (tipoValor==='6' && onlyDigits(valorStr)) ? parseInt(valorStr,10) : null;
+    return { tipo:'arrecadacao', segmento, tipoValor, valorCents };
+  }
+
+  // ---------- Identificador ----------
+  function identificarLinha(raw){
+    const digits = stripDigits(raw);
+    if (!digits) return {tipo:'vazio'};
+    if (digits.length===48 && digits[0]==='8') return parseArrecadacao48_fromLD(digits);
+    if (digits.length===47) return parseCobranca47(digits);
+    return {tipo:'desconhecido', erro:`comprimento ${digits.length} inválido`};
+  }
+
+  // ---------- UI ----------
+  function setStatus(t,c='muted'){ elStatus.textContent=t; elStatus.className=`badge ${c}`; }
+  function setTipo(t){ elTipo.textContent=t; elTipo.className='badge'; }
+  function resetUnitario(){ elValor.value='—'; elVenc.value='—'; elTipo.textContent='—'; elTipo.className='badge muted'; }
+
+  function mostrarUnitario(raw){
+    resetUnitario();
+    const info = identificarLinha(raw);
+
+    if (info.tipo==='cobranca'){
+      setTipo('Cobrança (47)');
+      elValor.value = toBRL(info.valorCents);
+      elVenc.value  = fmtDateUTC(calcVencCobranca(info.fator));
+      setStatus('OK','ok');
+      elAjuda.innerHTML='Cobrança: uso o <b>fator</b> (4) e o <b>valor</b> (10) do <b>campo 5</b> (14 últimos dígitos).';
+      return;
+    }
+    if (info.tipo==='arrecadacao'){
+      setTipo(`Arrecadação (48) – seg ${info.segmento} – tipo ${info.tipoValor}`);
+      elValor.value = (info.tipoValor==='6') ? toBRL(info.valorCents) : 'indisponível (tipo 7)';
+      elVenc.value  = 'não padronizado na linha';
+      setStatus(info.tipoValor==='6'?'OK':'Atenção', info.tipoValor==='6'?'ok':'warn');
+      elAjuda.innerHTML='Arrecadação: o <b>valor</b> só aparece quando o 3º dígito é <b>6</b>; <b>vencimento</b> não é padronizado.';
+      return;
+    }
+    if (info.tipo==='desconhecido'){ setStatus(info.erro||'inválido','err'); return; }
+    setStatus('aguardando…','muted');
+  }
+
+  function preencherTabela(linhas){
+    elTbody.innerHTML='';
+    if(!linhas||!linhas.length){ elTabela.style.display='none'; elTotal.textContent='0 linhas'; return; }
+    elTabela.style.display='table'; elTotal.textContent=`${linhas.length} linha(s)`;
+
+    linhas.forEach((raw, i)=>{
+      const info = identificarLinha(raw);
+      const tr = document.createElement('tr');
+
+      const td1=document.createElement('td'); td1.textContent=i+1; td1.className='mono';
+      const td2=document.createElement('td'); td2.textContent=raw.trim(); td2.className='mono';
+      const td3=document.createElement('td');
+      const td4=document.createElement('td'); td4.className='right mono';
+
+      if (info.tipo==='cobranca'){
+        td3.textContent=fmtDateUTC(calcVencCobranca(info.fator));
+        td4.textContent=toBRL(info.valorCents);
+      } else if (info.tipo==='arrecadacao'){
+        td3.textContent='—';
+        td4.textContent=(info.tipoValor==='6')?toBRL(info.valorCents):'—';
+      } else {
+        td3.textContent='—'; td4.textContent='—';
+      }
+
+      tr.append(td1,td2,td3,td4); elTbody.appendChild(tr);
+    });
+  }
+
+  // ---------- PDF: extração robusta ----------
+  async function extractTextFromPdfUrl(url){
+    const pdf = await pdfjsLib.getDocument(url).promise;
+    let withSpaces = '', noSpaces = '';
+    for(let p=1;p<=pdf.numPages;p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const parts = content.items.map(i=>i.str);
+      withSpaces += parts.join(' ') + '\n';
+      noSpaces   += parts.join('') + '\n';
+    }
+    return {withSpaces, noSpaces};
+  }
+  async function extractTextFromPdfData(buf){
+    const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+    let withSpaces = '', noSpaces = '';
+    for(let p=1;p<=pdf.numPages;p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const parts = content.items.map(i=>i.str);
+      withSpaces += parts.join(' ') + '\n';
+      noSpaces   += parts.join('') + '\n';
+    }
+    return {withSpaces, noSpaces};
+  }
+
+  // ---------- Detector turbo (47/48, com e sem formatação) ----------
+  function detectarLinhasDigitaveisMulti(textVariants){
+    const linhas = new Set();
+
+    const pushIfValid = s => {
+      const dig = stripDigits(s);
+      if (dig.length===47){
+        // formatar cobrança
+        const f1=dig.slice(0,5)+'.'+dig.slice(5,10);
+        const f2=dig.slice(10,15)+'.'+dig.slice(15,21);
+        const f3=dig.slice(21,26)+'.'+dig.slice(26,32);
+        const f4=dig.slice(32,33), f5=dig.slice(33);
+        linhas.add(`${f1} ${f2} ${f3} ${f4} ${f5}`);
+      } else if (dig.length===48 && dig.startsWith('8')){
+        linhas.add(`${dig.slice(0,12)} ${dig.slice(12,24)} ${dig.slice(24,36)} ${dig.slice(36,48)}`);
+      }
+    };
+
+    const patterns = [
+      // cobrança formatada: 5.5  5.6  5.6  1  14
+      /(\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14})/g,
+      // arrecadação formatada: 12 12 12 12
+      /(\d{12}\s+\d{12}\s+\d{12}\s+\d{12})/g,
+      // seqs grandes (brutas): 47 ou 48
+      /(\d{47,48})/g,
+    ];
+
+    for (const t of textVariants){
+      // normalização leve
+      const T = (t||'').replace(/\u00A0/g,' ').replace(/\s+/g,' ');
+      for (const re of patterns){
+        const m = T.matchAll(re);
+        for (const x of m) pushIfValid(x[1]);
+      }
+    }
+    return Array.from(linhas);
+  }
+
+  // ---------- Ações ----------
+  btnLerLinha.addEventListener('click', ()=>{
+    const raw = elLinha.value;
+    if(!raw.trim()){ setStatus('Cole uma linha primeiro','warn'); return; }
+    mostrarUnitario(raw);
+    preencherTabela([]);
+    dbg.style.display='none';
+  });
+
+  btnLerUrl.addEventListener('click', async ()=>{
+    const url = elPdfUrl.value.trim();
+    if(!url){ setStatus('Informe a URL do PDF','warn'); return; }
+    try{
+      setStatus('Lendo PDF da URL…','muted');
+      const {withSpaces, noSpaces} = await extractTextFromPdfUrl(url);
+      const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
+      preencherTabela(linhas);
+      setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
+      resetUnitario();
+      // debug opcional: mostre os 1200 primeiros chars
+      dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
+      dbg.style.display = 'block';
+    }catch(e){
+      console.error(e);
+      setStatus('Erro ao ler URL: '+e.message,'err');
+      dbg.style.display='none';
+    }
+  });
+
+  btnLerFile.addEventListener('click', async ()=>{
+    const file = elPdfFile.files && elPdfFile.files[0];
+    if(!file){ setStatus('Escolha um PDF primeiro','warn'); return; }
+    try{
+      setStatus('Abrindo PDF local…','muted');
+      const buf = await file.arrayBuffer();
+      const {withSpaces, noSpaces} = await extractTextFromPdfData(buf);
+      const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
+      preencherTabela(linhas);
+      setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
+      resetUnitario();
+      dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
+      dbg.style.display = 'block';
+    }catch(e){
+      console.error(e);
+      setStatus('Erro ao ler arquivo: '+e.message,'err');
+      dbg.style.display='none';
+    }
+  });
+
+  btnLimpar.addEventListener('click', ()=>{
+    elLinha.value=''; elPdfUrl.value=''; elPdfFile.value='';
+    resetUnitario(); preencherTabela([]); setStatus('Aguardando…','muted'); elTotal.textContent='0 linhas';
+    dbg.style.display='none';
+    elLinha.focus();
+  });
+
+  // exemplo pré-preenchido
+  elLinha.value='';
+})();
+</script>
+
+</body>
+</html>
