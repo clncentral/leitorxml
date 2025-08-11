@@ -12,7 +12,9 @@
   .card{background:var(--card);border:1px solid #22283a;border-radius:14px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
   h1{font-size:20px;margin:0 0 14px}
   label{display:block;margin:.6rem 0 .25rem;color:var(--muted)}
-  input[type="text"], input[type="url"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2b3350;background:#0f1320;color:var(--text);outline:none}
+  input[type="text"], input[type="url"], input[type="password"]{
+    width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2b3350;background:#0f1320;color:var(--text);outline:none
+  }
   input[readonly]{opacity:.95}
   .grid{display:grid;gap:12px;margin-top:16px}
   .grid.cols-2{grid-template-columns:1fr 1fr}
@@ -22,7 +24,7 @@
   .ok{color:#1ee592}.warn{color:#ffd36e}.err{color:#ff7a7a}
   .row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
   .btn{background:var(--accent);border:none;color:#001025;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-  .btn-outline{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn-outline{background:transparent;color:var(--text);border:1px solid #2b3350}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .muted{color:var(--muted)}
   table{width:100%;border-collapse:separate;border-spacing:0;margin-top:18px}
@@ -31,7 +33,6 @@
   tbody tr:nth-child(even){background:#0f1320}
   .right{text-align:right}
   .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-  .fade{opacity:.8}
 </style>
 </head>
 <body>
@@ -57,6 +58,20 @@
           <button id="btnLerLinha" class="btn" type="button">Ler linha</button>
           <button id="btnLerUrl" class="btn btn-outline" type="button">Ler URL</button>
           <button id="btnLerFile" class="btn btn-outline" type="button">Ler arquivo</button>
+        </div>
+      </div>
+
+      <!-- Senha (só aparece se necessário) -->
+      <div id="pwBox" class="grid cols-3" style="display:none;margin-top:8px">
+        <div>
+          <label for="pdfPassword">Senha do PDF (se houver)</label>
+          <input id="pdfPassword" type="password" placeholder="Digite a senha e clique em Tentar senha">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button id="btnTryPw" class="btn" type="button">Tentar senha</button>
+        </div>
+        <div class="help" style="display:flex;align-items:flex-end">
+          Tentativas automáticas:&nbsp;<span class="badge">28021</span>&nbsp;<span class="badge">05789</span>
         </div>
       </div>
 
@@ -99,10 +114,13 @@
     </div>
   </div>
 
-  <!-- Mesma versão do seu exemplo que funciona -->
+  <!-- pdf.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+  </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
 <script>
 (function(){
   // ---------- Utilidades ----------
@@ -112,8 +130,9 @@
   const elAjuda = $('#ajuda'), elTabela = $('#tabela'), elTbody = $('#tbody');
   const btnLerLinha = $('#btnLerLinha'), btnLerUrl = $('#btnLerUrl'), btnLerFile = $('#btnLerFile'), btnLimpar = $('#limpar');
   const elPdfUrl = $('#pdfUrl'), elPdfFile = $('#pdfFile');
+  const pwBox = $('#pwBox'), elPw = $('#pdfPassword'), btnTryPw = $('#btnTryPw');
 
-  // visor de debug (opcional)
+  // debug viewer opcional
   let dbg = document.getElementById('dbg');
   if(!dbg){
     dbg = document.createElement('pre');
@@ -133,15 +152,43 @@
 
   function fmtDateUTC(d){
     if (!d) return '—';
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth()+1).padStart(2,'0');
-    const day = String(d.getUTCDate()).padStart(2,'0');
+    const y = d.getUTCFullYear(), m = String(d.getUTCMonth()+1).padStart(2,'0'), day = String(d.getUTCDate()).padStart(2,'0');
     return `${day}/${m}/${y}`;
   }
   function addDaysUTC(base, days){
     const d = new Date(base.getTime());
     d.setUTCDate(d.getUTCDate() + days);
     return d;
+  }
+
+  // ---------- DV Mod-10 FEBRABAN (para blocos 11+DV) ----------
+  function dvMod10_febraban(num11){
+    let soma = 0, fator = 2;
+    for (let i = num11.length - 1; i >= 0; i--){
+      let n = Number(num11[i]) * fator;
+      if (n > 9) n = Math.floor(n/10) + (n%10);
+      soma += n;
+      fator = (fator === 2 ? 1 : 2);
+    }
+    const resto = soma % 10;
+    return (resto === 0) ? 0 : (10 - resto);
+  }
+  function isArrec48ComBlocosValidos(d48){
+    if (d48.length !== 48 || d48[0] !== '8') return false;
+    for (let i = 0; i < 48; i += 12){
+      const bloco11 = d48.slice(i, i+11);
+      const dv = Number(d48[i+11]);
+      if (dvMod10_febraban(bloco11) !== dv) return false;
+    }
+    return true;
+  }
+  function ld48ToBarcode44(d48){
+    const b1 = d48.slice(0,11),  b2 = d48.slice(12,23),
+          b3 = d48.slice(24,35), b4 = d48.slice(36,47);
+    return b1 + b2 + b3 + b4; // 44 dígitos
+  }
+  function isBarcode44BasicoValido(bc44){
+    return bc44.length === 44 && bc44[0] === '8' && (bc44[2] === '6' || bc44[2] === '7');
   }
 
   // ---------- Cobrança (47) ----------
@@ -159,28 +206,41 @@
     return addDaysUTC(BASE_OLD, fator);
   }
 
-  // ---------- Arrecadação (48 -> 44 barcode) ----------
-  function parseArrecadacao48_fromLD(digits48){
-    const b1 = digits48.slice(0,12), b2 = digits48.slice(12,24),
-          b3 = digits48.slice(24,36), b4 = digits48.slice(36,48);
-    const barcode = b1.slice(0,11)+b2.slice(0,11)+b3.slice(0,11)+b4.slice(0,11);
-    return parseArrecadacao_fromBarcode44(barcode);
+  // ---------- Arrecadação ----------
+  function parseArrecadacao48_fromLD(d48){
+    if (!isArrec48ComBlocosValidos(d48)) return {tipo:'desconhecido'};
+    const bc44 = ld48ToBarcode44(d48);
+    return parseArrecadacao_fromBarcode44(bc44);
   }
-  function parseArrecadacao_fromBarcode44(barcode44){
-    if (barcode44.length!==44 || barcode44[0]!=='8') return {tipo:'desconhecido'};
-    const segmento  = barcode44[1];
-    const tipoValor = barcode44[2]; // 6 = valor efetivo, 7 = referência
-    const valorStr  = barcode44.slice(4,15); // 11 dígitos centavos
+  function parseArrecadacao_fromBarcode44(bc44){
+    if (!isBarcode44BasicoValido(bc44)) return {tipo:'desconhecido'};
+    const segmento  = bc44[1];
+    const tipoValor = bc44[2]; // 6 valor efetivo, 7 referência
+    const valorStr  = bc44.slice(4,15); // 11 dígitos centavos
     const valorCents = (tipoValor==='6' && onlyDigits(valorStr)) ? parseInt(valorStr,10) : null;
     return { tipo:'arrecadacao', segmento, tipoValor, valorCents };
   }
 
+  // 11+DV ×4 -> tentar formar 48
+  function coerceArrec11DV(raw){
+    const s = (raw||'').replace(/\s+/g,' ').trim();
+    const m = s.match(/^(\d{11})\D*(\d)\D*(\d{11})\D*(\d)\D*(\d{11})\D*(\d)\D*(\d{11})\D*(\d)$/);
+    return m ? m.slice(1).join('') : null;
+  }
+
   // ---------- Identificador ----------
   function identificarLinha(raw){
-    const digits = stripDigits(raw);
+    const coerced = coerceArrec11DV(raw);
+    const digits = (coerced ? coerced : stripDigits(raw));
+
     if (!digits) return {tipo:'vazio'};
-    if (digits.length===48 && digits[0]==='8') return parseArrecadacao48_fromLD(digits);
+
     if (digits.length===47) return parseCobranca47(digits);
+
+    if (digits.length===48 && digits[0]==='8') return parseArrecadacao48_fromLD(digits);
+
+    if (digits.length===44 && digits[0]==='8') return parseArrecadacao_fromBarcode44(digits);
+
     return {tipo:'desconhecido', erro:`comprimento ${digits.length} inválido`};
   }
 
@@ -192,7 +252,6 @@
   function mostrarUnitario(raw){
     resetUnitario();
     const info = identificarLinha(raw);
-
     if (info.tipo==='cobranca'){
       setTipo('Cobrança (47)');
       elValor.value = toBRL(info.valorCents);
@@ -202,7 +261,7 @@
       return;
     }
     if (info.tipo==='arrecadacao'){
-      setTipo(`Arrecadação (48) – seg ${info.segmento} – tipo ${info.tipoValor}`);
+      setTipo(`Arrecadação – tipo ${info.tipoValor||'?'}`);
       elValor.value = (info.tipoValor==='6') ? toBRL(info.valorCents) : 'indisponível (tipo 7)';
       elVenc.value  = 'não padronizado na linha';
       setStatus(info.tipoValor==='6'?'OK':'Atenção', info.tipoValor==='6'?'ok':'warn');
@@ -213,12 +272,21 @@
     setStatus('aguardando…','muted');
   }
 
+  // preferir cobrança se houver conflito
   function preencherTabela(linhas){
     elTbody.innerHTML='';
     if(!linhas||!linhas.length){ elTabela.style.display='none'; elTotal.textContent='0 linhas'; return; }
-    elTabela.style.display='table'; elTotal.textContent=`${linhas.length} linha(s)`;
 
-    linhas.forEach((raw, i)=>{
+    const cobrancas=[], arrec=[];
+    for (const raw of linhas){
+      const d = raw.replace(/\D+/g,'');
+      if (d.length===47) cobrancas.push(raw);
+      else if ((d.length===48 || d.length===44) && d[0]==='8') arrec.push(raw);
+    }
+    const finais = cobrancas.length ? cobrancas : [...cobrancas, ...arrec];
+
+    elTabela.style.display='table'; elTotal.textContent=`${finais.length} linha(s)`;
+    finais.forEach((raw, i)=>{
       const info = identificarLinha(raw);
       const tr = document.createElement('tr');
 
@@ -233,29 +301,61 @@
       } else if (info.tipo==='arrecadacao'){
         td3.textContent='—';
         td4.textContent=(info.tipoValor==='6')?toBRL(info.valorCents):'—';
-      } else {
-        td3.textContent='—'; td4.textContent='—';
-      }
+      } else { td3.textContent='—'; td4.textContent='—'; }
 
       tr.append(td1,td2,td3,td4); elTbody.appendChild(tr);
     });
   }
 
-  // ---------- PDF: extração robusta ----------
-  async function extractTextFromPdfUrl(url){
-    const pdf = await pdfjsLib.getDocument(url).promise;
-    let withSpaces = '', noSpaces = '';
-    for(let p=1;p<=pdf.numPages;p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const parts = content.items.map(i=>i.str);
-      withSpaces += parts.join(' ') + '\n';
-      noSpaces   += parts.join('') + '\n';
+  // ---------- PDF + SENHAS ----------
+  const SENHAS_PADRAO = ['2802','0578','28021','05789','057893','280216'];
+
+  async function openPdfWithPasswords(source, kind, extraPassword){
+    const tries = [...SENHAS_PADRAO.map(s => (s||'').trim())];
+    if (extraPassword) {
+      const extra = (extraPassword||'').trim();
+      if (extra && !tries.includes(extra)) tries.push(extra);
     }
-    return {withSpaces, noSpaces};
+    for (const pw of tries){
+      try{
+        const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
+        const pdf = await pdfjsLib.getDocument(arg).promise;
+        setStatus(`PDF aberto${pw ? ' com senha' : ''}.`,'ok');
+        pwBox.style.display='none';
+        return pdf;
+      }catch(e){
+        if (e && e.name === 'PasswordException'){
+          if (e.code === 1 || e.code === 2) continue;
+        }
+        throw e;
+      }
+    }
+    pwBox.style.display='grid';
+    if (!elPw.value) elPw.value = '28021';
+    setStatus('PDF protegido: informe a senha abaixo.','warn');
+    return null;
   }
-  async function extractTextFromPdfData(buf){
-    const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+
+  async function openPdfManualPassword(source, kind, password){
+    const pw = (password||'').trim();
+    if (!pw){ setStatus('Digite a senha.','warn'); return null; }
+    try{
+      const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
+      const pdf = await pdfjsLib.getDocument(arg).promise;
+      setStatus('PDF aberto com a senha informada.','ok');
+      pwBox.style.display='none';
+      return pdf;
+    }catch(e){
+      if (e && e.name === 'PasswordException'){
+        const msg = (e.code===2) ? 'Senha incorreta.' : 'Senha necessária.';
+        setStatus(msg+' Tente novamente.','err');
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  async function extractTextFromPdf(pdf){
     let withSpaces = '', noSpaces = '';
     for(let p=1;p<=pdf.numPages;p++){
       const page = await pdf.getPage(p);
@@ -267,41 +367,77 @@
     return {withSpaces, noSpaces};
   }
 
-  // ---------- Detector turbo (47/48, com e sem formatação) ----------
+  // ---------- Detector turbo (com validação forte) ----------
   function detectarLinhasDigitaveisMulti(textVariants){
     const linhas = new Set();
 
-    const pushIfValid = s => {
-      const dig = stripDigits(s);
-      if (dig.length===47){
-        // formatar cobrança
-        const f1=dig.slice(0,5)+'.'+dig.slice(5,10);
-        const f2=dig.slice(10,15)+'.'+dig.slice(15,21);
-        const f3=dig.slice(21,26)+'.'+dig.slice(26,32);
-        const f4=dig.slice(32,33), f5=dig.slice(33);
-        linhas.add(`${f1} ${f2} ${f3} ${f4} ${f5}`);
-      } else if (dig.length===48 && dig.startsWith('8')){
-        linhas.add(`${dig.slice(0,12)} ${dig.slice(12,24)} ${dig.slice(24,36)} ${dig.slice(36,48)}`);
+    const fmtCobranca47 = dig => {
+      const f1=dig.slice(0,5)+'.'+dig.slice(5,10);
+      const f2=dig.slice(10,15)+'.'+dig.slice(15,21);
+      const f3=dig.slice(21,26)+'.'+dig.slice(26,32);
+      const f4=dig.slice(32,33), f5=dig.slice(33);
+      return `${f1} ${f2} ${f3} ${f4} ${f5}`;
+    };
+    const fmtArrec48 = dig => `${dig.slice(0,12)} ${dig.slice(12,24)} ${dig.slice(24,36)} ${dig.slice(36,48)}`;
+    const fmtArrec44 = dig => `${dig.slice(0,11)} ${dig.slice(11,22)} ${dig.slice(22,33)} ${dig.slice(33,44)}`;
+
+    const re11dvLoose = new RegExp(
+      '('
+        + '(?:\\d\\D*){11}\\d'
+        + '\\D*'
+        + '(?:\\d\\D*){11}\\d'
+        + '\\D*'
+        + '(?:\\d\\D*){11}\\d'
+        + '\\D*'
+        + '(?:\\d\\D*){11}\\d'
+      + ')', 'g'
+    );
+
+    const patternsTight = [
+      /(\d{5}\.\d{5}\s*\d{5}\.\d{6}\s*\d{5}\.\d{6}\s*\d\s*\d{14})/g,
+      /(\d{12}\s*\d{12}\s*\d{12}\s*\d{12})/g,
+      /(\d{44}|\d{47}|\d{48})/g,
+    ];
+
+    const patternsLoose = [
+      re11dvLoose,
+      /((?:\d\D*){44,70})/g,
+    ];
+
+    const pushByDigits = (s) => {
+      const dig = (s||'').replace(/\D+/g,'');
+
+      if (dig.length === 47){
+        linhas.add(fmtCobranca47(dig));
+        return;
+      }
+
+      // ARRECADAÇÃO 48: aceita só se blocos 11+DV válidos e 44 com tipo 6/7
+      if (dig.length === 48 && dig.startsWith('8')){
+        if (isArrec48ComBlocosValidos(dig)) {
+          const bc44 = ld48ToBarcode44(dig);
+          if (isBarcode44BasicoValido(bc44)){
+            linhas.add(fmtArrec48(dig));
+          }
+        }
+        return;
+      }
+
+      // ARRECADAÇÃO 44: aceita só se 3º dígito em {6,7}
+      if (dig.length === 44 && dig.startsWith('8')){
+        if (isBarcode44BasicoValido(dig)){
+          linhas.add(fmtArrec44(dig));
+        }
+        return;
       }
     };
 
-    const patterns = [
-      // cobrança formatada: 5.5  5.6  5.6  1  14
-      /(\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14})/g,
-      // arrecadação formatada: 12 12 12 12
-      /(\d{12}\s+\d{12}\s+\d{12}\s+\d{12})/g,
-      // seqs grandes (brutas): 47 ou 48
-      /(\d{47,48})/g,
-    ];
-
     for (const t of textVariants){
-      // normalização leve
-      const T = (t||'').replace(/\u00A0/g,' ').replace(/\s+/g,' ');
-      for (const re of patterns){
-        const m = T.matchAll(re);
-        for (const x of m) pushIfValid(x[1]);
-      }
+      const T = (t||'').replace(/\u00A0/g,' ');
+      for (const re of patternsTight){ for (const m of T.matchAll(re)) pushByDigits(m[1]); }
+      for (const re of patternsLoose){ for (const m of T.matchAll(re)) pushByDigits(m[1]); }
     }
+
     return Array.from(linhas);
   }
 
@@ -312,19 +448,34 @@
     mostrarUnitario(raw);
     preencherTabela([]);
     dbg.style.display='none';
+    pwBox.style.display='none';
   });
 
+  // URL (com senhas)
   btnLerUrl.addEventListener('click', async ()=>{
     const url = elPdfUrl.value.trim();
     if(!url){ setStatus('Informe a URL do PDF','warn'); return; }
     try{
-      setStatus('Lendo PDF da URL…','muted');
-      const {withSpaces, noSpaces} = await extractTextFromPdfUrl(url);
+      setStatus('Lendo PDF da URL…','muted'); pwBox.style.display='none';
+      let pdf = await openPdfWithPasswords(url,'url', null);
+      if (!pdf) {
+        btnTryPw.onclick = async ()=>{
+          const pdf2 = await openPdfManualPassword(url,'url', elPw.value);
+          if (pdf2){
+            const {withSpaces, noSpaces} = await extractTextFromPdf(pdf2);
+            const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
+            preencherTabela(linhas);
+            setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
+            dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
+            dbg.style.display = 'block';
+          }
+        };
+        return;
+      }
+      const {withSpaces, noSpaces} = await extractTextFromPdf(pdf);
       const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
       preencherTabela(linhas);
       setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-      resetUnitario();
-      // debug opcional: mostre os 1200 primeiros chars
       dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
       dbg.style.display = 'block';
     }catch(e){
@@ -334,17 +485,32 @@
     }
   });
 
+  // Arquivo local (com senhas)
   btnLerFile.addEventListener('click', async ()=>{
     const file = elPdfFile.files && elPdfFile.files[0];
     if(!file){ setStatus('Escolha um PDF primeiro','warn'); return; }
     try{
-      setStatus('Abrindo PDF local…','muted');
+      setStatus('Abrindo PDF local…','muted'); pwBox.style.display='none';
       const buf = await file.arrayBuffer();
-      const {withSpaces, noSpaces} = await extractTextFromPdfData(buf);
+      let pdf = await openPdfWithPasswords(buf,'data', null);
+      if (!pdf) {
+        btnTryPw.onclick = async ()=>{
+          const pdf2 = await openPdfManualPassword(buf,'data', elPw.value);
+          if (pdf2){
+            const {withSpaces, noSpaces} = await extractTextFromPdf(pdf2);
+            const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
+            preencherTabela(linhas);
+            setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
+            dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
+            dbg.style.display = 'block';
+          }
+        };
+        return;
+      }
+      const {withSpaces, noSpaces} = await extractTextFromPdf(pdf);
       const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
       preencherTabela(linhas);
       setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-      resetUnitario();
       dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
       dbg.style.display = 'block';
     }catch(e){
@@ -355,13 +521,13 @@
   });
 
   btnLimpar.addEventListener('click', ()=>{
-    elLinha.value=''; elPdfUrl.value=''; elPdfFile.value='';
+    elLinha.value=''; elPdfUrl.value=''; elPdfFile.value=''; elPw.value='';
     resetUnitario(); preencherTabela([]); setStatus('Aguardando…','muted'); elTotal.textContent='0 linhas';
-    dbg.style.display='none';
+    dbg.style.display='none'; pwBox.style.display='none';
     elLinha.focus();
   });
 
-  // exemplo pré-preenchido
+  // exemplo pré-preenchido (vazio)
   elLinha.value='';
 })();
 </script>
