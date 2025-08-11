@@ -93,6 +93,8 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("SpotFy", "https://open.spotify.com/playlist/5wMbIGMnM1Dpj2BcCHZZlO", "2024-04-20");
 	adicionarTopico("Radio", "hist/radio.html", "2024-04-22");
 	adicionarTopico("Ler PDF", "hist/novo6.html", "2024-04-22");
+	adicionarTopico("Boletos", "hist/boletos.html", "2024-04-22");
 	
     // Adicionar mais tópicos conforme necessário
 });
+
