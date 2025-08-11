@@ -222,11 +222,14 @@
   }
 
   // 11+DV ×4 -> tentar formar 48
-  function coerceArrec11DV(raw){
-    const s = (raw||'').replace(/\s+/g,' ').trim();
-    const m = s.match(/^(\d{11})\D*(\d)\D*(\d{11})\D*(\d)\D*(\d{11})\D*(\d)\D*(\d{11})\D*(\d)$/);
-    return m ? m.slice(1).join('') : null;
-  }
+function coerceArrec11DV(raw){
+  // normaliza espaços e mantém qualquer coisa extra
+  const s = (raw||'').replace(/\s+/g,' ').trim();
+  // procura 11+DV quatro vezes, aceitando hífen, traço fino, en dash, etc., e qualquer “sujeira” entre eles
+  const m = s.match(/(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)/);
+  return m ? m.slice(1).join('') : null; // devolve os 48 dígitos purinhos
+}
+
 
   // ---------- Identificador ----------
   function identificarLinha(raw){
@@ -393,11 +396,12 @@
       + ')', 'g'
     );
 
-    const patternsTight = [
-      /(\d{5}\.\d{5}\s*\d{5}\.\d{6}\s*\d{5}\.\d{6}\s*\d\s*\d{14})/g,
-      /(\d{12}\s*\d{12}\s*\d{12}\s*\d{12})/g,
-      /(\d{44}|\d{47}|\d{48})/g,
-    ];
+const patternsTight = [
+  /(\d{5}\.\d{5}\s*\d{5}\.\d{6}\s*\d{5}\.\d{6}\s*\d\s*\d{14})/g,                 // cobrança 47 formatada
+  /(\d{12}\s*\d{12}\s*\d{12}\s*\d{12})/g,                                         // arrec 48 “colada”
+  /(\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d)/g, // arrec 48 com hífen
+  /(\d{44}|\d{47}|\d{48})/g,
+];
 
     const patternsLoose = [
       re11dvLoose,
@@ -442,14 +446,15 @@
   }
 
   // ---------- Ações ----------
-  btnLerLinha.addEventListener('click', ()=>{
-    const raw = elLinha.value;
-    if(!raw.trim()){ setStatus('Cole uma linha primeiro','warn'); return; }
-    mostrarUnitario(raw);
-    preencherTabela([]);
-    dbg.style.display='none';
-    pwBox.style.display='none';
-  });
+btnLerLinha.addEventListener('click', ()=>{
+  const raw = elLinha.value;
+  if(!raw.trim()){ setStatus('Cole uma linha primeiro','warn'); return; }
+  mostrarUnitario(raw);
+  preencherTabela([raw]); // agora sempre preenche a tabela
+  dbg.style.display='none';
+  pwBox.style.display='none';
+});
+
 
   // URL (com senhas)
   btnLerUrl.addEventListener('click', async ()=>{
