@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scanner compatível — abre a câmera custe o que custar</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { color-scheme: dark; }
+    body { padding: 16px; background:#0b1020; color:#e6e9f2; }
+    .card { background:#11172b; border:1px solid #1c2744; }
+    video { width: 100%; height: auto; background:#000; border-radius: 12px; }
+    .hint { color:#aab3c9; }
+    .log { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0b1328; border:1px solid #223056; border-radius:8px; padding:10px; max-height:40vh; overflow:auto; }
+    .badge-soft { background:#1a2446; color:#a7b3d6; border:1px solid #27335b; }
+  </style>
+</head>
+<body>
+  <div class="container py-3">
+    <div class="card shadow">
+      <div class="card-body">
+        <h1 class="h5 mb-2">Scanner compatível — foco em abrir a câmera</h1>
+        <p class="hint mb-2">
+          Esta versão prioriza <b>compatibilidade</b>: tenta várias combinações até abrir a câmera. Depois você pode usar o seu scanner de código de barras.
+        </p>
+
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <button class="btn btn-primary" id="btnStart">Iniciar</button>
+          <button class="btn btn-outline-secondary" id="btnStop" disabled>Parar</button>
+          <button class="btn btn-outline-secondary" id="btnSimple">Forçar modo simples</button>
+          <span class="badge badge-soft ms-auto" id="badgeCtx">secureContext: —</span>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-7">
+            <video id="preview" playsinline muted></video>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <span class="badge badge-soft" id="badgeCam">Câmera: —</span>
+              <span class="badge badge-soft" id="badgeRes">Resolução: —</span>
+            </div>
+          </div>
+          <div class="col-12 col-md-5">
+            <div class="mb-2"><strong>Dicas rápidas</strong></div>
+            <ul class="hint">
+              <li>Abra em <b>HTTPS</b> (ex.: GitHub Pages) e no <b>navegador</b> (Chrome/Safari), não no visualizador do app.</li>
+              <li>Permita o acesso à câmera nas permissões do site.</li>
+              <li>Se não abrir, use <b>Forçar modo simples</b> (usa <code>video:true</code> sem preferências).</li>
+            </ul>
+            <div class="mb-2"><strong>Logs</strong></div>
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const log = (m) => { const el=$('#log'); el.textContent += m + "\\n"; el.scrollTop = el.scrollHeight; };
+    const badgeCtx = $('#badgeCtx');
+    const badgeCam = $('#badgeCam');
+    const badgeRes = $('#badgeRes');
+
+    badgeCtx.textContent = 'secureContext: ' + (window.isSecureContext ? 'sim' : 'não');
+
+    let stream = null, track = null;
+
+    function updateResBadge(){
+      const v = $('#preview');
+      const vw = v.videoWidth, vh = v.videoHeight;
+      badgeRes.textContent = 'Resolução: ' + (vw ? `${vw}×${vh}` : '—');
+    }
+
+    async function openWith(constraints, label){
+      log('Tentando: ' + label + ' → ' + JSON.stringify(constraints));
+      try {
+        const s = await navigator.mediaDevices.getUserMedia(constraints);
+        return s;
+      } catch (e) {
+        log('Falhou ('+label+'): ' + e.name + ' — ' + e.message);
+        throw e;
+      }
+    }
+
+    async function enumerateBackCamera(){
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === 'videoinput');
+      log('Dispositivos de vídeo: ' + cams.map(c => c.label || '(sem label)').join(' | '));
+      // tenta achar traseira pelo label
+      let back = cams.find(d => /back|rear|traseira|environment/i.test(d.label));
+      return back || cams[0] || null;
+    }
+
+    async function startSequence(){
+      if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+        alert('Seu navegador não suporta getUserMedia.');
+        return;
+      }
+      if(!window.isSecureContext){
+        log('Contexto não seguro detectado — alguns navegadores bloqueiam a câmera.');
+      }
+
+      // Passo 0: pedir permissão genérica primeiro (no iOS, sem permissão labels vêm vazios)
+      try {
+        log('Passo 0: pedido rápido de permissão com video:true…');
+        const temp = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+        temp.getTracks().forEach(t => t.stop());
+        log('Permissão concedida (ou já concedida).');
+      } catch(e0){
+        log('Falhou Passo 0: ' + e0.name + ' — ' + e0.message);
+        // Se negar aqui, não adianta seguir
+      }
+
+      // Escolher back camera se possível
+      let back = null;
+      try { back = await enumerateBackCamera(); } catch(e){ log('enumerateDevices falhou: ' + e.message); }
+
+      // Sequência de tentativas:
+      const tries = [];
+
+      if(back){
+        tries.push({ label: 'deviceId exact + SD', constraints: { video: { deviceId:{ exact: back.deviceId }, width:{ ideal:1280 }, height:{ ideal:720 }, frameRate:{ ideal:30, max:60 }}, audio:false } });
+      }
+      tries.push({ label: 'facingMode environment + SD', constraints: { video: { facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 }, frameRate:{ ideal:30, max:60 }}, audio:false } });
+      tries.push({ label: 'video:true (modo simples)', constraints: { video:true, audio:false } });
+
+      for(const t of tries){
+        try{
+          stream = await openWith(t.constraints, t.label);
+          track = stream.getVideoTracks()[0];
+          break;
+        }catch(e){
+          // continua
+        }
+      }
+
+      if(!stream){
+        alert('Não consegui abrir a câmera. Veja os logs acima e as permissões do site.');
+        return;
+      }
+
+      $('#preview').srcObject = stream;
+      await $('#preview').play();
+      badgeCam.textContent = 'Câmera: ' + (track.label || '—');
+      updateResBadge();
+      $('#btnStart').disabled = true;
+      $('#btnStop').disabled = false;
+      log('✅ Câmera iniciada.');
+
+      // Ajustes pós-início: foco/zoom quando suportado
+      try{
+        const caps = track.getCapabilities?.() || {};
+        const adv = [];
+        if(caps.focusMode && caps.focusMode.includes('continuous')) adv.push({ focusMode:'continuous' });
+        else if(caps.focusMode && caps.focusMode.includes('auto')) adv.push({ focusMode:'auto' });
+        if(adv.length){
+          await track.applyConstraints({ advanced: adv });
+          log('Apliquei foco contínuo/auto via constraints avançadas.');
+        }
+      }catch(e){
+        log('Não consegui aplicar foco contínuo/auto: ' + e.message);
+      }
+
+      // Atualiza resolução de tempos em tempos (alguns devices ajustam após começar)
+      let tick = 0;
+      const resTimer = setInterval(()=>{
+        if(!stream) { clearInterval(resTimer); return; }
+        updateResBadge();
+        if(++tick > 20) clearInterval(resTimer);
+      }, 500);
+    }
+
+    function stopAll(){
+      try { stream?.getTracks().forEach(t => t.stop()); } catch {}
+      stream = null; track = null;
+      $('#preview').srcObject = null;
+      $('#btnStart').disabled = false;
+      $('#btnStop').disabled = true;
+      log('⏹️ Câmera parada.');
+    }
+
+    document.getElementById('btnStart').addEventListener('click', startSequence);
+    document.getElementById('btnStop').addEventListener('click', stopAll);
+    document.getElementById('btnSimple').addEventListener('click', async ()=>{
+      try {
+        stopAll();
+        stream = await openWith({ video:true, audio:false }, 'Forçar modo simples');
+        track = stream.getVideoTracks()[0];
+        $('#preview').srcObject = stream;
+        await $('#preview').play();
+        badgeCam.textContent = 'Câmera: ' + (track.label || '—');
+        updateResBadge();
+        $('#btnStart').disabled = true;
+        $('#btnStop').disabled = false;
+        log('✅ Câmera iniciada no modo simples.');
+      } catch(e) {
+        alert('Nem o modo simples abriu. Veja permissões/HTTPS.');
+      }
+    });
+  </script>
+</body>
+</html>
