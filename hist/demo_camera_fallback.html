@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo — Câmera com fallback automático</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { color-scheme: dark; }
+    body { padding: 16px; background: #0b1020; color: #e6e9f2; }
+    .card { background: #11172b; border: 1px solid #1c2744; }
+    .modal-content { background: #0f1426; border: 1px solid #243157; }
+    .modal-header, .modal-footer { border-color: #1d2747; }
+    .btn-primary { background: #3b82f6; border-color: #3b82f6; }
+    .btn-outline-secondary { color: #cbd2e0; border-color: #33406b; }
+    .btn-outline-secondary:hover { background: #1b2442; }
+    .form-control, .input-group-text { background: #0b1328; color: #e6e9f2; border-color: #2a3965; }
+    .thumb { width: 100%; max-width: 220px; border-radius: 8px; border: 1px solid #233059; }
+    .hint { color: #aab3c9; font-size: .9rem; }
+    .badge-soft { background: #1a2446; color: #a7b3d6; border: 1px solid #27335b; }
+  </style>
+</head>
+<body>
+  <div class="container py-3">
+    <div class="card shadow">
+      <div class="card-body">
+        <h1 class="h5 mb-2">Câmera com fallback automático</h1>
+        <p class="hint mb-2">
+          Este arquivo tenta usar a <strong>câmera embutida</strong> (getUserMedia). Se não puder (sem HTTPS, sem suporte ou sem permissão),
+          ele <strong>cai automaticamente</strong> para a <em>câmera nativa</em> (input file).
+        </p>
+        <div class="mb-3">
+          <span class="badge badge-soft" id="contexto"></span>
+        </div>
+        <button class="btn btn-primary" id="openMain">Abrir Cadastro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal principal -->
+  <div class="modal fade" id="modalCadastro" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Cadastro (fallback automático)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formCadastro">
+            <div class="mb-3">
+              <label class="form-label">Resumo da captura</label>
+              <input id="resumo_captura" class="form-control" placeholder="Ainda não capturado" readonly>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary" id="btnCapturaAuto">Capturar (auto)</button>
+              <button type="button" class="btn btn-outline-secondary" id="btnCamNativa">Forçar Câmera nativa</button>
+            </div>
+
+            <div class="mt-3 d-flex gap-3 align-items-start">
+              <img id="thumb" class="thumb d-none" alt="Miniatura" />
+              <div class="hint">
+                • Em HTTP/arquivo local, a embutida costuma ser bloqueada: o app troca para a nativa sozinho.<br/>
+                • Em iOS, a embutida requer HTTPS. Se não funcionar, use a nativa.
+              </div>
+            </div>
+
+            <input id="arquivoFoto" type="file" accept="image/*" capture="environment" hidden>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <small class="me-auto hint" id="status"></small>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+          <button class="btn btn-success" id="salvar">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Câmera embutida -->
+  <div class="modal fade" id="modalCamera" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Câmera embutida</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body p-0">
+          <video id="preview" autoplay playsinline style="width:100%;height:auto;background:#000"></video>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnCapturar">Capturar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const $  = (s)=>document.querySelector(s);
+    const modalCadastro = ()=>bootstrap.Modal.getOrCreateInstance($('#modalCadastro'));
+    const modalCamera   = ()=>bootstrap.Modal.getOrCreateInstance($('#modalCamera'));
+    const setStatus = (m)=>{$('#status').textContent = m;};
+
+    // Mostrar contexto atual
+    (function(){
+      const https = location.protocol === 'https:';
+      const secure = (window.isSecureContext === true);
+      const hasGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      $('#contexto').textContent = `HTTPS:${https?'sim':'não'} | secureContext:${secure?'sim':'não'} | getUserMedia:${hasGUM?'sim':'não'}`;
+    })();
+
+    // Abrir cadastro
+    $('#openMain').addEventListener('click', ()=>modalCadastro().show());
+
+    // Botão "Forçar nativa"
+    const inputFoto = $('#arquivoFoto');
+    $('#btnCamNativa').addEventListener('click', ()=>inputFoto.click());
+
+    inputFoto.addEventListener('change', async ()=>{
+      const f = inputFoto.files?.[0];
+      if(!f) return;
+      await tratarImagem(f, 'nativa');
+    });
+
+    // Capturar (auto): tenta embutida; se falhar, cai na nativa
+    let stream;
+    $('#btnCapturaAuto').addEventListener('click', async ()=>{
+      if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || !window.isSecureContext){
+        // Sem getUserMedia ou sem contexto seguro -> usar nativa
+        setStatus('ℹ️ Embutida indisponível; usando câmera nativa.');
+        inputFoto.click();
+        return;
+      }
+      try {
+        modalCadastro().hide();
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'} }, audio:false });
+        $('#preview').srcObject = stream;
+        modalCamera().show();
+      } catch (e) {
+        setStatus('⚠️ Não deu para abrir a embutida. Usando nativa.');
+        modalCadastro().show();
+        inputFoto.click();
+      }
+    });
+
+    $('#btnCapturar').addEventListener('click', async ()=>{
+      const v = $('#preview');
+      const canvas = document.createElement('canvas');
+      const w = v.videoWidth || 1280, h = v.videoHeight || 720;
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+      pararStream();
+      modalCamera().hide();
+      $('#modalCamera').addEventListener('hidden.bs.modal', async ()=>{
+        await tratarImagem(blob, 'embutida');
+        modalCadastro().show();
+      }, { once:true });
+    });
+
+    function pararStream(){
+      try { stream?.getTracks().forEach(t=>t.stop()); } catch {}
+      stream = null;
+      $('#preview').srcObject = null;
+    }
+    document.getElementById('modalCamera').addEventListener('hide.bs.modal', pararStream);
+
+    // "Processamento" de exemplo: miniatura + resumo
+    async function tratarImagem(blob, origem){
+      const url = URL.createObjectURL(blob);
+      const img = $('#thumb');
+      img.src = url; img.classList.remove('d-none');
+      const dims = await new Promise(res=>{ const i = new Image(); i.onload=()=>res({w:i.naturalWidth,h:i.naturalHeight}); i.src=url; });
+      const resumo = `Imagem ${dims.w}x${dims.h} (${origem})`;
+      $('#resumo_captura').value = resumo;
+      setStatus('✅ Captura concluída — ' + resumo);
+    }
+
+    // Salvar (demo)
+    $('#salvar').addEventListener('click', ()=>{
+      alert('Salvar: ' + ($('#resumo_captura').value || '(sem captura)'));
+    });
+
+    // Conveniência
+    window.addEventListener('load', ()=>setTimeout(()=>$('#openMain').click(), 300));
+  </script>
+</body>
+</html>

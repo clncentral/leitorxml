@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scanner de Código de Barras — ao vivo (ZXing)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { color-scheme: dark; }
+    body { padding: 16px; background: #0b1020; color: #e6e9f2; }
+    .card { background: #11172b; border: 1px solid #1c2744; }
+    .modal-content { background: #0f1426; border: 1px solid #243157; }
+    .modal-header, .modal-footer { border-color: #1d2747; }
+    .btn-primary { background: #3b82f6; border-color: #3b82f6; }
+    .btn-outline-secondary { color: #cbd2e0; border-color: #33406b; }
+    .btn-outline-secondary:hover { background: #1b2442; }
+    .form-control, .input-group-text { background: #0b1328; color: #e6e9f2; border-color: #2a3965; }
+    .hint { color: #aab3c9; font-size: .9rem; }
+    video#preview { width: 100%; height: auto; background:#000; border-radius: 12px; }
+    canvas#frame { width: 100%; max-width: 360px; border:1px dashed #233059; border-radius:8px; }
+    .list-codes { max-height: 40vh; overflow:auto; }
+    .badge-soft { background:#1a2446; color:#a7b3d6; border:1px solid #27335b; }
+  </style>
+</head>
+<body>
+  <div class="container py-3">
+    <div class="card shadow">
+      <div class="card-body">
+        <h1 class="h5 mb-2">Scanner de Código de Barras — ao vivo</h1>
+        <p class="hint mb-2">
+          • Requer <strong>HTTPS</strong> para câmera embutida nos navegadores móveis (em HTTP, use o botão “Foto (fallback)”).<br/>
+          • Largura do processamento limitada para acelerar a leitura e evitar “árvore a 100 km”.
+        </p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-primary" id="btnStart">Iniciar scanner</button>
+          <button class="btn btn-outline-secondary" id="btnStop" disabled>Parar</button>
+          <button class="btn btn-outline-secondary" id="btnTorch" disabled>Lanterna</button>
+          <label class="btn btn-outline-secondary mb-0">
+            Foto (fallback) <input id="fileInput" type="file" accept="image/*" capture="environment" hidden>
+          </label>
+          <div class="form-check ms-auto">
+            <input class="form-check-input" type="checkbox" id="chkContinuo" checked>
+            <label class="form-check-label" for="chkContinuo">Modo contínuo</label>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-7">
+            <video id="preview" playsinline muted></video>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <span class="badge badge-soft" id="badgeCam">Câmera: —</span>
+              <span class="badge badge-soft" id="badgeCtx">secureContext: —</span>
+              <span class="badge badge-soft" id="badgeW">largura proc: —</span>
+            </div>
+          </div>
+          <div class="col-12 col-md-5">
+            <div class="mb-2">
+              <label class="form-label">Último código</label>
+              <input id="ultimoCodigo" class="form-control" readonly placeholder="—">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Pré-visualização reduzida (processada)</label><br>
+              <canvas id="frame" width="800" height="480"></canvas>
+              <div class="hint mt-1">Processamento limitado a largura máxima (ajustável).</div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Leituras</label>
+              <div class="list-group list-codes" id="listaCodigos"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZXing (browser build) -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4"></script>
+
+  <script>
+    // ===== Config =====
+    const LARGURA_MAX = 800;     // limite de largura para processamento
+    const DUP_WINDOW_MS = 1200;  // janela para evitar duplicar mesma leitura
+    const FORMATS = [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.QR_CODE // (incluído caso precise)
+    ];
+
+    // ===== Estado =====
+    let video = document.getElementById('preview');
+    let canvas = document.getElementById('frame');
+    let ctx = canvas.getContext('2d');
+    let currentStream = null;
+    let lastCode = null, lastTime = 0;
+    let track = null;
+    let torchOn = false;
+
+    // ===== Utils =====
+    const $ = s => document.querySelector(s);
+    const beep = ()=> {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = 880;
+        o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + 0.01);
+        o.start(); setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
+      } catch {}
+      if (navigator.vibrate) navigator.vibrate(60);
+    };
+    const now = ()=> Date.now();
+    const avoidDup = (text)=> {
+      if (text === lastCode && (now() - lastTime) < DUP_WINDOW_MS) return true;
+      lastCode = text; lastTime = now(); return false;
+    };
+    const addLog = (text, fmt)=> {
+      const item = document.createElement('div');
+      item.className = 'list-group-item list-group-item-action';
+      item.textContent = `[${new Date().toLocaleTimeString()}] ${text} (${fmt})`;
+      $('#listaCodigos').prepend(item);
+    };
+
+    function atualizarBadges(deviceLabel) {
+      $('#badgeCam').textContent = 'Câmera: ' + (deviceLabel || '—');
+      $('#badgeCtx').textContent = 'secureContext: ' + (window.isSecureContext ? 'sim' : 'não');
+      $('#badgeW').textContent = 'largura proc: max ' + LARGURA_MAX + 'px';
+    }
+
+    // ===== Scanner (ZXing) =====
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, FORMATS);
+    const reader = new ZXing.BrowserMultiFormatReader(hints);
+
+    async function startScanner() {
+      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || !window.isSecureContext) {
+        alert('Câmera embutida indisponível neste contexto. Use o botão "Foto (fallback)".');
+        return;
+      }
+      try {
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        const back = devices.find(d => /back|rear|traseira|environment/i.test(d.label)) || devices[0];
+
+        const constraints = {
+          video: {
+            deviceId: back ? { exact: back.deviceId } : undefined,
+            facingMode: back ? undefined : { ideal: 'environment' },
+            width: { ideal: LARGURA_MAX }, // sugere largura menor
+            focusMode: 'continuous' // alguns navegadores ignoram, mas ajuda
+          },
+          audio: false
+        };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+        track = currentStream.getVideoTracks()[0];
+        $('#btnTorch').disabled = !('torch' in (track?.getCapabilities?.() || {}));
+
+        await video.play();
+        $('#btnStart').disabled = true;
+        $('#btnStop').disabled = false;
+
+        atualizarBadges(back?.label);
+
+        // Loop de leitura manual (para limitar resolução via canvas)
+        scanLoop();
+      } catch (e) {
+        console.error(e);
+        alert('Não foi possível iniciar a câmera. Permissões/HTTPS?');
+      }
+    }
+
+    function stopScanner() {
+      try { reader.reset(); } catch {}
+      try { currentStream?.getTracks().forEach(t => t.stop()); } catch {}
+      currentStream = null; track = null;
+      $('#btnStart').disabled = false;
+      $('#btnStop').disabled = true;
+      $('#btnTorch').disabled = true;
+      torchOn = false;
+    }
+
+    async function scanLoop() {
+      if (!currentStream) return;
+      // Ajusta canvas respeitando LARGURA_MAX mantendo proporção
+      const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+      const scale = Math.min(1, LARGURA_MAX / vw);
+      canvas.width = Math.round(vw * scale);
+      canvas.height = Math.round(vh * scale);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      try {
+        const luminance = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const binarizer = new ZXing.GlobalHistogramBinarizer(luminance);
+        const bitmap = new ZXing.BinaryBitmap(binarizer);
+        const result = reader.decodeBitmap(bitmap); // decodifica o frame do canvas
+        if (result && result.getText) {
+          const text = result.getText();
+          const format = ZXing.BarcodeFormat[result.getBarcodeFormat?.()] || '—';
+
+          if (!avoidDup(text)) {
+            beep();
+            $('#ultimoCodigo').value = text;
+            addLog(text, format);
+
+            // Se não for modo contínuo, para o scanner
+            if (!$('#chkContinuo').checked) {
+              stopScanner();
+            }
+          }
+        }
+      } catch (e) {
+        // Sem detecção neste frame — normal. Não logar.
+      }
+      requestAnimationFrame(scanLoop);
+    }
+
+    // Lanterna (quando disponível)
+    async function toggleTorch() {
+      if (!track) return;
+      const caps = track.getCapabilities?.();
+      if (!caps || !caps.torch) return;
+      torchOn = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+      $('#btnTorch').textContent = torchOn ? 'Lanterna (ON)' : 'Lanterna';
+    }
+
+    // ===== Fallback: decodificar uma foto =====
+    async function decodeFile(file) {
+      const img = await new Promise(res => {
+        const i = new Image();
+        i.onload = ()=> res(i);
+        i.src = URL.createObjectURL(file);
+      });
+      const scale = Math.min(1, LARGURA_MAX / img.naturalWidth);
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      try {
+        const luminance = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const binarizer = new ZXing.GlobalHistogramBinarizer(luminance);
+        const bitmap = new ZXing.BinaryBitmap(binarizer);
+        const result = reader.decodeBitmap(bitmap);
+        if (result && result.getText) {
+          const text = result.getText();
+          const format = ZXing.BarcodeFormat[result.getBarcodeFormat?.()] || '—';
+          beep();
+          $('#ultimoCodigo').value = text;
+          addLog(text, format);
+        } else {
+          alert('Nenhum código detectado.');
+        }
+      } catch (e) {
+        alert('Não consegui detectar código nesta imagem.');
+      }
+    }
+
+    // ===== Eventos =====
+    document.getElementById('btnStart').addEventListener('click', startScanner);
+    document.getElementById('btnStop').addEventListener('click', stopScanner);
+    document.getElementById('btnTorch').addEventListener('click', toggleTorch);
+    document.getElementById('fileInput').addEventListener('change', (e)=>{
+      const f = e.target.files?.[0]; if (f) decodeFile(f);
+    });
+
+    // Conveniência: mostrar contexto
+    document.getElementById('badgeCtx').textContent = 'secureContext: ' + (window.isSecureContext ? 'sim' : 'não');
+  </script>
+</body>
+</html>
