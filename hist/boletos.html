@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Leitor de Boleto – Valor e Vencimento</title>
+<title>Leitor de Boleto – Valor e Vencimento (texto completo)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --bg:#0b0d12; --card:#141824; --text:#e8ecf1; --muted:#9aa4b2; --accent:#3aa3ff; --line:#283255; }
@@ -24,7 +24,7 @@
   .ok{color:#1ee592}.warn{color:#ffd36e}.err{color:#ff7a7a}
   .row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
   .btn{background:var(--accent);border:none;color:#001025;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-  .btn-outline{background:transparent;color:var(--text);border:1px solid #2b3350}
+  .btn-outline{background:transparent;color:#fff;border:1px solid #2b3350}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .muted{color:var(--muted)}
   table{width:100%;border-collapse:separate;border-spacing:0;margin-top:18px}
@@ -33,6 +33,7 @@
   tbody tr:nth-child(even){background:#0f1320}
   .right{text-align:right}
   .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  #dbg{margin-top:10px;padding:12px;border:1px solid #22283a;background:#0f1320;color:#c9d3e3;display:none;white-space:pre-wrap;max-height:66vh;overflow:auto;border-radius:10px}
 </style>
 </head>
 <body>
@@ -40,28 +41,26 @@
     <div class="card">
       <h1>Leitor de Boleto</h1>
 
-      <!-- Entrada direta -->
-      <label for="linha">Linha digitável (cole com ou sem pontos/espaços)</label>
-      <input id="linha" type="text" placeholder="Ex.: 03399.32915.73100.000097.50463.901012.7.11890000241500">
+      <label for="linha">Linha digitável (opcional, para teste manual)</label>
+      <input id="linha" type="text" placeholder="Cole aqui uma linha digitável se quiser testar">
 
-      <!-- PDF via URL ou arquivo local -->
       <div class="grid cols-3" style="margin-top:12px">
         <div>
           <label for="pdfUrl">URL de PDF (usa pdf.js 2.10.377)</label>
-          <input id="pdfUrl" type="url" placeholder="https://.../boleto.pdf">
+          <input id="pdfUrl" type="url" placeholder="https://.../arquivo.pdf">
         </div>
         <div>
           <label for="pdfFile">PDF local</label>
           <input id="pdfFile" type="file" accept="application/pdf">
         </div>
-        <div style="display:flex;align-items:flex-end;gap:8px">
-          <button id="btnLerLinha" class="btn" type="button">Ler linha</button>
+        <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+          <button id="btnLerLinha" class="btn" type="button">Ler linha (manual)</button>
           <button id="btnLerUrl" class="btn btn-outline" type="button">Ler URL</button>
           <button id="btnLerFile" class="btn btn-outline" type="button">Ler arquivo</button>
+          <button id="btnCarregarTabela" class="btn" type="button" title="Ler as linhas do texto abaixo e montar a tabela">Carregar tabela do texto</button>
         </div>
       </div>
 
-      <!-- Senha (só aparece se necessário) -->
       <div id="pwBox" class="grid cols-3" style="display:none;margin-top:8px">
         <div>
           <label for="pdfPassword">Senha do PDF (se houver)</label>
@@ -78,11 +77,10 @@
       <div class="row">
         <span id="tipo" class="badge muted">—</span>
         <span id="status" class="badge muted">Aguardando…</span>
-        <span id="total" class="badge muted">0 linhas</span>
+        <span id="total" class="badge muted">0 págs</span>
         <button id="limpar" class="btn" type="button">Limpar</button>
       </div>
 
-      <!-- Resultado unitário -->
       <div class="grid cols-2">
         <div>
           <label for="valor">Valor a pagar</label>
@@ -94,7 +92,9 @@
         </div>
       </div>
 
-      <!-- Tabela multi -->
+      <label for="dbg" style="margin-top:14px">Texto extraído do PDF (todas as páginas)</label>
+      <pre id="dbg" class="mono" aria-label="Texto completo do PDF"></pre>
+
       <table id="tabela" style="display:none">
         <thead>
           <tr>
@@ -108,355 +108,204 @@
       </table>
 
       <div class="help" id="ajuda">
-        Para <span class="badge">cobrança (47 dígitos)</span> calculo <b>valor</b> e <b>vencimento</b>.<br>
-        Para <span class="badge">arrecadação (48 começando com 8)</span>, o <b>vencimento</b> não é padronizado; o <b>valor</b> só vem quando o 3º dígito é <b>6</b>.
+        Agora eu <b>apenas leio e mostro o texto</b> do PDF (todas as páginas). A tabela é montada a partir dessas linhas formatadas.
       </div>
     </div>
   </div>
 
-  <!-- pdf.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
-  </script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';</script>
 
 <script>
 (function(){
-  // ---------- Utilidades ----------
   const $ = s => document.querySelector(s);
   const elLinha = $('#linha'), elValor = $('#valor'), elVenc = $('#venc');
   const elTipo  = $('#tipo'), elStatus = $('#status'), elTotal = $('#total');
-  const elAjuda = $('#ajuda'), elTabela = $('#tabela'), elTbody = $('#tbody');
-  const btnLerLinha = $('#btnLerLinha'), btnLerUrl = $('#btnLerUrl'), btnLerFile = $('#btnLerFile'), btnLimpar = $('#limpar');
+  const elAjuda = $('#ajuda'), btnLerLinha = $('#btnLerLinha'), btnLerUrl = $('#btnLerUrl'), btnLerFile = $('#btnLerFile'), btnLimpar = $('#limpar');
   const elPdfUrl = $('#pdfUrl'), elPdfFile = $('#pdfFile');
   const pwBox = $('#pwBox'), elPw = $('#pdfPassword'), btnTryPw = $('#btnTryPw');
+  const btnCarregarTabela = $('#btnCarregarTabela');
 
-  // debug viewer opcional
-  let dbg = document.getElementById('dbg');
-  if(!dbg){
-    dbg = document.createElement('pre');
-    dbg.id = 'dbg';
-    dbg.style.cssText = 'margin-top:10px;padding:10px;border:1px solid #22283a;background:#0f1320;color:#9aa4b2;display:none;white-space:pre-wrap;max-height:220px;overflow:auto';
-    elAjuda.after(dbg);
-  }
+  const dbg = $('#dbg'), elTabela = $('#tabela'), elTbody = $('#tbody');
 
-  const BASE_OLD = new Date(Date.UTC(1997, 9, 7));   // 07/10/1997
-  const BASE_NEW = new Date(Date.UTC(2025, 1, 22));  // 22/02/2025
+  const BASE_OLD = new Date(Date.UTC(1997, 9, 7));
+  const BASE_NEW = new Date(Date.UTC(2025, 1, 22));
 
   const stripDigits = s => (s||'').replace(/\D+/g,'');
-  const onlyDigits  = s => /^[0-9]+$/.test(s||'');
+  const toBRL = cents => (cents==null||isNaN(cents))?'—':(cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  function fmtDateUTC(d){ if(!d) return '—'; const y=d.getUTCFullYear(),m=String(d.getUTCMonth()+1).padStart(2,'0'),day=String(d.getUTCDate()).padStart(2,'0'); return `${day}/${m}/${y}`; }
+  function addDaysUTC(base,days){ const d=new Date(base.getTime()); d.setUTCDate(d.getUTCDate()+days); return d; }
 
-  const toBRL = cents => (cents == null || isNaN(cents)) ? '—' :
-    (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-
-  function fmtDateUTC(d){
-    if (!d) return '—';
-    const y = d.getUTCFullYear(), m = String(d.getUTCMonth()+1).padStart(2,'0'), day = String(d.getUTCDate()).padStart(2,'0');
-    return `${day}/${m}/${y}`;
-  }
-  function addDaysUTC(base, days){
-    const d = new Date(base.getTime());
-    d.setUTCDate(d.getUTCDate() + days);
-    return d;
-  }
-
-  // ---------- DV Mod-10 FEBRABAN (para blocos 11+DV) ----------
-  function dvMod10_febraban(num11){
-    let soma = 0, fator = 2;
-    for (let i = num11.length - 1; i >= 0; i--){
-      let n = Number(num11[i]) * fator;
-      if (n > 9) n = Math.floor(n/10) + (n%10);
-      soma += n;
-      fator = (fator === 2 ? 1 : 2);
-    }
-    const resto = soma % 10;
-    return (resto === 0) ? 0 : (10 - resto);
-  }
-  function isArrec48ComBlocosValidos(d48){
-    if (d48.length !== 48 || d48[0] !== '8') return false;
-    for (let i = 0; i < 48; i += 12){
-      const bloco11 = d48.slice(i, i+11);
-      const dv = Number(d48[i+11]);
-      if (dvMod10_febraban(bloco11) !== dv) return false;
-    }
-    return true;
-  }
-  function ld48ToBarcode44(d48){
-    const b1 = d48.slice(0,11),  b2 = d48.slice(12,23),
-          b3 = d48.slice(24,35), b4 = d48.slice(36,47);
-    return b1 + b2 + b3 + b4; // 44 dígitos
-  }
-  function isBarcode44BasicoValido(bc44){
-    return bc44.length === 44 && bc44[0] === '8' && (bc44[2] === '6' || bc44[2] === '7');
-  }
-
-  // ---------- Cobrança (47) ----------
-  function parseCobranca47(digits){
-    const campo5 = digits.slice(-14); // 4 fator + 10 valor
-    const fator = parseInt(campo5.slice(0,4),10);
-    const valorCents = parseInt(campo5.slice(4),10);
-    return { tipo:'cobranca', banco: digits.slice(0,3),
-             fator: isNaN(fator)?null:fator,
-             valorCents: isNaN(valorCents)?null:valorCents };
-  }
-  function calcVencCobranca(fator){
-    if (!fator) return null;
-    if (fator >= 1000) return addDaysUTC(BASE_NEW, fator - 1000);
-    return addDaysUTC(BASE_OLD, fator);
-  }
-
-  // ---------- Arrecadação ----------
-  function parseArrecadacao48_fromLD(d48){
-    if (!isArrec48ComBlocosValidos(d48)) return {tipo:'desconhecido'};
-    const bc44 = ld48ToBarcode44(d48);
-    return parseArrecadacao_fromBarcode44(bc44);
-  }
-  function parseArrecadacao_fromBarcode44(bc44){
-    if (!isBarcode44BasicoValido(bc44)) return {tipo:'desconhecido'};
-    const segmento  = bc44[1];
-    const tipoValor = bc44[2]; // 6 valor efetivo, 7 referência
-    const valorStr  = bc44.slice(4,15); // 11 dígitos centavos
-    const valorCents = (tipoValor==='6' && onlyDigits(valorStr)) ? parseInt(valorStr,10) : null;
-    return { tipo:'arrecadacao', segmento, tipoValor, valorCents };
-  }
-
-  // 11+DV ×4 -> tentar formar 48
-function coerceArrec11DV(raw){
-  // normaliza espaços e mantém qualquer coisa extra
-  const s = (raw||'').replace(/\s+/g,' ').trim();
-  // procura 11+DV quatro vezes, aceitando hífen, traço fino, en dash, etc., e qualquer “sujeira” entre eles
-  const m = s.match(/(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)[^\d]*(\d{11})\s*[-‑–—]?\s*(\d)/);
-  return m ? m.slice(1).join('') : null; // devolve os 48 dígitos purinhos
-}
-
-
-  // ---------- Identificador ----------
-  function identificarLinha(raw){
-    const coerced = coerceArrec11DV(raw);
-    const digits = (coerced ? coerced : stripDigits(raw));
-
-    if (!digits) return {tipo:'vazio'};
-
-    if (digits.length===47) return parseCobranca47(digits);
-
-    if (digits.length===48 && digits[0]==='8') return parseArrecadacao48_fromLD(digits);
-
-    if (digits.length===44 && digits[0]==='8') return parseArrecadacao_fromBarcode44(digits);
-
-    return {tipo:'desconhecido', erro:`comprimento ${digits.length} inválido`};
-  }
-
-  // ---------- UI ----------
   function setStatus(t,c='muted'){ elStatus.textContent=t; elStatus.className=`badge ${c}`; }
   function setTipo(t){ elTipo.textContent=t; elTipo.className='badge'; }
   function resetUnitario(){ elValor.value='—'; elVenc.value='—'; elTipo.textContent='—'; elTipo.className='badge muted'; }
 
-  function mostrarUnitario(raw){
-    resetUnitario();
-    const info = identificarLinha(raw);
-    if (info.tipo==='cobranca'){
-      setTipo('Cobrança (47)');
-      elValor.value = toBRL(info.valorCents);
-      elVenc.value  = fmtDateUTC(calcVencCobranca(info.fator));
-      setStatus('OK','ok');
-      elAjuda.innerHTML='Cobrança: uso o <b>fator</b> (4) e o <b>valor</b> (10) do <b>campo 5</b> (14 últimos dígitos).';
-      return;
-    }
-    if (info.tipo==='arrecadacao'){
-      setTipo(`Arrecadação – tipo ${info.tipoValor||'?'}`);
-      elValor.value = (info.tipoValor==='6') ? toBRL(info.valorCents) : 'indisponível (tipo 7)';
-      elVenc.value  = 'não padronizado na linha';
-      setStatus(info.tipoValor==='6'?'OK':'Atenção', info.tipoValor==='6'?'ok':'warn');
-      elAjuda.innerHTML='Arrecadação: o <b>valor</b> só aparece quando o 3º dígito é <b>6</b>; <b>vencimento</b> não é padronizado.';
-      return;
-    }
-    if (info.tipo==='desconhecido'){ setStatus(info.erro||'inválido','err'); return; }
-    setStatus('aguardando…','muted');
+  // --- DV & cobrança (validação forte) ---
+  function dvMod10(b){ let soma=0,fator=2; for(let i=b.length-1;i>=0;i--){ let n=(b.charCodeAt(i)-48)*fator; if(n>9) n=Math.floor(n/10)+(n%10); soma+=n; fator=(fator===2?1:2);} const r=soma%10; return r===0?0:(10-r); }
+  function dvMod11_barcode44(bc){ let soma=0,f=2; for(let i=bc.length-1;i>=0;i--){ soma+=(bc.charCodeAt(i)-48)*f; f=(f===9?2:f+1);} const resto=soma%11, dv=11-resto; return (dv===0||dv===10||dv===11)?1:dv; }
+  function validarCobranca47(l47){
+    const d = l47.replace(/\D+/g,''); if(d.length!==47) return null;
+    const c1=d.slice(0,9), dv1=+d[9], c2=d.slice(10,20), dv2=+d[20], c3=d.slice(21,31), dv3=+d[31];
+    const dvGeral=+d[32], fator=d.slice(33,37), valor=d.slice(37,47);
+    if (dvMod10(c1)!==dv1) return null;
+    if (dvMod10(c2)!==dv2) return null;
+    if (dvMod10(c3)!==dv3) return null;
+    const banco=d.slice(0,3), moeda=d[3], livre=c1.slice(4)+c2+c3;
+    const bcSemDV=banco+moeda+fator+valor+livre;
+    if (dvMod11_barcode44(bcSemDV)!==dvGeral) return null;
+    return { ok:true };
+  }
+  function calcVencCobranca(fator){
+    if (!Number.isInteger(fator)) return null;
+    if (fator>=1000) return addDaysUTC(BASE_NEW, fator-1000);
+    if (fator===0)  return null;
+    return addDaysUTC(BASE_OLD, fator);
   }
 
-  // preferir cobrança se houver conflito
-  function preencherTabela(linhas){
-    elTbody.innerHTML='';
-    if(!linhas||!linhas.length){ elTabela.style.display='none'; elTotal.textContent='0 linhas'; return; }
-
-    const cobrancas=[], arrec=[];
-    for (const raw of linhas){
-      const d = raw.replace(/\D+/g,'');
-      if (d.length===47) cobrancas.push(raw);
-      else if ((d.length===48 || d.length===44) && d[0]==='8') arrec.push(raw);
+  // --- extração PDF ---
+  async function extractTextFromPdf(pdf){
+    const pagesWithSpaces = [];
+    for(let p=1;p<=pdf.numPages;p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const parts = content.items.map(i=>i.str);
+      pagesWithSpaces.push(parts.join(' '));
     }
-    const finais = cobrancas.length ? cobrancas : [...cobrancas, ...arrec];
+    const withSpaces = pagesWithSpaces.map((txt,i)=>`— Página ${i+1} —\n${txt}`).join('\n\n');
+    return {withSpaces, numPages: pdf.numPages};
+  }
 
-    elTabela.style.display='table'; elTotal.textContent=`${finais.length} linha(s)`;
-    finais.forEach((raw, i)=>{
-      const info = identificarLinha(raw);
-      const tr = document.createElement('tr');
+  // --- abrir com senhas ---
+  const SENHAS_PADRAO = ['2802','0578','28021','05789','057893','280216'];
+  async function openPdfWithPasswords(source, kind, extraPassword){
+    const tries=[...SENHAS_PADRAO]; if(extraPassword){const e=(extraPassword||'').trim(); if(e && !tries.includes(e)) tries.push(e);}
+    for(const pw of tries){
+      try{
+        const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
+        const pdf = await pdfjsLib.getDocument(arg).promise;
+        setStatus(`PDF aberto${pw?' com senha':''}.`,'ok'); pwBox.style.display='none'; return pdf;
+      }catch(e){ if(e && e.name==='PasswordException'){ if(e.code===1||e.code===2) continue; } throw e; }
+    }
+    pwBox.style.display='grid'; if(!elPw.value) elPw.value='28021';
+    setStatus('PDF protegido: informe a senha abaixo.','warn'); return null;
+  }
+  async function openPdfManualPassword(source, kind, password){
+    const pw=(password||'').trim(); if(!pw){ setStatus('Digite a senha.','warn'); return null; }
+    try{
+      const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
+      const pdf = await pdfjsLib.getDocument(arg).promise;
+      setStatus('PDF aberto com a senha informada.','ok'); pwBox.style.display='none'; return pdf;
+    }catch(e){
+      if (e && e.name==='PasswordException'){ setStatus((e.code===2?'Senha incorreta.':'Senha necessária.')+' Tente novamente.','err'); return null; }
+      throw e;
+    }
+  }
 
-      const td1=document.createElement('td'); td1.textContent=i+1; td1.className='mono';
-      const td2=document.createElement('td'); td2.textContent=raw.trim(); td2.className='mono';
-      const td3=document.createElement('td');
-      const td4=document.createElement('td'); td4.className='right mono';
+  // --- suas regras de segmentação/saneamento (resumo do que já tínhamos) ---
+  function segmentBeforeSanitize(raw){
+    let s=String(raw||'').replace(/\r\n?/g,'\n');
+    s=s.replace(/\.{2,}/g,'');                                     // remove "..."
+    s=s.replace(/^[ \t]*(?=[A-Z0-9]{30,}$)(?=.*[A-Z])[A-Z0-9]+[ \t]*$/gm,''); // remove chaves alfa-num longas
+    s=s.replace(/\b(\d{3})\s*-\s*(\d)\b/g,'$1-$2');                // "033 - 7" -> "033-7"
+    s=s.replace(/\|\d{3}-\d\|/g, m=>`\n${m}\n`);                   // isola |000-0|
+    s=s.replace(/\b(\d{3}-\d)\b/g,'\n$1\n');                       // isola 000-0
+    s=s.replace(/[ \t]+(?=[A-Za-zÀ-ÖØ-öø-ÿ])/g,'\n');              // quebra antes de texto
+    s=s.replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{3,}/g,'\n\n');
+    return s;
+  }
+  function sanitizeKeepDigitsDotsHyphenAndNewlines_perLine(segmented){
+    const lines=(segmented||'').split('\n'), out=[], seen=new Set();
+    for(const lineRaw of lines){
+      const original=lineRaw;
+      if (/\b\d{2}\/\d{2}\/\d{2}(?:\d{2})?\b/.test(original)) continue;
+      let cleaned=original.replace(/[^\d.\-\n ]+/g,'');
+      if (original.includes('/')) cleaned=cleaned.replace(/[.\-]/g,'');
+      cleaned=cleaned.replace(/[ \t]+/g,' ').trim();
+      const digitCount=(cleaned.match(/\d/g)||[]).length;
+      if (/^\d{40,}$/.test(cleaned)) continue;     // só dígitos longos (assinatura)
+      if (/^\d{3}-\d$/.test(cleaned)) continue;    // linha só com "000-0"
+      if (digitCount>=40 && cleaned && !seen.has(cleaned)){ out.push(cleaned); seen.add(cleaned); }
+    }
+    return out.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
 
-      if (info.tipo==='cobranca'){
-        td3.textContent=fmtDateUTC(calcVencCobranca(info.fator));
-        td4.textContent=toBRL(info.valorCents);
-      } else if (info.tipo==='arrecadacao'){
-        td3.textContent='—';
-        td4.textContent=(info.tipoValor==='6')?toBRL(info.valorCents):'—';
-      } else { td3.textContent='—'; td4.textContent='—'; }
+  // --- montar tabela a partir do <pre id="dbg"> ---
+  function linhasDoDbg(){
+    return (dbg.textContent||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  }
+
+  // 47 completo => fator/venc/valor; 43 (sem fator) => venc "-", valor com 0000 + últimos 10
+  function montarInfoDaLinha(raw){
+    const digits = raw.replace(/\D+/g,'');
+    if (digits.length===47){
+      const v = validarCobranca47(digits); if(!v||!v.ok) return null;
+      const fator = parseInt(digits.slice(-14,-10),10);
+      const valorCents = parseInt(digits.slice(-10),10);
+      const venc = calcVencCobranca(fator);
+      return { raw, venc: fmtDateUTC(venc), valorCents };
+    }
+    if (digits.length===43){
+      const valor10 = digits.slice(-10);
+      const valorCents = parseInt('0000'+valor10,10);
+      return { raw, venc: '-', valorCents };
+    }
+    return null;
+  }
+
+  function preencherTabelaAPartirDoDbg(){
+    const linhas = linhasDoDbg();
+    const infos=[];
+    for(const l of linhas){ const info=montarInfoDaLinha(l); if(info) infos.push(info); }
+
+    elTbody.innerHTML='';
+    if(!infos.length){ elTabela.style.display='none'; return; }
+
+    elTabela.style.display='table';
+    infos.forEach((info,idx)=>{
+      const tr=document.createElement('tr');
+
+      const td1=document.createElement('td'); td1.textContent=idx+1; td1.className='mono';
+      const td2=document.createElement('td'); td2.textContent=info.raw; td2.className='mono';
+      const td3=document.createElement('td'); td3.textContent=info.venc||'-';
+      const td4=document.createElement('td'); td4.textContent=toBRL(info.valorCents); td4.className='right mono';
 
       tr.append(td1,td2,td3,td4); elTbody.appendChild(tr);
     });
   }
 
-  // ---------- PDF + SENHAS ----------
-  const SENHAS_PADRAO = ['2802','0578','28021','05789','057893','280216'];
+  // --- fluxo principal de PDF ---
+  async function dumpFullText(pdf){
+    const {withSpaces, numPages} = await extractTextFromPdf(pdf);
+    const segmented = segmentBeforeSanitize(withSpaces);
+    const textoFinal = sanitizeKeepDigitsDotsHyphenAndNewlines_perLine(segmented);
+    dbg.textContent = textoFinal;
+    dbg.style.display = 'block';
+    elTotal.textContent = `${numPages} pág(s)`;
+    setTipo('PDF segmentado + saneado');
+    setStatus('Texto formatado conforme regras','ok');
+    resetUnitario();
 
-  async function openPdfWithPasswords(source, kind, extraPassword){
-    const tries = [...SENHAS_PADRAO.map(s => (s||'').trim())];
-    if (extraPassword) {
-      const extra = (extraPassword||'').trim();
-      if (extra && !tries.includes(extra)) tries.push(extra);
-    }
-    for (const pw of tries){
-      try{
-        const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
-        const pdf = await pdfjsLib.getDocument(arg).promise;
-        setStatus(`PDF aberto${pw ? ' com senha' : ''}.`,'ok');
-        pwBox.style.display='none';
-        return pdf;
-      }catch(e){
-        if (e && e.name === 'PasswordException'){
-          if (e.code === 1 || e.code === 2) continue;
-        }
-        throw e;
-      }
-    }
-    pwBox.style.display='grid';
-    if (!elPw.value) elPw.value = '28021';
-    setStatus('PDF protegido: informe a senha abaixo.','warn');
-    return null;
+    // monta a tabela automaticamente após processar o PDF
+    preencherTabelaAPartirDoDbg();
   }
 
-  async function openPdfManualPassword(source, kind, password){
-    const pw = (password||'').trim();
-    if (!pw){ setStatus('Digite a senha.','warn'); return null; }
-    try{
-      const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
-      const pdf = await pdfjsLib.getDocument(arg).promise;
-      setStatus('PDF aberto com a senha informada.','ok');
-      pwBox.style.display='none';
-      return pdf;
-    }catch(e){
-      if (e && e.name === 'PasswordException'){
-        const msg = (e.code===2) ? 'Senha incorreta.' : 'Senha necessária.';
-        setStatus(msg+' Tente novamente.','err');
-        return null;
-      }
-      throw e;
-    }
-  }
+  // --- botões ---
+  btnLerLinha.addEventListener('click', ()=>{
+    const raw = elLinha.value.trim();
+    if(!raw){ setStatus('Cole uma linha primeiro','warn'); return; }
+    // Joga a linha no dbg e monta tabela (facilita teste manual)
+    dbg.textContent = raw;
+    dbg.style.display = 'block';
+    setStatus('Linha carregada no texto. Tabela gerada.','ok');
+    preencherTabelaAPartirDoDbg();
+  });
 
-  async function extractTextFromPdf(pdf){
-    let withSpaces = '', noSpaces = '';
-    for(let p=1;p<=pdf.numPages;p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const parts = content.items.map(i=>i.str);
-      withSpaces += parts.join(' ') + '\n';
-      noSpaces   += parts.join('') + '\n';
-    }
-    return {withSpaces, noSpaces};
-  }
+  btnCarregarTabela.addEventListener('click', ()=>{
+    if(!(dbg.textContent||'').trim()){ setStatus('Não há texto para carregar. Leia um PDF primeiro.','warn'); return; }
+    preencherTabelaAPartirDoDbg();
+    setStatus('Tabela montada a partir do texto.','ok');
+  });
 
-  // ---------- Detector turbo (com validação forte) ----------
-  function detectarLinhasDigitaveisMulti(textVariants){
-    const linhas = new Set();
-
-    const fmtCobranca47 = dig => {
-      const f1=dig.slice(0,5)+'.'+dig.slice(5,10);
-      const f2=dig.slice(10,15)+'.'+dig.slice(15,21);
-      const f3=dig.slice(21,26)+'.'+dig.slice(26,32);
-      const f4=dig.slice(32,33), f5=dig.slice(33);
-      return `${f1} ${f2} ${f3} ${f4} ${f5}`;
-    };
-    const fmtArrec48 = dig => `${dig.slice(0,12)} ${dig.slice(12,24)} ${dig.slice(24,36)} ${dig.slice(36,48)}`;
-    const fmtArrec44 = dig => `${dig.slice(0,11)} ${dig.slice(11,22)} ${dig.slice(22,33)} ${dig.slice(33,44)}`;
-
-    const re11dvLoose = new RegExp(
-      '('
-        + '(?:\\d\\D*){11}\\d'
-        + '\\D*'
-        + '(?:\\d\\D*){11}\\d'
-        + '\\D*'
-        + '(?:\\d\\D*){11}\\d'
-        + '\\D*'
-        + '(?:\\d\\D*){11}\\d'
-      + ')', 'g'
-    );
-
-const patternsTight = [
-  /(\d{5}\.\d{5}\s*\d{5}\.\d{6}\s*\d{5}\.\d{6}\s*\d\s*\d{14})/g,                 // cobrança 47 formatada
-  /(\d{12}\s*\d{12}\s*\d{12}\s*\d{12})/g,                                         // arrec 48 “colada”
-  /(\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d\s+\d{11}\s*[-‑–—]?\s*\d)/g, // arrec 48 com hífen
-  /(\d{44}|\d{47}|\d{48})/g,
-];
-
-    const patternsLoose = [
-      re11dvLoose,
-      /((?:\d\D*){44,70})/g,
-    ];
-
-    const pushByDigits = (s) => {
-      const dig = (s||'').replace(/\D+/g,'');
-
-      if (dig.length === 47){
-        linhas.add(fmtCobranca47(dig));
-        return;
-      }
-
-      // ARRECADAÇÃO 48: aceita só se blocos 11+DV válidos e 44 com tipo 6/7
-      if (dig.length === 48 && dig.startsWith('8')){
-        if (isArrec48ComBlocosValidos(dig)) {
-          const bc44 = ld48ToBarcode44(dig);
-          if (isBarcode44BasicoValido(bc44)){
-            linhas.add(fmtArrec48(dig));
-          }
-        }
-        return;
-      }
-
-      // ARRECADAÇÃO 44: aceita só se 3º dígito em {6,7}
-      if (dig.length === 44 && dig.startsWith('8')){
-        if (isBarcode44BasicoValido(dig)){
-          linhas.add(fmtArrec44(dig));
-        }
-        return;
-      }
-    };
-
-    for (const t of textVariants){
-      const T = (t||'').replace(/\u00A0/g,' ');
-      for (const re of patternsTight){ for (const m of T.matchAll(re)) pushByDigits(m[1]); }
-      for (const re of patternsLoose){ for (const m of T.matchAll(re)) pushByDigits(m[1]); }
-    }
-
-    return Array.from(linhas);
-  }
-
-  // ---------- Ações ----------
-btnLerLinha.addEventListener('click', ()=>{
-  const raw = elLinha.value;
-  if(!raw.trim()){ setStatus('Cole uma linha primeiro','warn'); return; }
-  mostrarUnitario(raw);
-  preencherTabela([raw]); // agora sempre preenche a tabela
-  dbg.style.display='none';
-  pwBox.style.display='none';
-});
-
-
-  // URL (com senhas)
   btnLerUrl.addEventListener('click', async ()=>{
     const url = elPdfUrl.value.trim();
     if(!url){ setStatus('Informe a URL do PDF','warn'); return; }
@@ -466,31 +315,14 @@ btnLerLinha.addEventListener('click', ()=>{
       if (!pdf) {
         btnTryPw.onclick = async ()=>{
           const pdf2 = await openPdfManualPassword(url,'url', elPw.value);
-          if (pdf2){
-            const {withSpaces, noSpaces} = await extractTextFromPdf(pdf2);
-            const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
-            preencherTabela(linhas);
-            setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-            dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
-            dbg.style.display = 'block';
-          }
+          if (pdf2){ await dumpFullText(pdf2); }
         };
         return;
       }
-      const {withSpaces, noSpaces} = await extractTextFromPdf(pdf);
-      const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
-      preencherTabela(linhas);
-      setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-      dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
-      dbg.style.display = 'block';
-    }catch(e){
-      console.error(e);
-      setStatus('Erro ao ler URL: '+e.message,'err');
-      dbg.style.display='none';
-    }
+      await dumpFullText(pdf);
+    }catch(e){ console.error(e); setStatus('Erro ao ler URL: '+e.message,'err'); dbg.style.display='none'; }
   });
 
-  // Arquivo local (com senhas)
   btnLerFile.addEventListener('click', async ()=>{
     const file = elPdfFile.files && elPdfFile.files[0];
     if(!file){ setStatus('Escolha um PDF primeiro','warn'); return; }
@@ -501,38 +333,22 @@ btnLerLinha.addEventListener('click', ()=>{
       if (!pdf) {
         btnTryPw.onclick = async ()=>{
           const pdf2 = await openPdfManualPassword(buf,'data', elPw.value);
-          if (pdf2){
-            const {withSpaces, noSpaces} = await extractTextFromPdf(pdf2);
-            const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
-            preencherTabela(linhas);
-            setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-            dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
-            dbg.style.display = 'block';
-          }
+          if (pdf2){ await dumpFullText(pdf2); }
         };
         return;
       }
-      const {withSpaces, noSpaces} = await extractTextFromPdf(pdf);
-      const linhas = detectarLinhasDigitaveisMulti([withSpaces, noSpaces]);
-      preencherTabela(linhas);
-      setStatus(linhas.length?'OK':'Nenhuma linha encontrada', linhas.length?'ok':'warn');
-      dbg.textContent = (withSpaces.slice(0,1200) + '\n--- noSpaces ---\n' + noSpaces.slice(0,1200));
-      dbg.style.display = 'block';
-    }catch(e){
-      console.error(e);
-      setStatus('Erro ao ler arquivo: '+e.message,'err');
-      dbg.style.display='none';
-    }
+      await dumpFullText(pdf);
+    }catch(e){ console.error(e); setStatus('Erro ao ler arquivo: '+e.message,'err'); dbg.style.display='none'; }
   });
 
   btnLimpar.addEventListener('click', ()=>{
     elLinha.value=''; elPdfUrl.value=''; elPdfFile.value=''; elPw.value='';
-    resetUnitario(); preencherTabela([]); setStatus('Aguardando…','muted'); elTotal.textContent='0 linhas';
-    dbg.style.display='none'; pwBox.style.display='none';
+    resetUnitario(); setStatus('Aguardando…','muted'); elTotal.textContent='0 págs';
+    dbg.textContent=''; dbg.style.display='none'; pwBox.style.display='none';
+    elTabela.style.display='none'; elTbody.innerHTML='';
     elLinha.focus();
   });
 
-  // exemplo pré-preenchido (vazio)
   elLinha.value='';
 })();
 </script>
