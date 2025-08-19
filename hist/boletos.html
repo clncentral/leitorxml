@@ -2,356 +2,370 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Leitor de Boleto – Valor e Vencimento (texto completo)</title>
+<title>Captura de Linhas Digitáveis (apenas códigos únicos)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg:#0b0d12; --card:#141824; --text:#e8ecf1; --muted:#9aa4b2; --accent:#3aa3ff; --line:#283255; }
+  :root { --bg:#0b0d12; --card:#141824; --text:#e8ecf1; --muted:#9aa4b2; --accent:#3aa3ff; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,Arial}
-  .wrap{max-width:980px;margin:36px auto;padding:20px}
-  .card{background:var(--card);border:1px solid #22283a;border-radius:14px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-  h1{font-size:20px;margin:0 0 14px}
+  .wrap{max-width:900px;margin:36px auto;padding:20px}
+  .card{background:var(--card);border:1px solid #22283a;border-radius:14px;padding:20px}
+  h1{margin:0 0 14px;font-size:18px}
   label{display:block;margin:.6rem 0 .25rem;color:var(--muted)}
-  input[type="text"], input[type="url"], input[type="password"]{
-    width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2b3350;background:#0f1320;color:var(--text);outline:none
-  }
-  input[readonly]{opacity:.95}
-  .grid{display:grid;gap:12px;margin-top:16px}
-  .grid.cols-2{grid-template-columns:1fr 1fr}
-  .grid.cols-3{grid-template-columns:1fr 1fr 1fr}
-  .help{margin-top:12px;color:var(--muted);font-size:13px}
-  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;background:#1a2135;border:1px solid var(--line);color:#b9c5d9}
-  .ok{color:#1ee592}.warn{color:#ffd36e}.err{color:#ff7a7a}
-  .row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  input[type="url"],input[type="password"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2b3350;background:#0f1320;color:var(--text)}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
   .btn{background:var(--accent);border:none;color:#001025;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
   .btn-outline{background:transparent;color:#fff;border:1px solid #2b3350}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .muted{color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;background:#0f1320;border:1px solid #2b3350;color:#cfe1ff}
+  #out{margin-top:12px;padding:12px;border:1px solid #2b3350;background:#0f1320;border-radius:10px;white-space:pre-wrap;min-height:140px}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+
+  /* --- Tabela adicionada --- */
   table{width:100%;border-collapse:separate;border-spacing:0;margin-top:18px}
   th,td{padding:10px 12px;border-bottom:1px solid #22283a}
   thead th{position:sticky;top:0;background:#151a27;border-bottom:1px solid #2a3248;z-index:1}
   tbody tr:nth-child(even){background:#0f1320}
   .right{text-align:right}
-  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-  #dbg{margin-top:10px;padding:12px;border:1px solid #22283a;background:#0f1320;color:#c9d3e3;display:none;white-space:pre-wrap;max-height:66vh;overflow:auto;border-radius:10px}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Leitor de Boleto</h1>
+<div class="wrap">
+  <div class="card">
+    <h1>Capturar códigos (apenas saída, única por linha)</h1>
 
-      <label for="linha">Linha digitável (opcional, para teste manual)</label>
-      <input id="linha" type="text" placeholder="Cole aqui uma linha digitável se quiser testar">
-
-      <div class="grid cols-3" style="margin-top:12px">
-        <div>
-          <label for="pdfUrl">URL de PDF (usa pdf.js 2.10.377)</label>
-          <input id="pdfUrl" type="url" placeholder="https://.../arquivo.pdf">
-        </div>
-        <div>
-          <label for="pdfFile">PDF local</label>
-          <input id="pdfFile" type="file" accept="application/pdf">
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
-          <button id="btnLerLinha" class="btn" type="button">Ler linha (manual)</button>
-          <button id="btnLerUrl" class="btn btn-outline" type="button">Ler URL</button>
-          <button id="btnLerFile" class="btn btn-outline" type="button">Ler arquivo</button>
-          <button id="btnCarregarTabela" class="btn" type="button" title="Ler as linhas do texto abaixo e montar a tabela">Carregar tabela do texto</button>
-        </div>
+    <div class="row">
+      <div style="flex:1 1 360px">
+        <label for="pdfUrl">URL do PDF</label>
+        <input id="pdfUrl" type="url" placeholder="https://.../boleto.pdf">
       </div>
-
-      <div id="pwBox" class="grid cols-3" style="display:none;margin-top:8px">
-        <div>
-          <label for="pdfPassword">Senha do PDF (se houver)</label>
-          <input id="pdfPassword" type="password" placeholder="Digite a senha e clique em Tentar senha">
-        </div>
-        <div style="display:flex;align-items:flex-end">
-          <button id="btnTryPw" class="btn" type="button">Tentar senha</button>
-        </div>
-        <div class="help" style="display:flex;align-items:flex-end">
-          Tentativas automáticas:&nbsp;<span class="badge">28021</span>&nbsp;<span class="badge">05789</span>
-        </div>
-      </div>
-
-      <div class="row">
-        <span id="tipo" class="badge muted">—</span>
-        <span id="status" class="badge muted">Aguardando…</span>
-        <span id="total" class="badge muted">0 págs</span>
-        <button id="limpar" class="btn" type="button">Limpar</button>
-      </div>
-
-      <div class="grid cols-2">
-        <div>
-          <label for="valor">Valor a pagar</label>
-          <input id="valor" type="text" readonly placeholder="—">
-        </div>
-        <div>
-          <label for="venc">Vencimento</label>
-          <input id="venc" type="text" readonly placeholder="—">
-        </div>
-      </div>
-
-      <label for="dbg" style="margin-top:14px">Texto extraído do PDF (todas as páginas)</label>
-      <pre id="dbg" class="mono" aria-label="Texto completo do PDF"></pre>
-
-      <table id="tabela" style="display:none">
-        <thead>
-          <tr>
-            <th style="width:80px">Parcela</th>
-            <th>Código (linha digitável)</th>
-            <th style="width:160px">Vencimento</th>
-            <th style="width:160px" class="right">Valor</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-
-      <div class="help" id="ajuda">
-        Agora eu <b>apenas leio e mostro o texto</b> do PDF (todas as páginas). A tabela é montada a partir dessas linhas formatadas.
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button id="btnUrl" class="btn btn-outline" type="button">Ler URL</button>
+        <input id="pdfFile" type="file" accept="application/pdf" style="display:none">
+        <button id="btnFilePick" class="btn btn-outline" type="button">Ler arquivo…</button>
+        <button id="btnScan" class="btn" type="button">Procurar no texto</button>
       </div>
     </div>
+
+    <div id="pwBox" class="row" style="display:none">
+      <div style="flex:1 1 240px">
+        <label for="pdfPassword">Senha do PDF (se houver)</label>
+        <input id="pdfPassword" type="password" placeholder="Digite a senha e clique em Tentar senha">
+      </div>
+      <button id="btnTryPw" class="btn" type="button">Tentar senha</button>
+      <span class="badge">Tentativas auto: 28021, 05789</span>
+    </div>
+
+    <label for="src">Texto (opcional, para colar manualmente)</label>
+    <textarea id="src" class="mono" placeholder="Cole aqui qualquer trecho; clicando em 'Procurar no texto' a saída abaixo mostrará somente os códigos únicos"></textarea>
+
+    <div class="row">
+      <span id="status" class="badge">Aguardando…</span>
+      <span id="pages" class="badge">0 págs</span>
+      <button id="limpar" class="btn" type="button">Limpar tudo</button>
+    </div>
+
+    <pre id="out" class="mono" aria-label="Saída: apenas códigos únicos" style="display:none"></pre>
+
+    <!-- TABELA (adicionada) -->
+    <table id="tabela" style="display:none">
+      <thead>
+        <tr>
+          <th style="width:90px">Parcela</th>
+          <th>Chave</th>
+          <th style="width:160px">Vencimento</th>
+          <th style="width:160px" class="right">Valor</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
   </div>
+</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';</script>
+<!-- pdf.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';</script>
 
+<!-- SEU SCRIPT ORIGINAL (inalterado) -->
 <script>
 (function(){
   const $ = s => document.querySelector(s);
-  const elLinha = $('#linha'), elValor = $('#valor'), elVenc = $('#venc');
-  const elTipo  = $('#tipo'), elStatus = $('#status'), elTotal = $('#total');
-  const elAjuda = $('#ajuda'), btnLerLinha = $('#btnLerLinha'), btnLerUrl = $('#btnLerUrl'), btnLerFile = $('#btnLerFile'), btnLimpar = $('#limpar');
-  const elPdfUrl = $('#pdfUrl'), elPdfFile = $('#pdfFile');
-  const pwBox = $('#pwBox'), elPw = $('#pdfPassword'), btnTryPw = $('#btnTryPw');
-  const btnCarregarTabela = $('#btnCarregarTabela');
+  const elUrl = $('#pdfUrl'), elFilePick = $('#btnFilePick'), elFile = document.getElementById('pdfFile');
+  const elSrc = $('#src'), elOut = $('#out'), elStatus = $('#status'), elPages = $('#pages');
+  const btnUrl = $('#btnUrl'), btnScan = $('#btnScan'), btnTryPw = $('#btnTryPw'), elPw = $('#pdfPassword'), pwBox = $('#pwBox');
+  const btnClear = $('#limpar');
 
-  const dbg = $('#dbg'), elTabela = $('#tabela'), elTbody = $('#tbody');
+  function setStatus(t, cls=''){ elStatus.textContent=t; elStatus.className='badge ' + (cls||''); }
 
-  const BASE_OLD = new Date(Date.UTC(1997, 9, 7));
-  const BASE_NEW = new Date(Date.UTC(2025, 1, 22));
-
-  const stripDigits = s => (s||'').replace(/\D+/g,'');
-  const toBRL = cents => (cents==null||isNaN(cents))?'—':(cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  function fmtDateUTC(d){ if(!d) return '—'; const y=d.getUTCFullYear(),m=String(d.getUTCMonth()+1).padStart(2,'0'),day=String(d.getUTCDate()).padStart(2,'0'); return `${day}/${m}/${y}`; }
-  function addDaysUTC(base,days){ const d=new Date(base.getTime()); d.setUTCDate(d.getUTCDate()+days); return d; }
-
-  function setStatus(t,c='muted'){ elStatus.textContent=t; elStatus.className=`badge ${c}`; }
-  function setTipo(t){ elTipo.textContent=t; elTipo.className='badge'; }
-  function resetUnitario(){ elValor.value='—'; elVenc.value='—'; elTipo.textContent='—'; elTipo.className='badge muted'; }
-
-  // --- DV & cobrança (validação forte) ---
-  function dvMod10(b){ let soma=0,fator=2; for(let i=b.length-1;i>=0;i--){ let n=(b.charCodeAt(i)-48)*fator; if(n>9) n=Math.floor(n/10)+(n%10); soma+=n; fator=(fator===2?1:2);} const r=soma%10; return r===0?0:(10-r); }
-  function dvMod11_barcode44(bc){ let soma=0,f=2; for(let i=bc.length-1;i>=0;i--){ soma+=(bc.charCodeAt(i)-48)*f; f=(f===9?2:f+1);} const resto=soma%11, dv=11-resto; return (dv===0||dv===10||dv===11)?1:dv; }
-  function validarCobranca47(l47){
-    const d = l47.replace(/\D+/g,''); if(d.length!==47) return null;
-    const c1=d.slice(0,9), dv1=+d[9], c2=d.slice(10,20), dv2=+d[20], c3=d.slice(21,31), dv3=+d[31];
-    const dvGeral=+d[32], fator=d.slice(33,37), valor=d.slice(37,47);
-    if (dvMod10(c1)!==dv1) return null;
-    if (dvMod10(c2)!==dv2) return null;
-    if (dvMod10(c3)!==dv3) return null;
-    const banco=d.slice(0,3), moeda=d[3], livre=c1.slice(4)+c2+c3;
-    const bcSemDV=banco+moeda+fator+valor+livre;
-    if (dvMod11_barcode44(bcSemDV)!==dvGeral) return null;
-    return { ok:true };
-  }
-  function calcVencCobranca(fator){
-    if (!Number.isInteger(fator)) return null;
-    if (fator>=1000) return addDaysUTC(BASE_NEW, fator-1000);
-    if (fator===0)  return null;
-    return addDaysUTC(BASE_OLD, fator);
+  // ---------- Normalizações ----------
+  function normalizeForKey(s){
+    if(!s) return '';
+    return s
+      .replace(/[\u00A0]/g, ' ')
+      .replace(/[\u2010-\u2015\u2212\u2043\uFE58\uFE63\uFF0D]/g,'-')
+      .replace(/\s+/g,' ')
+      .trim();
   }
 
-  // --- extração PDF ---
+  // ---------- Padrões (3 formatos) ----------
+  const RE_COBR47 = /\b\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14}\b/g;
+  const RE_A48_11DV = /\b\d{11}\s*-\s*\d\s+\d{11}\s*-\s*\d\s+\d{11}\s*-\s*\d\s+\d{11}\s*-\s*\d\b/g;
+  const RE_COBR43 = /\b\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{10}\b/g;
+
+  function captureUniqueCodes(rawText){
+    const T = (rawText||'').replace(/\u00A0/g,' ');
+    const ordered = [];
+    const seen = new Set();
+
+    function pushMatches(re, text){
+      for(const m of text.matchAll(re)){
+        const captured = m[0];
+        const key = normalizeForKey(captured);
+        if (!seen.has(key)){
+          seen.add(key);
+          ordered.push(key);
+        }
+      }
+    }
+
+    const TnormHyphens = normalizeForKey(T);
+
+    pushMatches(RE_COBR47, T);
+    pushMatches(RE_A48_11DV, TnormHyphens);
+    pushMatches(RE_COBR43, T);
+
+    return ordered;
+  }
+
   async function extractTextFromPdf(pdf){
-    const pagesWithSpaces = [];
+    let text = '';
     for(let p=1;p<=pdf.numPages;p++){
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      const parts = content.items.map(i=>i.str);
-      pagesWithSpaces.push(parts.join(' '));
+      text += content.items.map(i=>i.str).join(' ') + '\n';
     }
-    const withSpaces = pagesWithSpaces.map((txt,i)=>`— Página ${i+1} —\n${txt}`).join('\n\n');
-    return {withSpaces, numPages: pdf.numPages};
+    return { text, numPages: pdf.numPages };
   }
 
-  // --- abrir com senhas ---
-  const SENHAS_PADRAO = ['2802','0578','28021','05789','057893','280216'];
+  const SENHAS_PADRAO = ['28021','05789','2802','0578','280216','057893'];
+
   async function openPdfWithPasswords(source, kind, extraPassword){
-    const tries=[...SENHAS_PADRAO]; if(extraPassword){const e=(extraPassword||'').trim(); if(e && !tries.includes(e)) tries.push(e);}
+    const tries=[...SENHAS_PADRAO];
+    if(extraPassword){
+      const e=(extraPassword||'').trim();
+      if(e && !tries.includes(e)) tries.push(e);
+    }
     for(const pw of tries){
       try{
         const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
         const pdf = await pdfjsLib.getDocument(arg).promise;
-        setStatus(`PDF aberto${pw?' com senha':''}.`,'ok'); pwBox.style.display='none'; return pdf;
-      }catch(e){ if(e && e.name==='PasswordException'){ if(e.code===1||e.code===2) continue; } throw e; }
+        setStatus(pw?'PDF aberto com senha.':'PDF aberto.','');
+        pwBox.style.display='none';
+        return pdf;
+      }catch(e){
+        if(e && e.name==='PasswordException'){ if(e.code===1||e.code===2) continue; }
+        throw e;
+      }
     }
-    pwBox.style.display='grid'; if(!elPw.value) elPw.value='28021';
-    setStatus('PDF protegido: informe a senha abaixo.','warn'); return null;
+    pwBox.style.display='flex';
+    setStatus('PDF protegido: informe a senha.','');
+    return null;
   }
+
   async function openPdfManualPassword(source, kind, password){
-    const pw=(password||'').trim(); if(!pw){ setStatus('Digite a senha.','warn'); return null; }
+    const pw=(password||'').trim();
+    if(!pw){ setStatus('Digite a senha.',''); return null; }
     try{
-      const arg = (kind==='url') ? {url:source, password:pw} : {data:source, password:pw};
-      const pdf = await pdfjsLib.getDocument(arg).promise;
-      setStatus('PDF aberto com a senha informada.','ok'); pwBox.style.display='none'; return pdf;
+      const arg=(kind==='url')?{url:source, password:pw}:{data:source, password:pw};
+      const pdf=await pdfjsLib.getDocument(arg).promise;
+      setStatus('PDF aberto com a senha informada.',''); pwBox.style.display='none'; return pdf;
     }catch(e){
-      if (e && e.name==='PasswordException'){ setStatus((e.code===2?'Senha incorreta.':'Senha necessária.')+' Tente novamente.','err'); return null; }
+      if(e && e.name==='PasswordException'){ setStatus('Senha incorreta.',''); return null; }
       throw e;
     }
   }
 
-  // --- suas regras de segmentação/saneamento (resumo do que já tínhamos) ---
-  function segmentBeforeSanitize(raw){
-    let s=String(raw||'').replace(/\r\n?/g,'\n');
-    s=s.replace(/\.{2,}/g,'');                                     // remove "..."
-    s=s.replace(/^[ \t]*(?=[A-Z0-9]{30,}$)(?=.*[A-Z])[A-Z0-9]+[ \t]*$/gm,''); // remove chaves alfa-num longas
-    s=s.replace(/\b(\d{3})\s*-\s*(\d)\b/g,'$1-$2');                // "033 - 7" -> "033-7"
-    s=s.replace(/\|\d{3}-\d\|/g, m=>`\n${m}\n`);                   // isola |000-0|
-    s=s.replace(/\b(\d{3}-\d)\b/g,'\n$1\n');                       // isola 000-0
-    s=s.replace(/[ \t]+(?=[A-Za-zÀ-ÖØ-öø-ÿ])/g,'\n');              // quebra antes de texto
-    s=s.replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{3,}/g,'\n\n');
-    return s;
-  }
-  function sanitizeKeepDigitsDotsHyphenAndNewlines_perLine(segmented){
-    const lines=(segmented||'').split('\n'), out=[], seen=new Set();
-    for(const lineRaw of lines){
-      const original=lineRaw;
-      if (/\b\d{2}\/\d{2}\/\d{2}(?:\d{2})?\b/.test(original)) continue;
-      let cleaned=original.replace(/[^\d.\-\n ]+/g,'');
-      if (original.includes('/')) cleaned=cleaned.replace(/[.\-]/g,'');
-      cleaned=cleaned.replace(/[ \t]+/g,' ').trim();
-      const digitCount=(cleaned.match(/\d/g)||[]).length;
-      if (/^\d{40,}$/.test(cleaned)) continue;     // só dígitos longos (assinatura)
-      if (/^\d{3}-\d$/.test(cleaned)) continue;    // linha só com "000-0"
-      if (digitCount>=40 && cleaned && !seen.has(cleaned)){ out.push(cleaned); seen.add(cleaned); }
-    }
-    return out.join('\n').replace(/\n{3,}/g,'\n\n').trim();
-  }
-
-  // --- montar tabela a partir do <pre id="dbg"> ---
-  function linhasDoDbg(){
-    return (dbg.textContent||'').split('\n').map(s=>s.trim()).filter(Boolean);
-  }
-
-  // 47 completo => fator/venc/valor; 43 (sem fator) => venc "-", valor com 0000 + últimos 10
-  function montarInfoDaLinha(raw){
-    const digits = raw.replace(/\D+/g,'');
-    if (digits.length===47){
-      const v = validarCobranca47(digits); if(!v||!v.ok) return null;
-      const fator = parseInt(digits.slice(-14,-10),10);
-      const valorCents = parseInt(digits.slice(-10),10);
-      const venc = calcVencCobranca(fator);
-      return { raw, venc: fmtDateUTC(venc), valorCents };
-    }
-    if (digits.length===43){
-      const valor10 = digits.slice(-10);
-      const valorCents = parseInt('0000'+valor10,10);
-      return { raw, venc: '-', valorCents };
-    }
-    return null;
-  }
-
-  function preencherTabelaAPartirDoDbg(){
-    const linhas = linhasDoDbg();
-    const infos=[];
-    for(const l of linhas){ const info=montarInfoDaLinha(l); if(info) infos.push(info); }
-
-    elTbody.innerHTML='';
-    if(!infos.length){ elTabela.style.display='none'; return; }
-
-    elTabela.style.display='table';
-    infos.forEach((info,idx)=>{
-      const tr=document.createElement('tr');
-
-      const td1=document.createElement('td'); td1.textContent=idx+1; td1.className='mono';
-      const td2=document.createElement('td'); td2.textContent=info.raw; td2.className='mono';
-      const td3=document.createElement('td'); td3.textContent=info.venc||'-';
-      const td4=document.createElement('td'); td4.textContent=toBRL(info.valorCents); td4.className='right mono';
-
-      tr.append(td1,td2,td3,td4); elTbody.appendChild(tr);
-    });
-  }
-
-  // --- fluxo principal de PDF ---
-  async function dumpFullText(pdf){
-    const {withSpaces, numPages} = await extractTextFromPdf(pdf);
-    const segmented = segmentBeforeSanitize(withSpaces);
-    const textoFinal = sanitizeKeepDigitsDotsHyphenAndNewlines_perLine(segmented);
-    dbg.textContent = textoFinal;
-    dbg.style.display = 'block';
-    elTotal.textContent = `${numPages} pág(s)`;
-    setTipo('PDF segmentado + saneado');
-    setStatus('Texto formatado conforme regras','ok');
-    resetUnitario();
-
-    // monta a tabela automaticamente após processar o PDF
-    preencherTabelaAPartirDoDbg();
-  }
-
-  // --- botões ---
-  btnLerLinha.addEventListener('click', ()=>{
-    const raw = elLinha.value.trim();
-    if(!raw){ setStatus('Cole uma linha primeiro','warn'); return; }
-    // Joga a linha no dbg e monta tabela (facilita teste manual)
-    dbg.textContent = raw;
-    dbg.style.display = 'block';
-    setStatus('Linha carregada no texto. Tabela gerada.','ok');
-    preencherTabelaAPartirDoDbg();
-  });
-
-  btnCarregarTabela.addEventListener('click', ()=>{
-    if(!(dbg.textContent||'').trim()){ setStatus('Não há texto para carregar. Leia um PDF primeiro.','warn'); return; }
-    preencherTabelaAPartirDoDbg();
-    setStatus('Tabela montada a partir do texto.','ok');
-  });
-
-  btnLerUrl.addEventListener('click', async ()=>{
-    const url = elPdfUrl.value.trim();
-    if(!url){ setStatus('Informe a URL do PDF','warn'); return; }
+  btnUrl.addEventListener('click', async ()=>{
+    const url = elUrl.value.trim();
+    if(!url){ setStatus('Informe a URL do PDF.'); return; }
     try{
-      setStatus('Lendo PDF da URL…','muted'); pwBox.style.display='none';
+      setStatus('Lendo PDF da URL…');
       let pdf = await openPdfWithPasswords(url,'url', null);
-      if (!pdf) {
+      if (!pdf){
         btnTryPw.onclick = async ()=>{
           const pdf2 = await openPdfManualPassword(url,'url', elPw.value);
-          if (pdf2){ await dumpFullText(pdf2); }
+          if (pdf2){
+            const {text, numPages} = await extractTextFromPdf(pdf2);
+            elPages.textContent = `${numPages} págs`;
+            const codes = captureUniqueCodes(text);
+            elOut.textContent = codes.join('\n'); // APENAS códigos
+            setStatus(`Capturados: ${codes.length}`);
+          }
         };
         return;
       }
-      await dumpFullText(pdf);
-    }catch(e){ console.error(e); setStatus('Erro ao ler URL: '+e.message,'err'); dbg.style.display='none'; }
+      const {text, numPages} = await extractTextFromPdf(pdf);
+      elPages.textContent = `${numPages} págs`;
+      const codes = captureUniqueCodes(text);
+      elOut.textContent = codes.join('\n');
+      setStatus(`Capturados: ${codes.length}`);
+    }catch(e){
+      console.error(e);
+      setStatus('Erro ao ler URL: '+e.message);
+    }
   });
 
-  btnLerFile.addEventListener('click', async ()=>{
-    const file = elPdfFile.files && elPdfFile.files[0];
-    if(!file){ setStatus('Escolha um PDF primeiro','warn'); return; }
+  elFilePick.addEventListener('click', ()=> elFile.click());
+
+  elFile.addEventListener('change', async ()=>{
+    const file = elFile.files && elFile.files[0];
+    if(!file){ setStatus('Escolha um PDF.'); return; }
     try{
-      setStatus('Abrindo PDF local…','muted'); pwBox.style.display='none';
+      setStatus('Abrindo PDF local…');
       const buf = await file.arrayBuffer();
       let pdf = await openPdfWithPasswords(buf,'data', null);
-      if (!pdf) {
+      if (!pdf){
         btnTryPw.onclick = async ()=>{
           const pdf2 = await openPdfManualPassword(buf,'data', elPw.value);
-          if (pdf2){ await dumpFullText(pdf2); }
+          if (pdf2){
+            const {text, numPages} = await extractTextFromPdf(pdf2);
+            elPages.textContent = `${numPages} págs`;
+            const codes = captureUniqueCodes(text);
+            elOut.textContent = codes.join('\n');
+            setStatus(`Capturados: ${codes.length}`);
+          }
         };
         return;
       }
-      await dumpFullText(pdf);
-    }catch(e){ console.error(e); setStatus('Erro ao ler arquivo: '+e.message,'err'); dbg.style.display='none'; }
+      const {text, numPages} = await extractTextFromPdf(pdf);
+      elPages.textContent = `${numPages} págs`;
+      const codes = captureUniqueCodes(text);
+      elOut.textContent = codes.join('\n');
+      setStatus(`Capturados: ${codes.length}`);
+    }catch(e){
+      console.error(e);
+      setStatus('Erro ao ler arquivo: '+e.message);
+    }
   });
 
-  btnLimpar.addEventListener('click', ()=>{
-    elLinha.value=''; elPdfUrl.value=''; elPdfFile.value=''; elPw.value='';
-    resetUnitario(); setStatus('Aguardando…','muted'); elTotal.textContent='0 págs';
-    dbg.textContent=''; dbg.style.display='none'; pwBox.style.display='none';
-    elTabela.style.display='none'; elTbody.innerHTML='';
-    elLinha.focus();
+  btnScan.addEventListener('click', ()=>{
+    const t = elSrc.value;
+    if(!t.trim()){ setStatus('Cole algum texto para procurar.'); return; }
+    const codes = captureUniqueCodes(t);
+    elOut.textContent = codes.join('\n');
+    setStatus(`Capturados: ${codes.length}`);
   });
 
-  elLinha.value='';
+  btnTryPw.addEventListener('click', ()=>{});
+
+  btnClear.addEventListener('click', ()=>{
+    elUrl.value=''; elSrc.value=''; elOut.textContent=''; elPages.textContent='0 págs'; elPw.value='';
+    setStatus('Aguardando…'); pwBox.style.display='none'; if(elFile) elFile.value='';
+  });
 })();
 </script>
 
+<!-- SCRIPT EXTRA: monta a tabela a partir do #out (sem alterar nada do seu JS) -->
+<script>
+(function(){
+  const elOut = document.getElementById('out');
+  const elTable = document.getElementById('tabela');
+  const elTbody = document.getElementById('tbody');
+
+  // Utilitários para vencimento/valor
+  const BASE_OLD = new Date(Date.UTC(1997, 9, 7));   // 07/10/1997
+  const BASE_NEW = new Date(Date.UTC(2025, 1, 22));  // 22/02/2025
+  const toBRL = cents => (cents==null || isNaN(cents)) ? '—' : (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  function addDaysUTC(base, days){ const d=new Date(base.getTime()); d.setUTCDate(d.getUTCDate()+days); return d; }
+  function fmtDateUTC(d){ if(!d) return '-'; const y=d.getUTCFullYear(), m=String(d.getUTCMonth()+1).padStart(2,'0'), day=String(d.getUTCDate()).padStart(2,'0'); return `${day}/${m}/${y}`; }
+  const digitsOnly = s => (s||'').replace(/\D+/g,'');
+
+  // Arrecadação: converte 48 dígitos (11+DV ×4) para barcode 44 (tirando cada 12º dígito)
+  function d48_to_bc44(d48){
+    const b1=d48.slice(0,11), b2=d48.slice(12,23), b3=d48.slice(24,35), b4=d48.slice(36,47);
+    return b1+b2+b3+b4;
+  }
+  function parseArrecFromD48(d48){
+    if(!/^\d{48}$/.test(d48)) return null;
+    const bc44 = d48_to_bc44(d48);
+    if (bc44[0] !== '8') return null;
+    const tipoValor = bc44[2]; // 6 efetivo, 7 referência
+    let valorCents = null;
+    if (tipoValor === '6'){
+      const vs = bc44.slice(4,15);
+      if (/^\d{11}$/.test(vs)) valorCents = parseInt(vs,10);
+    }
+    return { vencStr: '-', valorCents };
+  }
+
+  function calcVencCobranca(fator){
+    if (!Number.isInteger(fator)) return null;
+    if (fator===0) return null;                  // sem vencimento
+    if (fator>=1000) return addDaysUTC(BASE_NEW, fator-1000);
+    return addDaysUTC(BASE_OLD, fator);
+  }
+
+  // Interpreta UMA linha do #out (que já veio nos 3 formatos que você captura)
+  function parseLine(line){
+    const d = digitsOnly(line);
+    // 47 – cobrança (com vencimento + valor)
+    if (d.length === 47){
+      const fator = parseInt(d.slice(33,37),10);     // 4 dígitos
+      const valorCents = parseInt(d.slice(37,47),10);// 10 dígitos (centavos)
+      const venc = calcVencCobranca(Number.isNaN(fator)?null:fator);
+      return { chave: line.trim(), vencStr: venc ? fmtDateUTC(venc) : '-', valorCents };
+    }
+    // 43 – cobrança “sem vencimento”
+    if (d.length === 43){
+      const valor10 = d.slice(-10);
+      const valorCents = /^\d{10}$/.test(valor10) ? parseInt(valor10,10) : null;
+      return { chave: line.trim(), vencStr: '-', valorCents };
+    }
+    // 48 – arrecadação (11+DV com hífen, que você captura)
+    if (d.length === 48 && d.startsWith('8')){
+      const ar = parseArrecFromD48(d);
+      if (ar) return { chave: line.trim(), vencStr: '-', valorCents: ar.valorCents };
+    }
+    // desconhecido: ignora (não entra na tabela)
+    return null;
+  }
+
+  function buildTableFromOut(){
+    const raw = elOut.textContent || '';
+    const lines = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+
+    elTbody.innerHTML = '';
+    if (!lines.length){ elTable.style.display='none'; return; }
+
+    const rows = [];
+    for (const l of lines){
+      const info = parseLine(l);
+      if (info) rows.push(info);
+    }
+
+    if (!rows.length){ elTable.style.display='none'; return; }
+    elTable.style.display='table';
+
+    rows.forEach((r, i)=>{
+      const tr = document.createElement('tr');
+
+      const td1 = document.createElement('td'); td1.textContent = i+1; td1.className='mono';
+      const td2 = document.createElement('td'); td2.textContent = r.chave; td2.className='mono';
+      const td3 = document.createElement('td'); td3.textContent = r.vencStr || '-';
+      const td4 = document.createElement('td'); td4.textContent = toBRL(r.valorCents); td4.className='right mono';
+
+      tr.append(td1, td2, td3, td4);
+      elTbody.appendChild(tr);
+    });
+  }
+
+  // Observa qualquer mudança no #out e reconstrói a tabela
+  const obs = new MutationObserver(buildTableFromOut);
+  obs.observe(elOut, { childList: true, characterData: true, subtree: true });
+
+  // Se já existir conteúdo (ex.: colado manualmente e clicou “Procurar no texto” antes de carregar este script)
+  buildTableFromOut();
+})();
+</script>
 </body>
 </html>
