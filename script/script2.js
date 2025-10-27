@@ -67,8 +67,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // 🌟 Exemplo de uso
     adicionarTopico("Links Úteis", "Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
-    adicionarTopico("Links Úteis", "Google", "https://www.google.com.br/?hl=pt-BR", "2024-05-08");
-    adicionarTopico("Links Úteis", "Youtube", "https://www.youtube.com/", "2024-05-08");
+    adicionarTopico("Links Úteis", "Descubra a Loja", "https://clncentral.github.io/leitorxml/hist/novo6.html", "2024-05-08");
+    adicionarTopico("Links Úteis", "Leitor de Boleto", "https://clncentral.github.io/leitorxml/hist/boletos.html", "2024-05-08");
 
     // 🌟 Tópicos da coluna "Contratos"
 	adicionarTopico("Contratos", "Contratos Financeiros", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro/7964", "2025-10-27");
@@ -96,3 +96,4 @@ adicionarTopico("Manuais", "Energia Elétrica (modelo 55)", "https://ajuda.blues
     adicionarTopico("Favoritos", "Spotify", "https://open.spotify.com/", "2024-04-22");
     adicionarTopico("Favoritos", "Rádio Online", "hist/radio.html", "2024-04-20");
 });
+
