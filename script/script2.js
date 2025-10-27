@@ -1,100 +1,98 @@
 document.addEventListener("DOMContentLoaded", function() {
     const topicosDiv = document.getElementById("topicos");
-    const colunas = []; // Array para armazenar as colunas criadas
+    const colunas = {}; // objeto para armazenar as colunas por nome
 
-    // Função para criar uma nova coluna
-    function criarNovaColuna() {
-        const novaColuna = document.createElement("div");
-        novaColuna.classList.add("column"); // Adiciona a classe "column"
-        topicosDiv.appendChild(novaColuna);
-        colunas.push(novaColuna); // Adiciona a nova coluna ao array de colunas
-        return novaColuna;
+    // Lista de colunas fixas
+    const nomesColunas = ["Links Úteis", "Contratos", "Manuais", "Favoritos"];
+
+    // Função para criar uma coluna com título
+    function criarColuna(nome) {
+        const colunaContainer = document.createElement("div");
+        colunaContainer.classList.add("column");
+
+        const titulo = document.createElement("h3");
+        titulo.textContent = nome;
+        titulo.classList.add("titulo-coluna");
+
+        colunaContainer.appendChild(titulo);
+        topicosDiv.appendChild(colunaContainer);
+
+        colunas[nome] = colunaContainer;
     }
 
-    // Função para adicionar um novo tópico
-    function adicionarTopico(titulo, link, data) {
+    // Criar as 5 colunas iniciais
+    nomesColunas.forEach(nome => criarColuna(nome));
+
+    // Função para adicionar um novo tópico em uma coluna específica
+    function adicionarTopico(colunaNome, titulo, link, data) {
         const dataTopico = new Date(data);
         const hoje = new Date();
 
-        // Verifica se a data do tópico é maior que a data atual
         if (dataTopico > hoje) {
-            return; // Não adiciona o tópico se a data for futura
+            return; // não adiciona tópicos com data futura
         }
 
-        // Verifica se é necessário criar uma nova coluna
-        if (colunas.length === 0 || colunas[colunas.length - 1].children.length >= 10) {
-            criarNovaColuna(); // Cria uma nova coluna
+        // Se a coluna não existir, cria automaticamente
+        if (!colunas[colunaNome]) {
+            criarColuna(colunaNome);
         }
 
-        // Encontra a coluna com o menor número de tópicos
-        let colunaMenosCheia = colunas.reduce((acumulador, coluna) => 
-            (acumulador.children.length < coluna.children.length) ? acumulador : coluna);
+        const novaColuna = colunas[colunaNome];
 
         const novoTopico = document.createElement("div");
         novoTopico.classList.add("topico");
-        const icone = document.createElement("span");
 
-        // Define o símbolo do ícone com base na data do tópico
-        const umaSemanaEmMillis = 4 * 24 * 60 * 60 * 1000;
-        if (hoje - dataTopico <= umaSemanaEmMillis) {
-            icone.textContent = "⇒"; // Símbolo para tópicos recentes
-			novoTopico.classList.add("novo");
+        const icone = document.createElement("span");
+        const quatroDias = 4 * 24 * 60 * 60 * 1000;
+
+        if (hoje - dataTopico <= quatroDias) {
+            icone.textContent = "⇒"; // recente
+            novoTopico.classList.add("novo");
         } else {
-            icone.textContent = "⇓"; // Símbolo para tópicos antigos
-			novoTopico.classList.add("velho");
+            icone.textContent = "⇓"; // antigo
+            novoTopico.classList.add("velho");
         }
-        
-        icone.style.marginRight = "5px"; // Espaçamento entre o ícone e o título
+
+        icone.style.marginRight = "5px";
         novoTopico.appendChild(icone);
+
         const novoLink = document.createElement("a");
         novoLink.href = link;
         novoLink.textContent = titulo;
         novoLink.target = "_blank";
-        novoTopico.appendChild(novoLink);
 
-        colunaMenosCheia.appendChild(novoTopico); // Adiciona o tópico à coluna menos cheia
+        novoTopico.appendChild(novoLink);
+        novaColuna.appendChild(novoTopico);
     }
 
-    // Exemplo de adição de tópicos
-	 // Exemplo de adição de tópicos
-	/*
-	adicionarTopico("A Morte de Arthur", "hist/cap12.html", "2024-06-12");
-	adicionarTopico("Mordred", "hist/cap11.html", "2024-06-11");
-	adicionarTopico("Coração de Cavaleiro", "hist/cap10.html", "2024-06-10");
-	adicionarTopico("O Retorno de Nimueh", "hist/cap9.html", "2024-06-07");
-	adicionarTopico("Os Primeiros Desafios", "hist/cap8.html", "2024-06-06");
-	adicionarTopico("A Canção da Vingança", "hist/cap7.html", "2024-06-05");
-	adicionarTopico("A Chegada de Merlin", "hist/cap6.html", "2024-06-04");
-	adicionarTopico("O Nascimento de Merlin", "hist/cap5.html", "2024-06-03");
-	adicionarTopico("O Crescimento de Arthur", "hist/cap4.html", "2024-05-31");
-	adicionarTopico("A Grande Purgação", "hist/cap3.html", "2024-05-29");
-	adicionarTopico("A Ascensão de Uther", "hist/cap2.html", "2024-05-28");
-	adicionarTopico("A Lenda de Cornelius Sigan", "hist/cap1.html", "2024-05-27");
-	adicionarTopico("Ilha perdida", "hist/icaro.html", "2024-05-10");
-	adicionarTopico("Jornada da Criatividade", "hist/lira.html", "2024-05-08");
-	adicionarTopico("\"O Canudo\"", "hist/empresa.html", "2024-05-07");
-	adicionarTopico("A Lição do Riacho", "hist/riacho.html", "2024-05-06");
-	adicionarTopico("Acessibilidade", "hist/acessibilidade.html", "2024-05-04");
-	adicionarTopico("Imortais", "hist/imortais.html", "2024-05-03");
-	adicionarTopico("A cidade nas nuvens", "hist/a_cidade_nas_nuvens.html", "2024-05-02");
-	adicionarTopico("O Preço da Fúria", "hist/o_preco_da_furia.html", "2024-04-30");
-	adicionarTopico("Travessuras Noturnas", "hist/travessuras_noturnas.html", "2024-04-27");
-	adicionarTopico("A Floresta dos Trabalhos", "hist/a_selva.html", "2024-04-24");
-	adicionarTopico("Sapinho Surdo", "hist/sapo_surdo.html", "2024-04-22");
-	adicionarTopico("Formiga desmotivada", "https://open.spotify.com/playlist/5wMbIGMnM1Dpj2BcCHZZlO", "2024-04-20");
-	
-	
-	
-	*/
-	adicionarTopico("Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
-	adicionarTopico("Google", "https://www.google.com.br/?hl=pt-BR", "2024-05-08");
-	adicionarTopico("Youtube", "https://www.youtube.com/", "2024-05-08");
-	adicionarTopico("Youtube", "https://m.youtube.com/", "2024-05-08");
-	adicionarTopico("SpotFy", "https://open.spotify.com/playlist/5wMbIGMnM1Dpj2BcCHZZlO", "2024-04-20");
-	adicionarTopico("Radio", "hist/radio.html", "2024-04-22");
-	adicionarTopico("Ler PDF", "hist/novo6.html", "2024-04-22");
-	adicionarTopico("Boletos", "hist/boletos.html", "2024-04-22");
-	
-    // Adicionar mais tópicos conforme necessário
-});
+    // 🌟 Exemplo de uso
+    adicionarTopico("Links Úteis", "Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
+    adicionarTopico("Links Úteis", "Google", "https://www.google.com.br/?hl=pt-BR", "2024-05-08");
+    adicionarTopico("Links Úteis", "Youtube", "https://www.youtube.com/", "2024-05-08");
 
+    // 🌟 Tópicos da coluna "Contratos"
+	adicionarTopico("Contratos", "Contratos Financeiros", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro/7964", "2025-10-27");
+	adicionarTopico("Contratos", "Consumo de Água", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-consumo-de-agua/7978", "2024-04-22");
+	adicionarTopico("Contratos", "Consumo de Energia Elétrica", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-consumo-de-energia-eletrica/8003", "2024-04-22");
+	adicionarTopico("Contratos", "Consumo de Gás Canalizado", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-consumo-de-gas-canalizado/8023", "2024-04-22");
+	adicionarTopico("Contratos", "Doação Financeira", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-doacao-financeira/8039", "2024-04-22");
+	adicionarTopico("Contratos", "Outras Despesas", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-outras-despesas/8120", "2024-04-22");
+	adicionarTopico("Contratos", "Pagamento de Aluguel de Equipamento", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-finande-equipamento/11993", "2024-04-22");
+	adicionarTopico("Contratos", "Pagamento de Aluguel de Imóvel", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-finanguel-de-imovel/12026", "2024-04-22");
+	adicionarTopico("Contratos", "Pagamento de Royalties", "https://ajuda.bluesoft.com.br/sistema/novidade/contrato-financeiro-pagamento-de-royalties/45478", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviço de Comunicação ou Telecomunicação", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-finanelecomunicacao/12043", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviço de Fornecedor Internacional", "https://ajuda.bluesoft.com.br/modulo-financeiro/despesa-para-tomada-de-servico-de-fornecedor-internacional/10538", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de serviço de Meio de Pagamento", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-tomada-de-servico-de-meio-de-pagamento/12106", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviço de Prestador Municipal", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-tomada-de-servico-de-prestador-municipal/12137", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviço de Profissionais Liberais/Autônomos", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-tomada-de-servico-de-profissionais-liberaisautonomos/12159", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviço Estadual", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro-tomada-de-servico-estadual/12171", "2024-04-22");
+	adicionarTopico("Contratos", "Tomada de Serviços de Transporte", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-finanelecomunicacao/12043", "2024-04-22");
+
+
+    // 🌟 Tópicos da coluna "Manuais"
+adicionarTopico("Manuais", "Energia Elétrica (modelo 55)", "https://ajuda.bluesoft.com.br/modulo-estoques-e-nf-e/recebimento-de-mercadorias-nota-fiscal-eletronica-de-energia-eletrica-modelo-55/55903", "2024-04-22");
+
+
+    adicionarTopico("Favoritos", "Spotify", "https://open.spotify.com/", "2024-04-22");
+    adicionarTopico("Favoritos", "Rádio Online", "hist/radio.html", "2024-04-20");
+});
