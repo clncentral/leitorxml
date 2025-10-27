@@ -1,44 +1,141 @@
+/* ======== RESET GERAL ======== */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ======== ESTRUTURA GERAL EXISTENTE ======== */
+div#divarquivo {
+    margin: 8px;
+    border: 2px solid #ccc;
+    box-shadow: 5px 5px 5px #888;
+}
+
+.box {
+    width: 99.7%;
+    border: 1px solid #c7a460;
+    background-color: #f4edd5;
+    margin: 0;
+    padding: 0;
+}
+
+.divbox {
+    position: relative;
+    width: 99.7%;
+    border: 1px solid #c7a460;
+    background-color: #d0daced5;
+    overflow: auto;
+}
+
+/* ======== SEÇÃO DOS TÓPICOS ======== */
 #divarquivo2 {
-  width: 100%;
-  max-width: 90%;
-  margin: 0 auto;
-  padding: 50px;
-  border-radius: 10px; /* Borda arredondada */
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2); /* Sombra bonita */
+    border: 1px solid #c7a460;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 5px;
+    margin: 5px auto;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    width: 95%;
+    max-width: 1350px;
+    box-sizing: border-box;
 }
 
-.container {
-  width: 100%;
-  height: 65vh;
-  display: flex;
-  flex-direction: column; /* Para empilhar verticalmente o título e a lista de tópicos */
-  align-items: center;
+#divarquivo2 h2 {
+    text-align: center;
+    color: #8a6b2f;
+    margin-bottom: 20px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    letter-spacing: 0.5px;
 }
 
+/* ======== CONTAINER DAS COLUNAS ======== */
+#topicos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 10px auto;
+    width: 100%;
+}
+
+/* ======== CADA COLUNA ======== */
 .column {
-  width: auto; /* Define a largura para que quatro colunas caibam sem quebrar linhas */
-  padding: 10px; /* Adiciona um espaçamento interno para separar as colunas */
-  border-left: 5px solid #ddd; /* Cor da linha */
-  padding-left: 10px; /* Espaçamento entre a linha e o conteúdo */
-  box-shadow: 5px 0 5px -5px rgba(0, 0, 0, 0.5);
+    flex: 1 1 220px;
+    max-width: 350px;
+    background-color: #ffffff;
+    padding: 5px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.15);
+    min-height: 230px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
-.topicos {
-  width: 100%; /* Alteração para ocupar toda a largura disponível */
-  display: flex; /* Adição da propriedade para alinhar as colunas lado a lado */
-  flex-wrap: wrap; /* Permite que as colunas quebrem para a linha seguinte se não couberem em uma única linha */
+.column:hover {
+    transform: translateY(-4px);
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
 }
 
+/* ======== TÍTULO DE CADA COLUNA ======== */
+.titulo-coluna {
+    text-align: center;
+    font-size: 17px;
+    font-weight: bold;
+    color: #3d2f15;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #c7a460;
+    padding-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+/* ======== LINKS DOS TÓPICOS ======== */
 .topico {
-  margin-bottom: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
 }
 
-.novo {
-  color: red;
-  font-size: 16px;
+.topico a {
+    text-decoration: none;
+    color: #0056b3;
+    font-size: 14px;
+    flex-grow: 1;
+    transition: color 0.2s;
 }
 
-.velho {
-  color: black;
-  font-size: 12px;
+.topico a:hover {
+    text-decoration: underline;
+    color: #003d82;
+}
+
+/* ======== ÍCONES ======== */
+.topico span {
+    margin-right: 6px;
+    font-size: 13px;
+    color: #333;
+}
+
+/* ======== DIFERENCIAÇÃO VISUAL ======== */
+.topico.novo {
+    font-weight: bold;
+    color: #007700;
+}
+
+.topico.velho {
+    color: #555;
+}
+
+/* ======== RESPONSIVIDADE ======== */
+@media (max-width: 768px) {
+    #topicos {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .column {
+        width: 90%;
+        max-width: none;
+    }
 }
