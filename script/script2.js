@@ -96,11 +96,13 @@ document.addEventListener("DOMContentLoaded", function() {
 	adicionarTopico("Manuais", "Correção Despesa para Ativo", "blue/CorrecaoDespesaAtivo.docx", "2024-04-22");
 	adicionarTopico("Manuais", "Cadastro Ativo Imobilizado", "blue/cadastroAtivo.docx", "2024-04-22");
 	adicionarTopico("Manuais", "Pedido de Compra Ativo - Danfe", "https://ajuda.bluesoft.com.br/faq/compra-de-ativo-imobilizado", "2024-04-22");
+	adicionarTopico("Manuais", "Venda Ativo", "blue/VendaAtivo.pdf", "2024-04-22");
 
 
     adicionarTopico("Favoritos", "Spotify", "https://open.spotify.com/", "2024-04-22");
     adicionarTopico("Favoritos", "Rádio Online", "hist/radio.html", "2024-04-20");
 });
+
 
 
 
