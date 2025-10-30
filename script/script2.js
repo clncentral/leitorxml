@@ -90,14 +90,17 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
     // 🌟 Tópicos da coluna "Manuais"
-adicionarTopico("Manuais", "Energia Elétrica (modelo 55)", "https://ajuda.bluesoft.com.br/modulo-estoques-e-nf-e/recebimento-de-mercadorias-nota-fiscal-eletronica-de-energia-eletrica-modelo-55/55903", "2024-04-22");
-adicionarTopico("Manuais", "Compra de Ativo Imobilizado", "https://ajuda.bluesoft.com.br/faq/compra-de-ativo-imobilizado", "2024-04-22");
-adicionarTopico("Manuais", "Classificacao Ativos Imobilizados", "blue/Classificacao_Ativos_Imobilizados.xlsx", "2024-04-22");
+	adicionarTopico("Manuais", "Energia Elétrica (modelo 55)", "https://ajuda.bluesoft.com.br/modulo-estoques-e-nf-e/recebimento-de-mercadorias-nota-fiscal-eletronica-de-energia-eletrica-modelo-55/55903", "2024-04-22");
+	adicionarTopico("Manuais", "Compra de Ativo Imobilizado", "https://ajuda.bluesoft.com.br/faq/compra-de-ativo-imobilizado", "2024-04-22");
+	adicionarTopico("Manuais", "Classificacao Ativos Imobilizados", "blue/Classificacao_Ativos_Imobilizados.xlsx", "2024-04-22");
+	adicionarTopico("Manuais", "Correção Despesa para Ativo", "blue/CorrecaoDespesaAtivo.docx", "2024-04-22");
+	adicionarTopico("Manuais", "Cadastro Ativo Imobilizado", "blue/cadastroAtivo.docx", "2024-04-22");
 
 
     adicionarTopico("Favoritos", "Spotify", "https://open.spotify.com/", "2024-04-22");
     adicionarTopico("Favoritos", "Rádio Online", "hist/radio.html", "2024-04-20");
 });
+
 
 
 
