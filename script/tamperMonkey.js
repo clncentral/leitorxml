@@ -8,8 +8,8 @@
 // @grant        unsafeWindow
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
-// @updateURL    https://raw.githubusercontent.com/clncentral/tampermonkey/main/infradesk-operador.user.js
-// @downloadURL  https://raw.githubusercontent.com/clncentral/tampermonkey/main/infradesk-operador.user.js
+// @updateURL    https://clncentral.github.io/leitorxml/script/tamperMonkey.js
+// @downloadURL  https://clncentral.github.io/leitorxml/script/tamperMonkey.js
 // ==/UserScript==
 
 
@@ -471,3 +471,4 @@
 
   setInterval(() => tickFetchAndInject(false), FETCH_MS);
 })();
+
