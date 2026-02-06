@@ -21,7 +21,7 @@
   // =========================
   // CONFIG (VOCÊ ALTERA AQUI)
   // =========================
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwhF1CxlY93-q_e2cl97mFZ1yFN79ztQpAeMVJeL8O0qGiLjwO7x2heOFLJBGG9qwxZZA/exec';
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby48yW6Cl1M33FjPb_Wky4u2UbZ4mpP00SE5WsS3_ddKEvBEyy8RYC0PXssSlQiXucyug/exec';
   const SECRET     = 'ksjddhasodiahsdlka';
 
   // a cada X ms ele busca os operadores desta página e injeta (automático)
@@ -551,6 +551,7 @@
 
 
 })();
+
 
 
 
