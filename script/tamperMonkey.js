@@ -1,8 +1,10 @@
 // ==UserScript==
-// @name         InfraDesk — Injetar Operador + CSV (FAST + cores)
+// @name         InfraDesk Despesas ↔ Planilha (AUTO Operador + Cores + Datas separadas)
 // @namespace    clncentral/infradesk
-// @version      1.4
+// @version      1.2.1
+// @description  Envia TODAS as páginas de /backend/despesas pra planilha e injeta Operador automaticamente com cores.
 // @match        https://asp.infradesk.app/backend/despesas*
+// @match        https://asp.infradesk.app/backend/despesas/*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
@@ -13,45 +15,71 @@
 // ==/UserScript==
 
 
-(() => {
-  // ======================
-  // CONFIG
-  // ======================
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycby48yW6Cl1M33FjPb_Wky4u2UbZ4mpP00SE5WsS3_ddKEvBEyy8RYC0PXssSlQiXucyug/exec";
+(function () {
+  'use strict';
 
-  // ⚠️ “instantâneo” real só com push (não tem). Então a gente faz polling leve:
-  const FETCH_MS = 1500; // 1500ms (se quiser mais leve: 2500 / 4000)
-  const MAX_ROWS = 500;  // limite por ciclo de injeção
-  const SHOW_UNASSIGNED = false; // true => mostra "—" quando não tem operador
+  // =========================
+  // CONFIG (VOCÊ ALTERA AQUI)
+  // =========================
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwhF1CxlY93-q_e2cl97mFZ1yFN79ztQpAeMVJeL8O0qGiLjwO7x2heOFLJBGG9qwxZZA/exec';
+  const SECRET     = 'ksjddhasodiahsdlka';
 
-  // Pintura
-  const PAINT_BADGE = true; // pinta a pílula do operador
-  const PAINT_BAR   = true; // pinta a barrinha à esquerda
+  // a cada X ms ele busca os operadores desta página e injeta (automático)
+  const FETCH_MS = 900;
 
-  // Cores fixas (bate com a planilha)
-  const OP_COLOR_OVERRIDES = {
+  // limite de envio por POST (pra ficar rápido e estável)
+  const MAX_BATCH_POST = 300;
+
+  // não mostrar nada quando não tem operador (igual antigamente)
+  const MOSTRAR_SEM_OPERADOR = false;
+
+  // cores fixas (opcional). Se não bater aqui, ele gera uma cor automática pelo nome.
+  const CORES_FIXAS_POR_OPERADOR = {
     "Elias Araujo": "#0324ff",
     "Camily": "#ed5ac1",
     "Elia Maria": "#962bcc",
     "Patricia": "#ff8e03",
   };
-  // ======================
 
-  // ======================
+  // =========================
+  // TOAST (mensagens)
+  // =========================
+  function toast(tipo, msg) {
+    try {
+      if (window.toastr && typeof window.toastr[tipo] === 'function') {
+        window.toastr[tipo](msg);
+        return;
+      }
+    } catch (_) {}
+    console.log(`[Sigma] ${tipo.toUpperCase()}: ${msg}`);
+  }
+  const ok   = (m) => toast('success', m);
+  const info = (m) => toast('info', m);
+  const warn = (m) => toast('warning', m);
+  const err  = (m) => toast('error', m);
+
+  // =========================
   // HELPERS
-  // ======================
-  const clean = (s) => String(s ?? "")
-    .replace(/\u00a0/g, " ")        // NBSP -> espaço normal
-    .replace(/\s+/g, " ")
-    .trim();
+  // =========================
+  function clean(s) {
+    return String(s ?? '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
-  const onlyDigits = (s) => (String(s ?? "").match(/\d+/g) || []).join("");
-  const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-  const normName = (s) => clean(s).toLowerCase();
+  function onlyDigits(s) {
+    return (String(s ?? '').match(/\d+/g) || []).join('');
+  }
 
-  // normaliza overrides pra bater case-insensitive
-  const OP_COLOR_OVERRIDES_NORM = Object.fromEntries(
-    Object.entries(OP_COLOR_OVERRIDES).map(([k, v]) => [normName(k), v])
+  function normName(s) {
+    return clean(s)
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  const CORES_FIXAS_NORM = Object.fromEntries(
+    Object.entries(CORES_FIXAS_POR_OPERADOR).map(([k, v]) => [normName(k), v])
   );
 
   function hashHue(str) {
@@ -62,413 +90,467 @@
 
   function colorForOperator(op) {
     const key = normName(op);
-    if (!key) return "#111827";
-
-    // ✅ override direto
-    if (OP_COLOR_OVERRIDES_NORM[key]) return OP_COLOR_OVERRIDES_NORM[key];
-
-    // fallback: cor consistente por nome
+    if (!key) return '#111827';
+    if (CORES_FIXAS_NORM[key]) return CORES_FIXAS_NORM[key];
     const hue = hashHue(key);
     return `hsl(${hue} 70% 38%)`;
   }
 
-  // ======================
-  // STATE (debug no console)
-  // ======================
-  const STATE = {
-    syncing: true,
-    lastMap: {},
-    lastMapCount: 0,
-    lastFetch: null,
-    lastInject: null,
-    lastInjected: 0,
-    lastError: null,
-    lastRaw: null,
-    lastMsFetch: 0,
-    lastMsInject: 0,
-  };
-
-  unsafeWindow.__INFRA_TM__ = STATE;
-  unsafeWindow.__INFRA_TM_dump = () => ({
-    ...STATE,
-    keys_sample: Object.keys(STATE.lastMap || {}).slice(0, 30),
-    op_40373: (STATE.lastMap || {})["40373"],
-  });
-
-  // ======================
-  // UI (mini)
-  // ======================
-  const ui = document.createElement("div");
-  ui.style.cssText = "position:fixed;bottom:14px;right:14px;z-index:2147483647;display:flex;gap:8px;align-items:center;";
-  document.body.appendChild(ui);
-
-  function mkMiniBtn(text, bg) {
-    const b = document.createElement("button");
-    b.textContent = text;
-    b.style.cssText =
-      `height:34px;min-width:34px;padding:0 10px;border-radius:999px;border:0;background:${bg};color:#fff;font-weight:900;` +
-      "box-shadow:0 8px 24px rgba(0,0,0,.25);font:12px/1 system-ui;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;";
-    return b;
+  function absUrl(href) {
+    try { return new URL(href, location.href).toString(); }
+    catch (_) { return null; }
   }
 
-  const btnCSV = mkMiniBtn("CSV", "#10b981");
-  const btnMenu = mkMiniBtn("⋯", "#111827");
-  ui.appendChild(btnCSV);
-  ui.appendChild(btnMenu);
-
-  const panel = document.createElement("div");
-  panel.style.cssText =
-    "position:fixed;bottom:56px;right:14px;z-index:2147483647;" +
-    "background:#0b1220;color:#fff;border-radius:12px;padding:10px 10px;" +
-    "box-shadow:0 10px 30px rgba(0,0,0,.35);min-width:260px;display:none;";
-  document.body.appendChild(panel);
-
-  panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-      <div style="font-weight:900;">InfraDesk Sync</div>
-      <button id="tmClose" style="border:0;background:transparent;color:#fff;font-size:16px;cursor:pointer;">✕</button>
-    </div>
-
-    <div id="tmStatus" style="font:12px/1.3 system-ui;opacity:.95;margin-bottom:10px;">
-      iniciando…
-    </div>
-
-    <div style="display:flex;gap:8px;">
-      <button id="tmSync" style="flex:1;border:0;border-radius:10px;padding:8px 10px;background:#1c84c6;color:#fff;font-weight:900;cursor:pointer;">SYNC: ON</button>
-      <button id="tmNow"  style="border:0;border-radius:10px;padding:8px 10px;background:#7c3aed;color:#fff;font-weight:900;cursor:pointer;">AGORA</button>
-    </div>
-
-    <div style="margin-top:8px;font:11px/1.35 system-ui;opacity:.8;">
-      Dica: console -> <b>__INFRA_TM_dump()</b>
-    </div>
-  `;
-
-  const elStatus = panel.querySelector("#tmStatus");
-  const btnSync = panel.querySelector("#tmSync");
-  const btnNow = panel.querySelector("#tmNow");
-  const btnClose = panel.querySelector("#tmClose");
-
-  function setStatus(ok, msg) {
-    if (!STATE.syncing) {
-      elStatus.textContent = `SYNC: OFF | ${msg || ""}`.trim();
-      btnSync.textContent = "SYNC: OFF";
-      btnSync.style.background = "#6b7280";
-      return;
-    }
-
-    if (ok) {
-      elStatus.textContent = msg;
-      btnSync.textContent = "SYNC: ON";
-      btnSync.style.background = "#1c84c6";
-    } else {
-      elStatus.textContent = `ERRO: ${msg}`;
-      btnSync.textContent = "SYNC: ON";
-      btnSync.style.background = "#ef4444";
-    }
-  }
-
-  btnMenu.onclick = () => {
-    panel.style.display = (panel.style.display === "none" ? "block" : "none");
-  };
-  btnClose.onclick = () => (panel.style.display = "none");
-
-  btnSync.onclick = () => {
-    STATE.syncing = !STATE.syncing;
-    setStatus(true, "toggle");
-  };
-
-  btnNow.onclick = () => {
-    if (!STATE.syncing) STATE.syncing = true;
-    tickFetchAndInject(true);
-  };
-
-  // ======================
-  // GM REQUEST
-  // ======================
-  function gmGetJson(url) {
+  // =========================
+  // GM REQUEST (JSON)
+  // =========================
+  function gmJson(method, url, bodyObj) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
-        method: "GET",
+        method,
         url,
+        headers: bodyObj ? { 'Content-Type': 'application/json' } : {},
+        data: bodyObj ? JSON.stringify(bodyObj) : null,
         onload: (res) => {
-          try { resolve(JSON.parse(res.responseText)); }
-          catch { reject(new Error("Resposta não é JSON")); }
+          try {
+            const data = JSON.parse(res.responseText || '{}');
+            resolve({ status: res.status, data });
+          } catch (_) {
+            reject(new Error('Resposta inválida (não é JSON).'));
+          }
         },
-        onerror: () => reject(new Error("Falha na requisição (GM)")),
+        onerror: () => reject(new Error('Falha de rede ao falar com o WebApp.')),
       });
     });
   }
 
-  function buildUrlNoCache(base) {
-    const sep = base.includes("?") ? "&" : "?";
-    return `${base}${sep}t=${Date.now()}`;
+  async function fetchHtml(url) {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error(`Falha ao abrir a página (${r.status}). Você está logado?`);
+    return await r.text();
   }
 
-  async function fetchMap() {
-    if (!STATE.syncing) return false;
+  // =========================
+  // UI: só o "⋯" no canto
+  // =========================
+  function injectCss() {
+    const css = `
+#sigmaDotsBtn{
+  position:fixed; right:14px; bottom:14px; z-index:2147483647;
+  width:38px; height:38px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(17,24,39,.95);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 10px 24px rgba(0,0,0,.28);
+  cursor:pointer; user-select:none;
+  font-size:20px; color:#e8ecf1;
+}
+#sigmaDotsPanel{
+  position:fixed; right:14px; bottom:60px; z-index:2147483647;
+  width:320px; border-radius:14px;
+  background:rgba(17,24,39,.98);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 14px 34px rgba(0,0,0,.35);
+  padding:10px;
+  display:none;
+}
+#sigmaDotsPanel .ttl{ font-size:12px; color:rgba(232,236,241,.85); margin:6px 8px 10px; }
+#sigmaDotsPanel button{
+  width:100%;
+  text-align:left;
+  margin:6px 0;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.05);
+  color:#e8ecf1;
+  border-radius:12px;
+  padding:10px 12px;
+  cursor:pointer;
+  font-weight:700;
+}
+#sigmaDotsPanel button:hover{ background:rgba(255,255,255,.08); }
 
-    const url = buildUrlNoCache(WEBAPP_URL);
-
-    const t0 = performance.now();
-    const j = await gmGetJson(url);
-    const t1 = performance.now();
-
-    STATE.lastRaw = j;
-    STATE.lastMsFetch = Math.round(t1 - t0);
-
-    if (!j.ok) throw new Error(j.error || "WebApp ok=false");
-    if (!j.map || typeof j.map !== "object") throw new Error("WebApp não retornou map");
-
-    STATE.lastMap = j.map;
-    STATE.lastMapCount = Object.keys(j.map).length;
-    STATE.lastFetch = new Date().toISOString();
-    STATE.lastError = null;
-
-    return true;
+.tm-op-badge{
+  display:inline-flex; align-items:center;
+  margin-left:8px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  color:#fff;
+  vertical-align:middle;
+  box-shadow:0 8px 18px rgba(0,0,0,.20);
+}
+`;
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
   }
 
-  // ======================
-  // DOM / INJEÇÃO
-  // ======================
-  function findTable() {
+  function buildMenu() {
+    injectCss();
+
+    const btn = document.createElement('div');
+    btn.id = 'sigmaDotsBtn';
+    btn.textContent = '⋯';
+
+    const panel = document.createElement('div');
+    panel.id = 'sigmaDotsPanel';
+    panel.innerHTML = `
+      <div class="ttl">Sigma • Despesas ↔ Planilha</div>
+      <button data-act="sync">📥 Enviar TODAS as páginas para a planilha</button>
+      <button data-act="ops">👤 Atualizar Operadores agora</button>
+    `;
+
+    btn.addEventListener('click', () => {
+      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    });
+
+    panel.addEventListener('click', async (e) => {
+      const b = e.target.closest('button[data-act]');
+      if (!b) return;
+      const act = b.getAttribute('data-act');
+
+      try {
+        if (act === 'sync') await actionSyncAll();
+        if (act === 'ops')  await atualizarOperadoresEInjetar(false, true);
+      } catch (ex) {
+        err(String(ex?.message || ex));
+      }
+    });
+
+    document.body.appendChild(btn);
+    document.body.appendChild(panel);
+
+    document.addEventListener('click', (e) => {
+      const inside = e.target.closest('#sigmaDotsPanel') || e.target.closest('#sigmaDotsBtn');
+      if (!inside) panel.style.display = 'none';
+    });
+  }
+
+  // =========================
+  // DOM: tabela e linhas
+  // =========================
+  function findTableIn(root) {
     return (
-      document.querySelector(".ibox-content table.table.table-stripped") ||
-      document.querySelector("table.table.table-stripped") ||
-      document.querySelector("table")
+      root.querySelector('.ibox-content table.table.table-stripped') ||
+      root.querySelector('table.table.table-stripped') ||
+      root.querySelector('table')
     );
   }
 
-  function getMainRows(table) {
-    // ✅ só linhas principais (evita “lixo” do expandir)
-    return [...table.querySelectorAll("tbody tr.tr-index:not(.expandir)")];
+  function getMainRows(root) {
+    const table = findTableIn(root);
+    if (!table) return [];
+    let trs = [...table.querySelectorAll('tbody tr.tr-index:not(.expandir)')];
+    if (!trs.length) trs = [...table.querySelectorAll('tbody tr')];
+    return trs;
   }
 
-  function ensureBadge(anchorEl) {
-    let badge = anchorEl.parentNode.querySelector(".tm-op-badge");
+  function getIdFromRow(tr) {
+    // 1) padrão antigo: primeiro td -> p -> número
+    const firstTd = tr.querySelector('td');
+    const p = firstTd?.querySelector('p');
+    const id1 = onlyDigits(p?.textContent || '');
+    if (id1) return id1;
+
+    // 2) fallback: onclick abrirSolicitacao(123)
+    const any = tr.querySelectorAll('[onclick]');
+    for (const el of any) {
+      const oc = el.getAttribute('onclick') || '';
+      const m = oc.match(/abrirSolicitacao\s*\(\s*(\d+)\s*\)/i);
+      if (m) return m[1];
+    }
+    const m2 = (tr.innerHTML || '').match(/abrirSolicitacao\s*\(\s*(\d+)\s*\)/i);
+    return m2 ? m2[1] : null;
+  }
+
+  // =========================
+  // Datas: separa Emissão/Vencimento
+  // =========================
+  function extrairEmissaoVencimento(td) {
+    if (!td) return { emissao: '', vencimento: '' };
+
+    // tenta pegar pelos <b> (como seu script antigo)
+    const bs = [...td.querySelectorAll('b')].map(b => clean(b.textContent)).filter(Boolean);
+    const reData = /\b\d{2}\/\d{2}\/\d{4}\b/;
+
+    if (bs.length >= 2 && reData.test(bs[0]) && reData.test(bs[1])) {
+      return { emissao: bs[0], vencimento: bs[1] };
+    }
+
+    // tenta achar duas datas no texto
+    const txt = clean(td.innerText || td.textContent || '');
+    const matches = txt.match(/\b\d{2}\/\d{2}\/\d{4}\b/g) || [];
+    if (matches.length >= 2) return { emissao: matches[0], vencimento: matches[1] };
+    if (matches.length === 1) return { emissao: matches[0], vencimento: '' };
+
+    // fallback: duas linhas
+    const parts = (td.innerText || '').split('\n').map(clean).filter(Boolean);
+    if (parts.length >= 2) return { emissao: parts[0], vencimento: parts[1] };
+
+    return { emissao: txt, vencimento: '' };
+  }
+
+  // =========================
+  // Parse de uma linha -> objeto pra planilha
+  // =========================
+  function parseRow(tr) {
+    const tds = [...tr.querySelectorAll('td')];
+    const id = getIdFromRow(tr);
+    if (!id) return null;
+
+    // tentativa por posições (padrão InfraDesk)
+    const descricaoTd = tds[1];
+    const docTd      = tds[2];
+    const fornTd     = tds[3];
+    const datasTd    = tds[4];
+    const valorTd    = tds[5];
+
+    const descricao = clean(descricaoTd?.innerText);
+
+    // documento + "Ativo" (se existir ícone)
+    let documento = clean(docTd?.innerText);
+    const isAtivo = !!docTd?.querySelector('i.fa-sitemap, i.fa.fa-sitemap');
+    if (isAtivo) documento = documento ? `${documento}\nAtivo` : 'Ativo';
+
+    // fornecedor + "Pgto Antecipado" (se existir badge)
+    let fornecedor = clean(fornTd?.innerText);
+    const badgesForn = [...(fornTd?.querySelectorAll('span.badge') || [])];
+    const isPgtoAntecipado = badgesForn.some(b => /pgto\s*antecipado/i.test(clean(b.textContent)));
+    if (isPgtoAntecipado) fornecedor = fornecedor ? `${fornecedor}\nPgto Antecipado` : 'Pgto Antecipado';
+
+    // emissão/vencimento (separado)
+    let emissao = '';
+    let vencimento = '';
+    if (datasTd) {
+      const dv = extrairEmissaoVencimento(datasTd);
+      emissao = dv.emissao;
+      vencimento = dv.vencimento;
+    }
+
+    const valor = clean(valorTd?.innerText);
+
+    return { id, descricao, documento, fornecedor, emissao, vencimento, valor };
+  }
+
+  // =========================
+  // Paginação real (só as páginas que existem)
+  // =========================
+  function pageNumFromUrl(u) {
+    try {
+      const url = new URL(u);
+      const qp = url.searchParams;
+      const v = qp.get('page') || qp.get('pagina') || qp.get('p');
+      if (v && /^\d+$/.test(v)) return parseInt(v, 10);
+      const m = u.match(/(?:page|pagina)[:=](\d+)/i);
+      return m ? parseInt(m[1], 10) : 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  function getAllPageUrlsFromDocument(doc) {
+    const urls = new Map();
+    const here = location.href;
+    urls.set(here, pageNumFromUrl(here));
+
+    const pagers = doc.querySelectorAll('.pagination a[href], ul.pagination a[href], .paginator a[href], a[href*="page"], a[href*="pagina"]');
+    pagers.forEach(a => {
+      const u = absUrl(a.getAttribute('href'));
+      if (!u) return;
+      if (!u.includes('/backend/despesas')) return;
+      urls.set(u, pageNumFromUrl(u));
+    });
+
+    return [...urls.entries()].sort((a,b) => a[1] - b[1]).map(([u]) => u);
+  }
+
+  // =========================
+  // AÇÃO: enviar todas as páginas
+  // =========================
+  async function actionSyncAll() {
+    if (!WEBAPP_URL.includes('/exec')) throw new Error('Cole a URL do WebApp (termina com /exec) no Tampermonkey.');
+
+    const pageUrls = getAllPageUrlsFromDocument(document);
+    if (!pageUrls.length) throw new Error('Não encontrei paginação aqui.');
+
+    info(`Vou ler ${pageUrls.length} página(s) e mandar pra planilha...`);
+
+    const all = [];
+    const byId = new Set();
+
+    for (let i = 0; i < pageUrls.length; i++) {
+      info(`Lendo página ${i + 1} de ${pageUrls.length}...`);
+      const html = await fetchHtml(pageUrls[i]);
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const trs = getMainRows(doc);
+
+      for (const tr of trs) {
+        const r = parseRow(tr);
+        if (!r) continue;
+        if (byId.has(r.id)) continue;
+        byId.add(r.id);
+        all.push(r);
+      }
+    }
+
+    if (!all.length) {
+      warn('Não consegui capturar nenhum registro.');
+      return;
+    }
+
+    info(`Coleta finalizada: ${all.length} registro(s). Enviando pra planilha...`);
+
+    let insertedTotal = 0;
+    let skippedTotal = 0;
+
+    for (let i = 0; i < all.length; i += MAX_BATCH_POST) {
+      const chunk = all.slice(i, i + MAX_BATCH_POST);
+      const payload = { secret: SECRET, rows: chunk };
+
+      const res = await gmJson('POST', WEBAPP_URL, payload);
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Erro ao inserir na planilha.');
+
+      insertedTotal += (res.data.inserted || 0);
+      skippedTotal += (res.data.skipped || 0);
+    }
+
+    ok(`Planilha atualizada! Inseridos: ${insertedTotal} | Ignorados: ${skippedTotal}`);
+
+    // depois de enviar, já atualiza/injeta operadores (automaticamente)
+    await atualizarOperadoresEInjetar(true, true);
+  }
+
+  // =========================
+  // INJEÇÃO: operador + cores
+  // =========================
+  function ensureBadge(pEl) {
+    let badge = pEl.parentNode.querySelector('.tm-op-badge');
     if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "tm-op-badge";
-      badge.style.cssText =
-        "display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;" +
-        "background:#111827;color:#fff;font-size:11px;font-weight:900;vertical-align:middle;";
-      anchorEl.parentNode.appendChild(badge);
+      badge = document.createElement('span');
+      badge.className = 'tm-op-badge';
+      pEl.parentNode.appendChild(badge);
     }
     return badge;
   }
 
-  function clearPaint(tr, anchorEl) {
-    const td = anchorEl?.closest("td");
-    if (td) td.style.boxShadow = "";
+  function clearPaint(pEl) {
+    const td = pEl?.closest('td');
+    if (td) td.style.boxShadow = '';
   }
 
-  function applyPaint(anchorEl, color) {
-    const td = anchorEl?.closest("td");
-    if (PAINT_BAR && td) td.style.boxShadow = `inset 6px 0 0 ${color}`;
+  function applyPaint(pEl, color) {
+    const td = pEl?.closest('td');
+    if (td) td.style.boxShadow = `inset 6px 0 0 ${color}`;
   }
 
-  function injectOnce() {
-    if (!STATE.syncing) return 0;
-
-    const map = STATE.lastMap || {};
-    const table = findTable();
-    if (!table) return 0;
-
-    const trs = getMainRows(table);
-
-    const t0 = performance.now();
-
+  function injetarOperadores(map) {
+    const trs = getMainRows(document);
     let injected = 0;
-    let seen = 0;
 
     for (const tr of trs) {
-      seen++;
-      if (seen > MAX_ROWS) break;
+      const tds = tr.querySelectorAll('td');
+      const firstTd = tds[0];
+      const p = firstTd?.querySelector('p');
+      const id = getIdFromRow(tr);
+      if (!id || !p) continue;
 
-      const firstTd = tr.querySelector("td");
-      const p = firstTd?.querySelector("p");
-      const id = onlyDigits(p?.textContent || "");
-      if (!id) continue;
+      const op = map[id] || '';
 
-      const op = map[id] || "";
-      if (!op && !SHOW_UNASSIGNED) {
-        const old = p.parentNode.querySelector(".tm-op-badge");
+      // remove quando não tem operador (igual antigamente)
+      if (!op && !MOSTRAR_SEM_OPERADOR) {
+        const old = p.parentNode.querySelector('.tm-op-badge');
         if (old) old.remove();
-        clearPaint(tr, p);
+        clearPaint(p);
         continue;
       }
 
-      const nextText = op || "—";
-      const color = colorForOperator(op);
-
       const badge = ensureBadge(p);
-      const prevOp = badge.getAttribute("data-op") || "";
+      const cor = colorForOperator(op);
 
-      // atualiza só quando precisa
-      if (prevOp !== op || badge.textContent !== nextText) {
-        badge.textContent = nextText;
-        badge.setAttribute("data-op", op);
-        injected++;
-      }
+      badge.textContent = op || '—'; // só o nome, sem "Operador:"
+      badge.style.background = cor;
+      badge.style.color = '#fff';
 
-      // aplica cor sempre (sem custo pesado)
-      if (PAINT_BADGE) {
-        badge.style.background = color;
-        badge.style.color = "#fff";
-      } else {
-        badge.style.background = "#111827";
-        badge.style.color = "#fff";
-      }
-
-      applyPaint(p, color);
-    }
-
-    const t1 = performance.now();
-    STATE.lastInjected = injected;
-    STATE.lastInject = new Date().toISOString();
-    STATE.lastMsInject = Math.round(t1 - t0);
-
-    if (!STATE.lastError) {
-      setStatus(true, `ids:${STATE.lastMapCount} | inj:${injected} | ${STATE.lastMsFetch}ms/${STATE.lastMsInject}ms`);
+      applyPaint(p, cor);
+      injected++;
     }
 
     return injected;
   }
 
-  // throttling de injeção (pra não travar quando a tabela “re-renderiza”)
-  let injectScheduled = false;
-  function scheduleInjectSoon() {
-    if (injectScheduled) return;
-    injectScheduled = true;
-
-    requestAnimationFrame(() => {
-      injectScheduled = false;
-      injectOnce();
-    });
-  }
-
-  // MutationObserver: se a tabela mudar (filtro, paginação, expandir…), injeta na hora
-  function attachObserver() {
-    const table = findTable();
-    const tbody = table?.querySelector("tbody");
-    if (!tbody) return;
-
-    const obs = new MutationObserver(() => {
-      // evita loop: nossa própria badge altera o DOM -> throttling resolve
-      scheduleInjectSoon();
-    });
-
-    obs.observe(tbody, { childList: true, subtree: true });
-  }
-
-  // ======================
-  // CSV (limpo)
-  // ======================
-  function exportCsv() {
-  const table = findTable();
-  if (!table) { alert("Não achei a tabela."); return; }
-
-  const map = STATE.lastMap || {};
-
-  // ✅ só linhas principais (as expandir também são tr-index, então filtramos)
-  const trs = [...table.querySelectorAll("tbody tr.tr-index:not(.expandir)")];
-
-  // ✅ SEM colunas novas
-  const header = ["id","descricao","documento","fornecedor","emissao","vencimento","valor","operador"];
-  const lines = [header.map(q).join(";")];
-
-  let count = 0;
-
-  for (const tr of trs) {
-    // ✅ ID só se tiver <p> dentro do 1º td
-    const firstTd = tr.querySelector("td");
-    const p = firstTd?.querySelector("p");
-    const id = onlyDigits(p?.textContent || "");
-    if (!id) continue;
-
-    const tds = tr.querySelectorAll("td");
-
-    // descricao
-    const descricao = clean(tds[1]?.innerText);
-
-    // documento (pega texto do primeiro span do documento)
-    const docSpan = tds[2]?.querySelector("span");
-    let documento = clean(docSpan?.innerText || tds[2]?.innerText);
-
-    // ✅ ATIVO (ícone sitemap dentro do TD do documento)
-    const isAtivo = !!tds[2]?.querySelector("i.fa-sitemap, i.fa.fa-sitemap");
-    if (isAtivo) documento = documento ? `${documento}\nAtivo` : "Ativo";
-
-
-    // fornecedor (pega só o nome, sem o badge)
-    const fornNameSpan =
-      tds[3]?.querySelector('span[data-toggle="tooltip"]') ||
-      tds[3]?.querySelector("span");
-    let fornecedor = clean(fornNameSpan?.innerText || tds[3]?.innerText);
-
-    // ✅ PGTO ANTECIPADO (badge no TD fornecedor)
-    const badgesForn = [...(tds[3]?.querySelectorAll("span.badge") || [])];
-    const isPgtoAntecipado = badgesForn.some(b => /pgto\s*antecipado/i.test(clean(b.textContent)));
-    if (isPgtoAntecipado) fornecedor = fornecedor ? `${fornecedor}\nPgto Antecipado` : "Pgto Antecipado";
-
-
-    // emissao/vencimento
-    const bTags = tds[4]?.querySelectorAll("b") || [];
-    const emissao = clean(bTags[0]?.innerText);
-    const vencimento = clean(bTags[1]?.innerText);
-
-    // valor
-    const valor = clean(tds[5]?.innerText);
-
-    // operador (map)
-    const operador = clean(map[id] || "");
-
-    lines.push([id, descricao, documento, fornecedor, emissao, vencimento, valor, operador].map(q).join(";"));
-
-    count++;
-    if (count >= 800) break;
-  }
-
-  // ✅ UTF-8 com BOM (Excel não zoa acento)
-  const csv = "\uFEFF" + lines.join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "despesas.csv";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-
-  btnCSV.onclick = exportCsv;
-
-  // ======================
-  // LOOP
-  // ======================
+  // =========================
+  // AUTO: busca operadores da página e injeta
+  // =========================
   let inFlight = false;
 
-  async function tickFetchAndInject(force = false) {
-    if (!STATE.syncing) return;
-    if (inFlight && !force) return;
-
+  async function atualizarOperadoresEInjetar(silent, manual) {
+    if (inFlight) return;
     inFlight = true;
+
     try {
-      const ok = await fetchMap();
-      if (ok) scheduleInjectSoon();
-    } catch (e) {
-      STATE.lastError = e.message || String(e);
-      setStatus(false, STATE.lastError);
+      const trs = getMainRows(document);
+      const ids = [];
+      for (const tr of trs) {
+        const id = getIdFromRow(tr);
+        if (id) ids.push(id);
+      }
+
+      if (!ids.length) {
+        if (!silent) warn('Não encontrei registros nesta página.');
+        return;
+      }
+
+      const url = WEBAPP_URL + (WEBAPP_URL.includes('?') ? '&' : '?') + 'ids=' + encodeURIComponent(ids.join(','));
+      const res = await gmJson('GET', url, null);
+
+      if (!res.data?.ok) {
+        throw new Error(res.data?.error || 'Erro ao buscar Operadores na planilha.');
+      }
+
+      const map = res.data.map || {};
+      const inj = injetarOperadores(map);
+
+      // não enche o saco com toast a cada 2 segundos
+      if (manual) ok(`Operadores atualizados: ${inj} linha(s).`);
+
     } finally {
       inFlight = false;
     }
   }
 
-  // START
-  setStatus(true, "iniciando…");
-  attachObserver();
-  tickFetchAndInject(true);
+  // re-injeta rápido quando a tabela muda (paginação, filtros, ajax)
+  function attachObserver() {
+    const table = findTableIn(document);
+    const tbody = table?.querySelector('tbody');
+    if (!tbody) return;
 
-  setInterval(() => tickFetchAndInject(false), FETCH_MS);
+    const obs = new MutationObserver(() => {
+      // injeta com o mapa mais recente (vai buscar no próximo tick também)
+      atualizarOperadoresEInjetar(true, false);
+    });
+
+    obs.observe(tbody, { childList: true, subtree: true });
+  }
+
+  // =========================
+  // START
+  // =========================
+  buildMenu();
+  attachObserver();
+
+  // injeta automaticamente quando abre a página
+  setTimeout(() => atualizarOperadoresEInjetar(true, false), 900);
+  setInterval(() => atualizarOperadoresEInjetar(true, false), FETCH_MS);
+
+  // Turbo: quando você volta pra aba/janela, atualiza IMEDIATO
+    window.addEventListener("focus", () => atualizarOperadoresEInjetar(true, false));
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) atualizarOperadoresEInjetar(true, false);
+    });
+
+
 })();
+
+
 
