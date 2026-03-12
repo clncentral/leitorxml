@@ -1,312 +1,698 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat CRF</title>
-    <link rel="icon" href="../img/crfchat.ico" type="image/x-icon">
-    <link rel="stylesheet" href="../css/historia.css">
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7TXFPSSW0"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-Y7TXFPSSW0');
-    </script>
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
-    <script>
-        var firebaseConfig = {
-            apiKey: "AIzaSyBcqNPzEhjhqiomi1dIeey7pnHB_3XUQ34",
-            authDomain: "leitorxml-bc52e.firebaseapp.com",
-            databaseURL: "https://leitorxml-bc52e-default-rtdb.firebaseio.com",
-            projectId: "leitorxml-bc52e",
-            storageBucket: "leitorxml-bc52e.appspot.com",
-            messagingSenderId: "735146466178",
-            appId: "1:735146466178:web:a4398db9f0dd2253704d9b",
-            measurementId: "G-PBXN0SVCPR"
-        };
-        firebase.initializeApp(firebaseConfig);
-        var database = firebase.database();
-    </script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat CRF</title>
+  <link rel="icon" href="../img/crfchat.ico" type="image/x-icon">
 
-        h1 {
-            color: #333;
-            text-align: center;
-        }
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
 
-        #chatContainer {
-            display: flex;
-            width: 90vw;
-            height: 80vh;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
+  <style>
+    * { box-sizing: border-box; }
 
-        #chatbox {
-            flex: 3;
-            border: 1px solid #ccc;
-            padding: 20px;
-            background-color: #fff;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-        #onlineUsers {
-            flex: 1;
-            border-left: 1px solid #ccc;
-            padding: 20px;
-            background-color: #fff;
-            overflow-y: auto;
-        }
+    #chatContainer {
+      width: min(1200px, 95vw);
+      height: min(90vh, 900px);
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 14px;
+    }
 
-        #messages {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
+    #chatbox,
+    #onlineUsers {
+      background: #fff;
+      border: 1px solid #dfe3e8;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
 
-        #messages li {
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            background-color: #f1f1f1;
-            display: flex;
-            flex-direction: column;
-        }
+    #chatbox {
+      display: flex;
+      flex-direction: column;
+    }
 
-        .message-time {
-            font-size: 0.8em;
-            color: #777;
-            text-align: right;
-        }
+    .topbar {
+      padding: 16px 18px;
+      border-bottom: 1px solid #eef2f5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
 
-        #messageInputContainer {
-            display: flex;
-        }
+    .topbar h1 {
+      margin: 0;
+      font-size: 22px;
+    }
 
-        #messageInput {
-            flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-right: 10px;
-            font-size: 16px;
-        }
+    #statusBadge {
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff3cd;
+      color: #856404;
+      white-space: nowrap;
+    }
 
-        .new-message {
-            background-color: #d4edda;
-        }
-		
-		.ocuta{
-			display: none;
-		}
+    #statusBadge.online {
+      background: #d4edda;
+      color: #155724;
+    }
 
-        #settings {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
+    #messages {
+      list-style: none;
+      margin: 0;
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+      background: #fafbfc;
+    }
 
-        #settings input[type="color"] {
-            width: 50px;
-        }
+    .message-item {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #e7ebef;
+    }
 
-        #settings select,
-        #settings input[type="checkbox"] {
-            margin-left: 10px;
-        }
-    </style>
+    .message-item.own {
+      background: #eef7ff;
+      border-color: #cfe7ff;
+    }
+
+    .message-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      word-break: break-word;
+    }
+
+    .message-author {
+      color: #222;
+    }
+
+    .message-time {
+      margin-top: 6px;
+      display: block;
+      font-size: 12px;
+      color: #777;
+      text-align: right;
+    }
+
+    #settings {
+      padding: 12px 16px;
+      border-top: 1px solid #eef2f5;
+      border-bottom: 1px solid #eef2f5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: #fff;
+    }
+
+    .settings-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 14px;
+      color: #444;
+    }
+
+    input[type="text"],
+    select {
+      height: 38px;
+      padding: 8px 10px;
+      border: 1px solid #ccd3da;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      border-color: #4a90e2;
+    }
+
+    input[type="color"] {
+      width: 42px;
+      height: 38px;
+      border: 1px solid #ccd3da;
+      border-radius: 10px;
+      background: #fff;
+      padding: 2px;
+      cursor: pointer;
+    }
+
+    #messageInputContainer {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    #messageInput {
+      flex: 1;
+      height: 46px;
+      padding: 0 14px;
+      font-size: 16px;
+      border: 1px solid #ccd3da;
+      border-radius: 12px;
+      outline: none;
+    }
+
+    #messageInput:focus {
+      border-color: #4a90e2;
+    }
+
+    #sendButton {
+      border: 0;
+      background: #1f6feb;
+      color: #fff;
+      border-radius: 12px;
+      padding: 0 18px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    #sendButton:hover {
+      background: #1559be;
+    }
+
+    #onlineUsers {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #onlineUsersHeader {
+      padding: 16px 18px;
+      border-bottom: 1px solid #eef2f5;
+    }
+
+    #onlineUsersHeader h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    #usersList {
+      list-style: none;
+      margin: 0;
+      padding: 14px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    #usersList li {
+      padding: 10px 12px;
+      border: 1px solid #e7ebef;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      background: #fafbfc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .online-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #28a745;
+      flex: 0 0 auto;
+    }
+
+    .empty-state {
+      color: #666;
+      font-size: 14px;
+      padding: 4px 2px;
+    }
+
+    @media (max-width: 900px) {
+      #chatContainer {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      #chatbox,
+      #onlineUsers {
+        min-height: 40vh;
+      }
+
+      #settings {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div id="chatContainer">
-        <div id="chatbox">
-            <h1>CRF Chat</h1>
-            <ul id="messages"></ul>
-			<div id="settings">
-                <div>
-                    <label class="ocuta" for="usernameInput">Nome:</label>
-                    <input  class="ocuta" id="usernameInput" type="text" placeholder="Digite seu nome">
-                    <label for="colorInput">Cor:</label>
-                    <input id="colorInput" type="color">
-                </div>
-                <div>
-                    <label for="fontSelect">Fonte:</label>
-                    <select id="fontSelect">
-                        <option value="Arial">Arial</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                    </select>
-                    <label for="boldCheckbox">Negrito</label>
-                    <input id="boldCheckbox" type="checkbox">
-                    <label for="italicCheckbox">Itálico</label>
-                    <input id="italicCheckbox" type="checkbox">
-                </div>
-            </div>
-            <div id="messageInputContainer">
-                <input id="messageInput" type="text" placeholder="Digite sua mensagem">
-            </div>
+  <div id="chatContainer">
+    <div id="chatbox">
+      <div class="topbar">
+        <h1>CRF Chat</h1>
+        <div id="statusBadge">Conectando...</div>
+      </div>
+
+      <ul id="messages"></ul>
+
+      <div id="settings">
+        <div class="settings-group">
+          <label for="usernameInput">Nome:</label>
+          <input id="usernameInput" type="text" placeholder="Digite seu nome" maxlength="30">
+
+          <label for="colorInput">Cor:</label>
+          <input id="colorInput" type="color">
         </div>
-        <div id="onlineUsers">
-            <h3>Usuários Online</h3>
-            <ul id="usersList"></ul>
+
+        <div class="settings-group">
+          <label for="fontSelect">Fonte:</label>
+          <select id="fontSelect">
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+          </select>
+
+          <label for="boldCheckbox">Negrito</label>
+          <input id="boldCheckbox" type="checkbox">
+
+          <label for="italicCheckbox">Itálico</label>
+          <input id="italicCheckbox" type="checkbox">
         </div>
+      </div>
+
+      <div id="messageInputContainer">
+        <input id="messageInput" type="text" placeholder="Digite sua mensagem">
+        <button id="sendButton" type="button">Enviar</button>
+      </div>
     </div>
-    <!-- Áudio de notificação -->
-    <audio id="notificationSound" src="../audio/blin.mp3" preload="auto"></audio>
 
-    <script>
-        var unreadMessages = 0;
+    <div id="onlineUsers">
+      <div id="onlineUsersHeader">
+        <h3 id="onlineTitle">Usuários Online (0)</h3>
+      </div>
+      <ul id="usersList"></ul>
+    </div>
+  </div>
 
-        function updateTitle() {
-            var baseTitle = 'Chat CRF';
-            document.title = unreadMessages > 0 ? `(${unreadMessages}) ${baseTitle}` : baseTitle;
+  <audio id="notificationSound" src="../audio/blin.mp3" preload="auto"></audio>
+
+  <script>
+    // =========================
+    // FIREBASE
+    // =========================
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SEU_AUTH_DOMAIN",
+      databaseURL: "SUA_DATABASE_URL",
+      projectId: "SEU_PROJECT_ID",
+      storageBucket: "SEU_STORAGE_BUCKET",
+      messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+      appId: "SEU_APP_ID",
+      measurementId: "SEU_MEASUREMENT_ID"
+    };
+
+    // Cole aqui os seus valores reais.
+    // Você pode usar exatamente os mesmos que já estão no seu arquivo antigo.
+
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const database = firebase.database();
+
+    // =========================
+    // ELEMENTOS
+    // =========================
+    const els = {
+      messages: document.getElementById("messages"),
+      usersList: document.getElementById("usersList"),
+      onlineTitle: document.getElementById("onlineTitle"),
+      statusBadge: document.getElementById("statusBadge"),
+      notificationSound: document.getElementById("notificationSound"),
+
+      usernameInput: document.getElementById("usernameInput"),
+      colorInput: document.getElementById("colorInput"),
+      fontSelect: document.getElementById("fontSelect"),
+      boldCheckbox: document.getElementById("boldCheckbox"),
+      italicCheckbox: document.getElementById("italicCheckbox"),
+
+      messageInput: document.getElementById("messageInput"),
+      sendButton: document.getElementById("sendButton")
+    };
+
+    // =========================
+    // ESTADO
+    // =========================
+    const state = {
+      uid: null,
+      username: "",
+      unreadMessages: 0,
+      listenersStarted: false
+    };
+
+    // =========================
+    // UTIL
+    // =========================
+    function normalizeUsername(value) {
+      const name = String(value || "").trim().replace(/\s+/g, " ");
+      return name.slice(0, 30);
+    }
+
+    function safeString(value) {
+      return String(value == null ? "" : value);
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "--:--";
+      const d = new Date(timestamp);
+      if (Number.isNaN(d.getTime())) return "--:--";
+      return d.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function updateTitle() {
+      const baseTitle = "Chat CRF";
+      document.title = state.unreadMessages > 0
+        ? `(${state.unreadMessages}) ${baseTitle}`
+        : baseTitle;
+    }
+
+    function playNotificationSound() {
+      els.notificationSound.play().catch(() => {});
+    }
+
+    function scrollToBottom() {
+      els.messages.scrollTop = els.messages.scrollHeight;
+    }
+
+    function setStatus(text, isOnline) {
+      els.statusBadge.textContent = text;
+      els.statusBadge.classList.toggle("online", !!isOnline);
+    }
+
+    function getCurrentStylePrefs() {
+      return {
+        color: localStorage.getItem("chat_color") || "#000000",
+        font: localStorage.getItem("chat_font") || "Arial",
+        bold: localStorage.getItem("chat_bold") === "true" ? "bold" : "normal",
+        italic: localStorage.getItem("chat_italic") === "true" ? "italic" : "normal"
+      };
+    }
+
+    function getOrCreateUsername() {
+      let username = normalizeUsername(localStorage.getItem("chat_username"));
+
+      while (!username) {
+        const entered = prompt("Digite seu nome para entrar no chat:");
+        if (entered === null) {
+          username = "Anônimo";
+          break;
         }
+        username = normalizeUsername(entered);
+      }
 
-        function playNotificationSound() {
-            var audio = document.getElementById('notificationSound');
-            audio.play();
+      localStorage.setItem("chat_username", username);
+      return username;
+    }
+
+    function loadPreferences() {
+      const username = getOrCreateUsername();
+      const color = localStorage.getItem("chat_color") || "#000000";
+      const font = localStorage.getItem("chat_font") || "Arial";
+      const bold = localStorage.getItem("chat_bold") === "true";
+      const italic = localStorage.getItem("chat_italic") === "true";
+
+      state.username = username;
+
+      els.usernameInput.value = username;
+      els.colorInput.value = color;
+      els.fontSelect.value = font;
+      els.boldCheckbox.checked = bold;
+      els.italicCheckbox.checked = italic;
+
+      els.usernameInput.addEventListener("change", async function () {
+        const newName = normalizeUsername(els.usernameInput.value) || "Anônimo";
+        els.usernameInput.value = newName;
+        state.username = newName;
+        localStorage.setItem("chat_username", newName);
+
+        if (state.uid) {
+          try {
+            await database.ref("presence/" + state.uid + "/username").set(newName);
+          } catch (err) {
+            console.error("Erro ao atualizar nome:", err);
+          }
         }
+      });
 
-        function scrollToBottom() {
-            var messagesContainer = document.getElementById('messages');
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      els.colorInput.addEventListener("input", function () {
+        localStorage.setItem("chat_color", els.colorInput.value);
+      });
+
+      els.fontSelect.addEventListener("change", function () {
+        localStorage.setItem("chat_font", els.fontSelect.value);
+      });
+
+      els.boldCheckbox.addEventListener("change", function () {
+        localStorage.setItem("chat_bold", String(els.boldCheckbox.checked));
+      });
+
+      els.italicCheckbox.addEventListener("change", function () {
+        localStorage.setItem("chat_italic", String(els.italicCheckbox.checked));
+      });
+    }
+
+    // =========================
+    // RENDER
+    // =========================
+    function renderMessage(data) {
+      const li = document.createElement("li");
+      li.className = "message-item" + (data.uid === state.uid ? " own" : "");
+
+      const line = document.createElement("div");
+      line.className = "message-line";
+
+      const author = document.createElement("strong");
+      author.className = "message-author";
+      author.textContent = (data.uid === state.uid ? "Você" : safeString(data.username || "Anônimo")) + ":";
+
+      const text = document.createElement("span");
+      text.textContent = " " + safeString(data.message || "");
+      text.style.color = data.color || "#000000";
+      text.style.fontFamily = data.font || "Arial";
+      text.style.fontWeight = data.bold || "normal";
+      text.style.fontStyle = data.italic || "normal";
+
+      const time = document.createElement("span");
+      time.className = "message-time";
+      time.textContent = formatTime(data.timestamp);
+
+      line.appendChild(author);
+      line.appendChild(text);
+      li.appendChild(line);
+      li.appendChild(time);
+
+      els.messages.appendChild(li);
+      scrollToBottom();
+    }
+
+    function renderOnlineUsers(snapshot) {
+      const online = [];
+
+      snapshot.forEach(function (childSnapshot) {
+        const uid = childSnapshot.key;
+        const data = childSnapshot.val() || {};
+        const username = safeString(data.username || "Sem nome");
+        const connections = data.connections || {};
+        const connectionCount = Object.keys(connections).length;
+
+        if (connectionCount > 0) {
+          online.push({
+            uid,
+            username,
+            you: uid === state.uid
+          });
         }
+      });
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var storedUsername = localStorage.getItem('username');
-            var storedColor = localStorage.getItem('color') || '#000000';
-            var storedFont = localStorage.getItem('font') || 'Arial';
-            var storedBold = localStorage.getItem('bold') === 'true';
-            var storedItalic = localStorage.getItem('italic') === 'true';
+      online.sort((a, b) => a.username.localeCompare(b.username, "pt-BR"));
 
-            if (!storedUsername) {
-                var username = prompt('Por favor, digite seu nome:');
-                if (username) {
-                    localStorage.setItem('username', username);
-                    document.getElementById('usernameInput').value = username;
-                }
-            } else {
-                document.getElementById('usernameInput').value = storedUsername;
-            }
+      els.usersList.innerHTML = "";
+      els.onlineTitle.textContent = "Usuários Online (" + online.length + ")";
 
-            document.getElementById('colorInput').value = storedColor;
-            document.getElementById('fontSelect').value = storedFont;
-            document.getElementById('boldCheckbox').checked = storedBold;
-            document.getElementById('italicCheckbox').checked = storedItalic;
+      if (!online.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty-state";
+        empty.textContent = "Ninguém online agora.";
+        els.usersList.appendChild(empty);
+        return;
+      }
 
-            document.getElementById('colorInput').addEventListener('input', function() {
-                var color = document.getElementById('colorInput').value;
-                localStorage.setItem('color', color);
-            });
+      online.forEach(function (user) {
+        const li = document.createElement("li");
 
-            document.getElementById('fontSelect').addEventListener('change', function() {
-                var font = document.getElementById('fontSelect').value;
-                localStorage.setItem('font', font);
-            });
+        const left = document.createElement("div");
+        left.style.display = "flex";
+        left.style.alignItems = "center";
+        left.style.gap = "10px";
 
-            document.getElementById('boldCheckbox').addEventListener('change', function() {
-                var bold = document.getElementById('boldCheckbox').checked;
-                localStorage.setItem('bold', bold);
-            });
+        const dot = document.createElement("span");
+        dot.className = "online-dot";
 
-            document.getElementById('italicCheckbox').addEventListener('change', function() {
-                var italic = document.getElementById('italicCheckbox').checked;
-                localStorage.setItem('italic', italic);
-            });
+        const name = document.createElement("span");
+        name.textContent = user.you ? user.username + " (você)" : user.username;
 
-            var username = localStorage.getItem('username') || 'Anônimo';
-            var userRef = database.ref('onlineUsers/' + username);
-            userRef.set(true);
-            userRef.onDisconnect().remove();
+        left.appendChild(dot);
+        left.appendChild(name);
 
-            function updateOnlineUsers(snapshot) {
-                var usersList = document.getElementById('usersList');
-                usersList.innerHTML = '';
-                snapshot.forEach(function(childSnapshot) {
-                    var li = document.createElement('li');
-                    li.textContent = childSnapshot.key;
-                    usersList.appendChild(li);
-                });
-            }
+        li.appendChild(left);
+        els.usersList.appendChild(li);
+      });
+    }
 
-            database.ref('onlineUsers').on('value', updateOnlineUsers);
-        });
+    // =========================
+    // PRESENÇA REAL
+    // =========================
+    function startPresence() {
+      const connectedRef = database.ref(".info/connected");
 
-        document.getElementById('messageInput').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        });
+      connectedRef.on("value", function (snap) {
+        if (snap.val() === true) {
+          setStatus("Online", true);
 
-        function sendMessage() {
-            var message = document.getElementById('messageInput').value;
-            var username = localStorage.getItem('username') || 'Anônimo';
-            var color = localStorage.getItem('color') || '#000000';
-            var font = localStorage.getItem('font') || 'Arial';
-            var bold = localStorage.getItem('bold') === 'true' ? 'bold' : 'normal';
-            var italic = localStorage.getItem('italic') === 'true' ? 'italic' : 'normal';
-            if (message.trim() !== '') {
-                var now = new Date();
-                var timestamp = now.toISOString();
-                database.ref('messages').push().set({
-                    username: username,
-                    message: message,
-                    color: color,
-                    font: font,
-                    bold: bold,
-                    italic: italic,
-                    timestamp: timestamp
-                });
-                document.getElementById('messageInput').value = '';
-                scrollToBottom(); // Rolar para baixo após enviar a mensagem
-            }
+          const userRef = database.ref("presence/" + state.uid);
+          const usernameRef = userRef.child("username");
+          const lastOnlineRef = userRef.child("lastOnline");
+          const connRef = userRef.child("connections").push();
+
+          Promise.all([
+            usernameRef.set(state.username),
+            connRef.onDisconnect().remove(),
+            lastOnlineRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP)
+          ])
+          .then(function () {
+            return connRef.set(true);
+          })
+          .catch(function (err) {
+            console.error("Erro ao registrar presença:", err);
+          });
+        } else {
+          setStatus("Sem conexão", false);
         }
+      });
 
-        var lastUsername = '';
-        database.ref('messages').on('child_added', function(snapshot) {
-            var data = snapshot.val();
-            var messageTime = new Date(data.timestamp).toLocaleTimeString();
-            var li = document.createElement('li');
-            li.innerHTML = `<span style="color: ${data.color}; font-family: ${data.font}; font-weight: ${data.bold}; font-style: ${data.italic};">${data.username} diz: ${data.message}</span><span class="message-time">${messageTime}</span>`;
+      database.ref("presence").on("value", renderOnlineUsers);
+    }
 
-            document.getElementById('messages').appendChild(li);
+    // =========================
+    // MENSAGENS
+    // =========================
+    function startMessages() {
+      const messagesRef = database.ref("messages").limitToLast(100);
 
-            var currentUsername = localStorage.getItem('username') || 'Anônimo';
+      messagesRef.on("child_added", function (snapshot) {
+        const data = snapshot.val() || {};
+        renderMessage(data);
 
-            if (data.username !== currentUsername) { // Verifica se a mensagem é de outro usuário
-                unreadMessages++;
-                updateTitle();
-                playNotificationSound();
-            } else {
-                unreadMessages = 0;
-                updateTitle();
-            }
-
-            scrollToBottom(); // Rolar para baixo quando uma nova mensagem é adicionada
-            lastUsername = data.username;
-        });
-
-        document.getElementById('messages').addEventListener('scroll', function() {
-            unreadMessages = 0;
+        if (data.uid !== state.uid) {
+          if (document.hidden) {
+            state.unreadMessages += 1;
             updateTitle();
+          }
+          playNotificationSound();
+        }
+      });
+    }
+
+    async function sendMessage() {
+      const message = safeString(els.messageInput.value).trim();
+      if (!message) return;
+      if (!state.uid) return;
+
+      const prefs = getCurrentStylePrefs();
+
+      try {
+        await database.ref("messages").push({
+          uid: state.uid,
+          username: state.username,
+          message: message,
+          color: prefs.color,
+          font: prefs.font,
+          bold: prefs.bold,
+          italic: prefs.italic,
+          timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-    </script>
+        els.messageInput.value = "";
+        els.messageInput.focus();
+      } catch (err) {
+        console.error("Erro ao enviar mensagem:", err);
+        alert("Não foi possível enviar a mensagem. Veja o console do navegador.");
+      }
+    }
+
+    // =========================
+    // EVENTOS
+    // =========================
+    els.sendButton.addEventListener("click", sendMessage);
+
+    els.messageInput.addEventListener("keypress", function (event) {
+      if (event.key === "Enter") {
+        sendMessage();
+      }
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) {
+        state.unreadMessages = 0;
+        updateTitle();
+      }
+    });
+
+    // =========================
+    // INÍCIO
+    // =========================
+    loadPreferences();
+
+    auth.signInAnonymously()
+      .then(function () {
+        auth.onAuthStateChanged(function (user) {
+          if (!user) return;
+
+          state.uid = user.uid;
+
+          if (!state.listenersStarted) {
+            state.listenersStarted = true;
+            startPresence();
+            startMessages();
+          }
+        });
+      })
+      .catch(function (error) {
+        console.error("Erro no login anônimo:", error);
+        alert("Falha no login anônimo. Ative Anonymous Authentication no Firebase.");
+      });
+  </script>
 </body>
 </html>

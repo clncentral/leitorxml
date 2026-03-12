@@ -331,6 +331,10 @@ button#visualizarDados{
 	display: none;
 }
 
+td .coluna-oculta, th.coluna-oculta {
+  display: none !important;
+}
+
 .mostrar {
 	position: absolute;
 	right: 0px;
