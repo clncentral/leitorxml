@@ -1,402 +1,633 @@
+// script.js (v2 - Mostrar+ controla GTIN/infAdProd/docs do destinatário + validação autorização + frete como antes)
+(() => {
+  "use strict";
 
-function carregar(fileInput) {
-    var file = fileInput.files[0];
-    var fileURL = URL.createObjectURL(file);
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            carregarXML(this)
-        }
-    };
+  const $id = (id) => document.getElementById(id);
 
-    xhttp.open("GET", fileURL, true);
-    xhttp.send();
+  // ---------- Helpers ----------
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-    if(Number(file.size) >= 0){
-      document.getElementById('tudo').style.display = 'block'
+  function isElement(n) {
+    return n && n.nodeType === 1;
+  }
+
+  function firstDescByLocal(el, localName) {
+    if (!el) return null;
+    if (el.getElementsByTagNameNS) {
+      const list = el.getElementsByTagNameNS("*", localName);
+      return list && list.length ? list[0] : null;
     }
-}
+    const list = el.getElementsByTagName(localName);
+    return list && list.length ? list[0] : null;
+  }
 
-function carregarXML(xml) {
-    var xmlDoc = xml.responseXML
+  function firstChildByLocal(el, localName) {
+    if (!el) return null;
+    for (const n of el.childNodes) {
+      if (isElement(n) && n.localName === localName) return n;
+    }
+    return null;
+  }
 
-  
-	$(xmlDoc).find("infNFe>det").each( function() {
-    var unidade, vlunid, quntidade, pis, confis, vtotal
-        $(this).find("prod>uCom").text() == $(this).find("prod>uTrib").text() ? unidade = $(this).find("prod>uCom").text() : unidade = $(this).find("prod>uCom").text()+"<br>"+$(this).find("prod>uTrib").text()
-        $(this).find("prod>qCom").text() == $(this).find("prod>qTrib").text() ? quntidade = Number($(this).find("prod>qCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : quntidade = Number($(this).find("prod>qCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3})+"<br>"+Number($(this).find("prod>qTrib").text()).toLocaleString('pt-br', {minimumFractionDigits: 3, maximumFractionDigits: 3})
-        $(this).find("prod>vUnCom").text() == $(this).find("prod>vUnTrib").text() ? vlunid = Number($(this).find("prod>vUnCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : vlunid = Number($(this).find("prod>vUnCom").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +"<br>"+Number($(this).find("prod>vUnTrib").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        pis = Number($(this).find("imposto>PIS>>pPIS").text()).toFixed(2)
-		confis = Number($(this).find("imposto>COFINS>>pCOFINS").text()).toFixed(2)
-        vtotal = Number($(this).find("prod>vProd").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        var info = ""
-			info += "<tr class='table-row'>"
-			info += "<td class='nitem'>"+$(this).attr("nItem")+"</td>"
-			info += "<td>"+$(this).find("prod>cProd").text()+"<br>"+$(this).find("prod>cEAN").text()+"</td>"
-			info += "<td>"+$(this).find("prod>xProd").text()+"<br>"+$(this).find("det>infAdProd").text()+" - "+"<font style='color: red;'>"+$(this).find("prod>xPed").text()+"</font></td>"
-			info += "<td>"+$(this).find("prod>NCM").text()+"</td>"
-			info += "<td>"+$(this).find("imposto>ICMS>>orig").text()+$(this).find("imposto>ICMS>>CST").text()+"</td>"
-			info += "<td>"+$(this).find("prod>CFOP").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>CEST").text()+"</td>"
-			info += "<td>"+unidade+"</td>"
-			info += "<td class='num'>"+quntidade+"</td>"
-			info += "<td class='num'>"+vlunid+"</td>"
-			info += "<td class='num'>"+vtotal+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>vDesc").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>vICMSDeson").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("prod>vOutro").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>vFCPST").text()+"</td>"
-			info += "<td>"+Number($(this).find("imposto>ICMS>>vBC").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td>"+Number($(this).find("imposto>ICMS>>pICMS").text())+"</td>"
-			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMS").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td>"+Number($(this).find("imposto>ICMS>>vBCST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td>"+Number($(this).find("imposto>ICMS>>vICMSST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			
-			info += "<td>"+Number($(this).find("imposto>IPI>>vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td>"+Number($(this).find("imposto>IPI>>pIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>ICMS>>pMVAST").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>IPI>IPINT>CST").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+$(this).find("imposto>PIS>>CST").text()+"<br>"+$(this).find("imposto>COFINS>>CST").text()+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+pis+"</td>"
-			info += "<td class='coluna1 coluna-oculta'>"+confis+"</td>"
-			"</tr>";
-        $("#tbody").append(info);
-        $("#divarquivo").css('display', 'none')
-		$("#divarquivo2").css('display', 'none')
-        $("#dadosEnxuto").css('top', '1px')
+  function childrenByLocal(el, localName) {
+    if (!el) return [];
+    const out = [];
+    for (const n of el.childNodes) {
+      if (isElement(n) && n.localName === localName) out.push(n);
+    }
+    return out;
+  }
 
- 
-});
+  function textOf(el) {
+    return (el?.textContent ?? "").trim();
+  }
 
+  function getTextPath(root, pathArr) {
+    let cur = root;
+    for (const name of pathArr) {
+      cur = firstChildByLocal(cur, name);
+      if (!cur) return "";
+    }
+    return textOf(cur);
+  }
 
+  function toNumber(val) {
+    const s = String(val ?? "").trim();
+    if (!s) return 0;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
 
-
-
-// Tabela de produtos  
-       
-       $(xmlDoc).find("nfeProc").each( function() {
-        var nf = ""
-          nf += "<tr>"
-          nf += "<td><label>Razão</label/>"+$(this).find("emit>xNome").text()+"</td>"
-          nf += "<td style='width: 120px;'><label>CNPJ Emit.</label/>"+$(this).find("emit>CNPJ").text()+"</td>"
-          nf += "<td style='width: 120px;'><label>IE Emit.</label/>"+$(this).find("emit>IE").text()+"</td>"
-          nf += "<td><label>Município</label/>"+$(this).find("enderEmit>xMun").text()+", "+$(this).find("enderEmit>UF").text()+" - Cód.: "+$(this).find("enderEmit>cMun").text()+"</td>"
-          nf +="</tr>"
-          nf += "<tr>"
-          nf += "<td colspan='4'><label>Natureza da Operação</label/>"+$(this).find("ide>natOp").text()+"</td>"
-          nf += "</tr>"
-        $("#nf").append(nf)
-       })
-			// Teste se Autorizada
-		// Verifica se a tag nfeProc está presente no XML
-	if ($(xmlDoc).find("nfeProc").length > 0) {
-    // Se a tag nfeProc estiver presente, execute o código relacionado a ela
-
-    $(xmlDoc).find("nfeProc").each( function() {
-        var tpNF = $(this).find("ide>tpNF").text()
-        if(tpNF == 0){
-          tpNF = 'Entrada'
-          $("#tudo").css('color', 'red')
-		  document.getElementById('tudo').style.display = 'none'
-		  document.getElementById("alerta").style.display = "block";
-          //$(alert(`NF TIPO: 0 - ENTRADA`))          
-        }else{
-          tpNF = 'Saida'
-        }
-        var razao = $(this).find("dest>xNome").text()
-        var loja
-        switch(String($(this).find("dest>CNPJ").text()) & String($(this).find("dest>IE").text())){
-            case '05789313000194' & '244762219116':
-            loja = 'Central'
-            break
-            case '05789313000607' & '276000625118':
-            loja = 'Loja 02'
-            break
-            case '05789313000518' & '244121997119':
-            loja = 'Loja 03'
-            break
-            case '05789313000437' & '587055882112':
-            loja = 'Loja 06'
-            break
-            case'05789313000356' & '535114683110':
-            loja = 'Loja 07'
-            break
-            case'05789313000780' & '244341560119':
-            loja = 'Loja 08'
-            break
-            case '05789313000860' & '417146805119':
-            loja = 'Loja 09'
-            break
-            case'05789313000275' & '587144653116':
-            loja = 'Loja 10'
-            break
-            case'05789313001247' & '671185036117':
-            loja = 'CD'
-            break
-            case'05789313001328' & '122100090119':
-            loja = 'Exn Aquí'
-            break
-            default:
-            loja = "ERRO: CNPJ/IE"
-            
-            break
-        }
-	var dataemissao =  new Date($(this).find("ide>dhEmi").text())
-	var datasaida = new Date($(this).find("ide>dhSaiEnt").text())
-	var emiss =  dataemissao.toLocaleDateString()
-	var saida =  datasaida.toLocaleDateString()
-        var enx = ""
-        enx += "<tr>"
-        enx += "<td><label>Nro NF</label/>"+$(this).find("ide>nNF").text()+"</td>"
-        if(tpNF == 'Entrada'){
-          enx += "<td><label>Tipo</label/>"+tpNF+"</td>"
-        }
-        if(loja == "ERRO: CNPJ/IE"){
-		enx += "<td id='rz'><label>Razão</label/>"+razao+"</td>"
-	}else{
-		enx += "<td id='lj'><label>Loja</label/>"+loja+"</td>"
-
-	}
-        enx += "<td><label>Município</label>"+$(this).find("enderDest>xMun").text()+", "+$(this).find("enderDest>UF").text()+" - Cód.: "+$(this).find("enderDest>cMun").text()+"</td>"
-        enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
-        enx +="</tr>"
-        enx += "<tr>"
-        enx += "<td colspan='3'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
-	enx += "<td><label>Emissão</label>"+emiss+"</td>"
-	enx += "<td><label>Saída</label>"+saida+"</td>"
-        enx += "</tr>"
-        $("#enx").append(enx)
-        $("head").append('<script src="script/slect.js"></script>')
-        if(loja == 'ERRO: CNPJ/IE'){
-          $('body').css('color', 'red')
-	  $('#rz').css({'font-family': 'Verdana', 'color':'blue' })
-	
-          $(alert(`Atenção!! Essa NF Não é do Enxuto.\nNF do ${razao}`))
-		loja =  razao
-        }
-		$("#lj").css('color', 'red')
-      })
-
-} else {
-    // Se a tag nfeProc não estiver presente, faça o tratamento apropriado aqui...
-    alert("XML inválido. XML Recebido Antes de Autorizada na SEFAZ");
-	
-    // Ou execute qualquer outra ação necessária para lidar com esse cenário
-	
-	$(xmlDoc).find("infNFe").each( function() {
-        var nf = ""
-          nf += "<tr>"
-          nf += "<td><label>Razão</label/>"+$(this).find("emit>xNome").text()+"</td>"
-          nf += "<td style='width: 120px;'><label>CNPJ Emit.</label/>"+$(this).find("emit>CNPJ").text()+"</td>"
-          nf += "<td style='width: 120px;'><label>IE Emit.</label/>"+$(this).find("emit>IE").text()+"</td>"
-          nf += "<td><label>Município</label/>"+$(this).find("enderEmit>xMun").text()+", "+$(this).find("enderEmit>UF").text()+" - Cód.: "+$(this).find("enderEmit>cMun").text()+"</td>"
-          nf +="</tr>"
-          nf += "<tr>"
-          nf += "<td colspan='4'><label>Natureza da Operação</label/>"+$(this).find("ide>natOp").text()+"</td>"
-          nf += "</tr>"
-        $("#nf").append(nf)
-       })
-	
-	$(xmlDoc).find("infNFe").each( function() {
-        var tpNF = $(this).find("ide>tpNF").text()
-        if(tpNF == 0){
-          tpNF = 'Entrada'
-          $("#tudo").css('color', 'red')
-		  document.getElementById('tudo').style.display = 'none'
-		  document.getElementById("alerta").style.display = "block";
-          //$(alert(`NF TIPO: 0 - ENTRADA`))          
-        }else{
-          tpNF = 'Saida'
-        }
-        var razao = $(this).find("dest>xNome").text()
-        var loja
-        switch(String($(this).find("dest>CNPJ").text()) & String($(this).find("dest>IE").text())){
-            case '05789313000194' & '244762219116':
-            loja = 'Central'
-            break
-            case '05789313000607' & '276000625118':
-            loja = 'Loja 02'
-            break
-            case '05789313000518' & '244121997119':
-            loja = 'Loja 03'
-            break
-            case '05789313000437' & '587055882112':
-            loja = 'Loja 06'
-            break
-            case'05789313000356' & '535114683110':
-            loja = 'Loja 07'
-            break
-            case'05789313000780' & '244341560119':
-            loja = 'Loja 08'
-            break
-            case '05789313000860' & '417146805119':
-            loja = 'Loja 09'
-            break
-            case'05789313000275' & '587144653116':
-            loja = 'Loja 10'
-            break
-            case'05789313001247' & '671185036117':
-            loja = 'CD'
-            break
-            case'05789313001328' & '122100090119':
-            loja = 'Exn Aquí'
-            break
-            default:
-            loja = "ERRO: CNPJ/IE"
-            
-            break
-        }
-	var dataemissao =  new Date($(this).find("ide>dhEmi").text())
-	var datasaida = new Date($(this).find("ide>dhSaiEnt").text())
-	var emiss =  dataemissao.toLocaleDateString()
-	var saida =  datasaida.toLocaleDateString()
-        var enx = ""
-        enx += "<tr>"
-        enx += "<td><label>Nro NF</label/>"+$(this).find("ide>nNF").text()+"</td>"
-        if(tpNF == 'Entrada'){
-          enx += "<td><label>Tipo</label/>"+tpNF+"</td>"
-        }
-        if(loja == "ERRO: CNPJ/IE"){
-		enx += "<td id='rz'><label>Razão</label/>"+razao+"</td>"
-	}else{
-		enx += "<td id='lj'><label>Loja</label/>"+loja+"</td>"
-
-	}
-        enx += "<td><label>Município</label>"+$(this).find("enderDest>xMun").text()+", "+$(this).find("enderDest>UF").text()+" - Cód.: "+$(this).find("enderDest>cMun").text()+"</td>"
-        enx += "<td colspan='2'><label>Endereço</label>"+$(this).find("enderDest>xLgr").text()+", "+$(this).find("enderDest>nro").text()+"</td>"
-        enx +="</tr>"
-        enx += "<tr>"
-        enx += "<td colspan='3'><label>Chave de Acesso</label>"+$(this).find("chNFe").text()+"</td>"
-	enx += "<td><label>Emissão</label>"+emiss+"</td>"
-	enx += "<td><label>Saída</label>"+saida+"</td>"
-        enx += "</tr>"
-        $("#enx").append(enx)
-        $("head").append('<script src="script/slect.js"></script>')
-        if(loja == 'ERRO: CNPJ/IE'){
-          $('body').css('color', 'red')
-	  $('#rz').css({'font-family': 'Verdana', 'color':'blue' })
-	
-          $(alert(`Atenção!! Essa NF Não é do Enxuto.\nNF do ${razao}`))
-		loja =  razao
-        }
-		$("#lj").css('color', 'red')
-		
-      })
-	  $("body").append("<div id='mensagemNF'>XML Inválido, não Autorizado!!</div>");
-    // Adicione estilos CSS para a mensagem
-    $("#mensagemNF").css({
-        "position": "absolute",
-		"top": "93px",
-		"right": "50%",
-		"transform": "translateX(50%)",
-		"padding": "10px",
-		"background-color": "pink",
-		"color": "white",
-		"font-size": "36px",
-		"font-weight": "bold",
-		"border-radius": "5px",
-		"z-index": "9999"
+  function fmtNumber(val, digits) {
+    const n = toNumber(val);
+    return n.toLocaleString("pt-BR", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     });
-	 
-}
+  }
 
+  function fmtCurrency(val) {
+    const n = toNumber(val);
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
 
-       $(xmlDoc).find("cobr>dup").each( function() {
-        var vencimento = ""
-        vencimento += "<tr>"
-        vencimento += "<tr><td class='c1'>Nº</td><td class='c2'>"+$(this).find("nDup").text()+"</td></tr>"
-        vencimento += "<tr><td class='c1'>Venc.</td><td class='c2'>"+$(this).find("dVenc").text()+"</td></tr>"
-        vencimento += "<tr><td class='c1'>Valor</td><td class='c2'>"+Number($(this).find("cobr>dup>vDup").text()).toLocaleString('pt-BR', { style: 'currency', currency:'BRL'})+"</td></tr>"
-        "</tr>"
-        $("#ve1").append('<div id="" class="vencimento"><table class="GeralXslt box"><tbody>'+vencimento+'</tbody></table></div>')
-       })
+  function parseDateToBR(s) {
+    const v = String(s ?? "").trim();
+    if (!v) return "-";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("pt-BR");
+  }
 
-       
+  function normalizeGtin(val) {
+    const s = String(val ?? "").trim();
+    if (!s) return "";
+    const up = s.toUpperCase().replace(/\s+/g, " ").trim();
+    // NF-e frequentemente manda "SEM GTIN" quando não existe GTIN
+    if (up === "SEM GTIN" || up === "SEMGTIN") return "";
+    // alguns ERPs podem mandar variações
+    if (up === "NAO INFORMADO" || up === "NÃO INFORMADO") return "";
+    return s;
+  }
 
-       $(xmlDoc).find("nfeProc").each( function() {
-        var infAdic = ""
-        infAdic += "<tr>"
-        infAdic += "<tr><td>"+$(this).find("infAdFisc").text()+"</td></tr>"
-        infAdic += "<tr><td>"+$(this).find("infCpl").text()+"</td></tr>"
-		infAdic += "<tr><td style='color: red; font-weight: bold; font-size: 16px;'>"+"Pedido: "+$(this).find("compra>xPed").text()+"</td></tr>"
-		infAdic += "<tr><td>"+"NF de Ref.: "+$(this).find("ide>NFref").text()+"</td></tr>"
-       "</tr>"
-        $("#dadosAdic").append(infAdic)
-       })
+  function clearEl(id) {
+    const el = $id(id);
+    if (el) el.innerHTML = "";
+  }
 
-       $(xmlDoc).find("transp").each( function() {
-        var tpfrete = $(this).find("modFrete").text()
-        if(tpfrete == 1){
-          $("#frete").append('Frete<br>a<br>Pagar').css({
-            'display': 'block',
-            'font-weight': 'bolder',
-            'color': '#ff0022',
-            'text-align': 'center'
-            })
-          $("#frete").css({'background-image': 'url(img/frete.jpg)', 'background-repeat': 'no-repeat'})
-          $(alert('Frete por conta do Enxuto'))
+  function setDisplay(id, value) {
+    const el = $id(id);
+    if (el) el.style.display = value;
+  }
 
+  function removeEl(id) {
+    const el = $id(id);
+    if (el) el.remove();
+  }
+
+  function showToast(message, { type = "info", ms = 6000 } = {}) {
+    removeEl("toastNfe");
+    const el = document.createElement("div");
+    el.id = "toastNfe";
+
+    const bg =
+      type === "warn" ? "#6a1b9a" :
+      type === "error" ? "#d32f2f" :
+      "#1565c0";
+
+    el.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${bg};
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        z-index: 9999;
+        font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        box-shadow: 0 10px 25px rgba(0,0,0,.25);
+        max-width: 92vw;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      ">
+        <span style="flex:1">${escapeHtml(message)}</span>
+        <button id="toastClose" style="
+          border: 0;
+          background: rgba(255,255,255,.15);
+          color: #fff;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 28px;
+        ">×</button>
+      </div>
+    `;
+    document.body.appendChild(el);
+
+    $id("toastClose").addEventListener("click", () => removeEl("toastNfe"));
+    if (ms > 0) setTimeout(() => removeEl("toastNfe"), ms);
+  }
+
+  function parseXmlText(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, "application/xml");
+    const parserError = doc.getElementsByTagName("parsererror");
+    if (parserError && parserError.length) {
+      throw new Error("XML inválido (erro de parse).");
+    }
+    return doc;
+  }
+
+  function resetUI() {
+    clearEl("tbody");
+    clearEl("nf");
+    clearEl("enx");
+    clearEl("ve1");
+    clearEl("dadosAdic");
+    clearEl("totaisNfs");
+
+    removeEl("toastNfe");
+
+    // inputs visíveis
+    setDisplay("divarquivo", "block");
+    setDisplay("divarquivo2", "block");
+
+    // container principal
+    const tudo = $id("tudo");
+    if (tudo) {
+      tudo.style.display = "block";
+      tudo.style.color = "";
+    }
+
+    // alerta entrada
+    setDisplay("alerta", "none");
+
+    // frete/tpNF limpa
+    const frete = $id("frete");
+    if (frete) {
+      frete.innerHTML = "";
+      frete.style.display = "none";
+      frete.style.backgroundImage = "";
+    }
+
+    const tpNF = $id("tpNF");
+    if (tpNF) {
+      tpNF.innerHTML = "";
+      tpNF.style.display = "none";
+      tpNF.style.background = "";
+    }
+  }
+
+  // ---------- Seleção de linha (delegação) ----------
+  function selLinha(linha, multiplos = false) {
+    if (!linha) return;
+    if (!multiplos) {
+      const parent = linha.parentElement;
+      if (parent) {
+        const trs = parent.getElementsByTagName("tr");
+        for (const tr of trs) tr.classList.remove("selecionado");
+      }
+    }
+    linha.classList.toggle("selecionado");
+  }
+  window.selLinha = selLinha;
+
+  function initRowSelectionOnce() {
+    if (window.__rowSelectionInit) return;
+    window.__rowSelectionInit = true;
+
+    const tbody = $id("tbody");
+    if (!tbody) return;
+
+    tbody.addEventListener("click", (e) => {
+      const tr = e.target.closest("tr");
+      if (!tr) return;
+      const mult = e.ctrlKey || e.metaKey;
+      selLinha(tr, mult);
+    });
+  }
+
+  // ---------- Loader ----------
+  async function carregar(fileInput) {
+    try {
+      resetUI();
+
+      const file = fileInput?.files?.[0];
+      if (!file) return;
+
+      setDisplay("tudo", "block");
+
+      const xmlText = await file.text();
+      const xmlDoc = parseXmlText(xmlText);
+
+      carregarXML(xmlDoc);
+
+      // esconde inputs após carregar
+      setDisplay("divarquivo", "none");
+      setDisplay("divarquivo2", "none");
+
+      const dadosEnxuto = $id("dadosEnxuto");
+      if (dadosEnxuto) dadosEnxuto.style.top = "1px";
+    } catch (err) {
+      console.error(err);
+      showToast(`Erro ao ler XML: ${err.message || err}`, { type: "error", ms: 8000 });
+    }
+  }
+  window.carregar = carregar;
+
+  // ---------- Render ----------
+  function carregarXML(xmlDoc) {
+    initRowSelectionOnce();
+
+    const root = xmlDoc.documentElement;
+	const nfeProc = (root && root.localName === "nfeProc")
+	  ? root
+	  : firstDescByLocal(root, "nfeProc");
+
+	const infNFe = firstDescByLocal(nfeProc || root, "infNFe");
+    if (!infNFe) {
+      showToast("Não encontrei a tag infNFe. Esse XML não parece NF-e.", { type: "error", ms: 8000 });
+      return;
+    }
+
+    // --- Autorização (validação como no antigo, mas sem tarja gigante) ---
+    let isAutorizada = false;
+    let cStat = "";
+    if (nfeProc) {
+      const protNFe = firstChildByLocal(nfeProc, "protNFe");
+      const infProt = firstChildByLocal(protNFe, "infProt");
+      cStat = getTextPath(infProt, ["cStat"]);
+      // 100 = Autorizado o uso da NF-e (o mais comum)
+      isAutorizada = cStat ? cStat === "100" : true;
+    }
+
+    if (!nfeProc || !isAutorizada) {
+      showToast("XML antes de autorizado na SEFAZ (pré-autorização). Vou mostrar os dados mesmo assim.", {
+        type: "warn",
+        ms: 7000,
+      });
+
+      // badge discreto na área que você já tinha (tpNF div)
+      const tpNFdiv = $id("tpNF");
+      if (tpNFdiv) {
+        tpNFdiv.style.display = "block";
+        tpNFdiv.style.textAlign = "center";
+        tpNFdiv.style.fontWeight = "800";
+        tpNFdiv.style.color = "#fff";
+        tpNFdiv.style.background = "#6a1b9a";
+        tpNFdiv.style.borderRadius = "6px";
+        tpNFdiv.innerHTML = "PRÉ-AUTORIZAÇÃO";
+      }
+    }
+
+    // --- blocos principais ---
+    const ide = firstChildByLocal(infNFe, "ide");
+    const emit = firstChildByLocal(infNFe, "emit");
+    const dest = firstChildByLocal(infNFe, "dest");
+    const total = firstChildByLocal(infNFe, "total");
+    const transp = firstChildByLocal(infNFe, "transp");
+    const cobr = firstChildByLocal(infNFe, "cobr");
+    const infAdic = firstChildByLocal(infNFe, "infAdic");
+    const compra = firstChildByLocal(infNFe, "compra");
+
+    // ---------- Cabeçalho Emitente (mantém como está: CNPJ/IE separados) ----------
+    const emitNome = getTextPath(emit, ["xNome"]);
+    const emitCNPJ = getTextPath(emit, ["CNPJ"]);
+    const emitIE = getTextPath(emit, ["IE"]);
+    const enderEmit = firstChildByLocal(emit, "enderEmit");
+    const emitMun = getTextPath(enderEmit, ["xMun"]);
+    const emitUF = getTextPath(enderEmit, ["UF"]);
+    const emitCMun = getTextPath(enderEmit, ["cMun"]);
+    const natOp = getTextPath(ide, ["natOp"]);
+
+    const nfHtml = `
+      <tr>
+        <td><label>Razão</label/>${escapeHtml(emitNome)}</td>
+        <td style="width:120px;"><label>CNPJ Emit.</label/>${escapeHtml(emitCNPJ)}</td>
+        <td style="width:120px;"><label>IE Emit.</label/>${escapeHtml(emitIE)}</td>
+        <td><label>Município</label/>${escapeHtml(emitMun)}, ${escapeHtml(emitUF)} - Cód.: ${escapeHtml(emitCMun)}</td>
+      </tr>
+      <tr>
+        <td colspan="4"><label>Natureza da Operação</label/>${escapeHtml(natOp)}</td>
+      </tr>
+    `;
+    $id("nf").insertAdjacentHTML("beforeend", nfHtml);
+
+    // ---------- Tipo NF (Entrada/Saída) ----------
+    const tpNFraw = getTextPath(ide, ["tpNF"]);
+    const tpNF = tpNFraw === "0" ? "Entrada" : "Saída";
+    if (tpNF === "Entrada") {
+      const tudo = $id("tudo");
+      if (tudo) tudo.style.display = "none";
+      setDisplay("alerta", "block");
+    }
+
+    // ---------- Chave ----------
+    let chave = "";
+    if (nfeProc) {
+      const protNFe = firstChildByLocal(nfeProc, "protNFe");
+      const infProt = firstChildByLocal(protNFe, "infProt");
+      chave = getTextPath(infProt, ["chNFe"]);
+    }
+    if (!chave) {
+      const idAttr = infNFe.getAttribute("Id") || "";
+      chave = idAttr.startsWith("NFe") ? idAttr.slice(3) : idAttr;
+    }
+
+    // ---------- Cabeçalho Destinatário (LIMPO + docs no Mostrar+) ----------
+    const nNF = getTextPath(ide, ["nNF"]);
+    const destNome = getTextPath(dest, ["xNome"]);
+    const destDoc = getTextPath(dest, ["CNPJ"]) || getTextPath(dest, ["CPF"]);
+    const destIE = getTextPath(dest, ["IE"]);
+
+    const enderDest = firstChildByLocal(dest, "enderDest");
+    const destMun = getTextPath(enderDest, ["xMun"]);
+    const destUF = getTextPath(enderDest, ["UF"]);
+    const destCMun = getTextPath(enderDest, ["cMun"]);
+    const destLgr = getTextPath(enderDest, ["xLgr"]);
+    const destNro = getTextPath(enderDest, ["nro"]);
+
+    const dhEmi = getTextPath(ide, ["dhEmi"]) || getTextPath(ide, ["dEmi"]);
+    const dhSaiEnt = getTextPath(ide, ["dhSaiEnt"]) || getTextPath(ide, ["dSaiEnt"]);
+
+    const emissaoBR = parseDateToBR(dhEmi);
+    const saidaBR = parseDateToBR(dhSaiEnt);
+
+    const docSpanParts = [];
+    if (destDoc) docSpanParts.push(escapeHtml(destDoc));
+    if (destIE) docSpanParts.push("IE: " + escapeHtml(destIE));
+    const docSpan =
+      docSpanParts.length
+        ? `<span class="coluna1 coluna-oculta"><br>${docSpanParts.join("<br>")}</span>`
+        : "";
+
+    const enxHtml = `
+      <tr>
+        <td><label>Nro NF</label/>${escapeHtml(nNF)}</td>
+        <td><label>Tipo</label/>${escapeHtml(tpNF)}</td>
+        <td><label>Razão</label/>${escapeHtml(destNome)}${docSpan}</td>
+        <td><label>Município</label>${escapeHtml(destMun)}, ${escapeHtml(destUF)} - Cód.: ${escapeHtml(destCMun)}</td>
+        <td colspan="2"><label>Endereço</label>${escapeHtml(destLgr)}${destNro ? ", " + escapeHtml(destNro) : ""}</td>
+      </tr>
+      <tr>
+        <td colspan="3"><label>Chave de Acesso</label>${escapeHtml(chave)}</td>
+        <td><label>Emissão</label>${escapeHtml(emissaoBR)}</td>
+        <td><label>Saída</label>${escapeHtml(saidaBR)}</td>
+      </tr>
+    `;
+    $id("enx").insertAdjacentHTML("beforeend", enxHtml);
+
+    document.title = `EA - XML | NF ${nNF || "-"}`;
+
+    // ---------- Frete (como o seu antigo: só aparece quando é por conta do destinatário) ----------
+    if (transp) {
+      const modFrete = getTextPath(transp, ["modFrete"]);
+      // 1 = por conta do destinatário (FOB). (deixo igual ao seu antigo)
+      if (modFrete === "1") {
+        const freteEl = $id("frete");
+        if (freteEl) {
+          freteEl.style.display = "block";
+          freteEl.style.fontWeight = "bolder";
+          freteEl.style.color = "#ff0022";
+          freteEl.style.textAlign = "center";
+          freteEl.innerHTML = "Frete<br>a<br>Pagar";
+          freteEl.style.backgroundImage = "url(img/frete.jpg)";
+          freteEl.style.backgroundRepeat = "no-repeat";
+          freteEl.style.backgroundPosition = "center";
         }
+      }
+    }
 
-       })
+    // ---------- Produtos ----------
+    const dets = childrenByLocal(infNFe, "det");
+    for (const det of dets) {
+      const nItem = det.getAttribute("nItem") || "";
 
-       $(xmlDoc).find("nfeProc").each( function() {
-        var chave = "Nf: "+$(this).find("ide>nNF").text()
-	var tl = document.getElementById("titulo");
-	tl.innerHTML = "";
-        $('title').append(chave);
-       })
+      const prod = firstChildByLocal(det, "prod");
+      const imposto = firstChildByLocal(det, "imposto");
 
+      const cProd = getTextPath(prod, ["cProd"]);
+      const cEAN = normalizeGtin(getTextPath(prod, ["cEAN"]));
+      const cEANTrib = normalizeGtin(getTextPath(prod, ["cEANTrib"]));
 
+      // novos campos que alguns XMLs trazem (cBarra/cBarraTrib)
+      const cBarra = normalizeGtin(getTextPath(prod, ["cBarra"]));
+      const cBarraTrib = normalizeGtin(getTextPath(prod, ["cBarraTrib"]));
 
-       $(xmlDoc).find("total>ICMSTot").each( function() {
-        var infAdic = ""
-        infAdic += "<tr>"
-        infAdic += "<td>"+Number($(this).find("vDesc").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vICMSDeson").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vBC").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vICMS").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vBCST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vOutro").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vFCPST").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vIPI").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-        infAdic += "<td>"+Number($(this).find("vProd").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-	      infAdic += "<td>"+Number($(this).find("vNF").text()).toLocaleString('pt-br', {minimumFractionDigits: 2, maximumFractionDigits: 2})+"</td>"
-       "</tr>"
-        $("#totaisNfs").append(infAdic)
-       })
+      const xProd = getTextPath(prod, ["xProd"]);
+      const NCM = getTextPath(prod, ["NCM"]);
+      const CFOP = getTextPath(prod, ["CFOP"]);
+      const CEST = getTextPath(prod, ["CEST"]);
 
+      const uCom = getTextPath(prod, ["uCom"]);
+      const uTrib = getTextPath(prod, ["uTrib"]);
+      const qCom = getTextPath(prod, ["qCom"]);
+      const qTrib = getTextPath(prod, ["qTrib"]);
+      const vUnCom = getTextPath(prod, ["vUnCom"]);
+      const vUnTrib = getTextPath(prod, ["vUnTrib"]);
+      const vProd = getTextPath(prod, ["vProd"]);
+      const vDesc = getTextPath(prod, ["vDesc"]);
+      const vOutro = getTextPath(prod, ["vOutro"]);
 
-//Selecionar
+      const xPed = getTextPath(prod, ["xPed"]);
+      const infAdProd = getTextPath(det, ["infAdProd"]); // é do DET, não do PROD
 
-// selecionar 
-	   
-var tabela = document.getElementById("tabelaProdutos");
-var linhas = tabela.getElementsByTagName("tr");
+      const unidade = uCom === uTrib || !uTrib ? uCom : `${uCom}<br>${uTrib}`;
+      const quantidade =
+        qCom === qTrib || !qTrib
+          ? fmtNumber(qCom, 3)
+          : `${fmtNumber(qCom, 3)}<br>${fmtNumber(qTrib, 3)}`;
+      const vlUnit =
+        vUnCom === vUnTrib || !vUnTrib
+          ? fmtNumber(vUnCom, 2)
+          : `${fmtNumber(vUnCom, 2)}<br>${fmtNumber(vUnTrib, 2)}`;
+      const vTotal = fmtNumber(vProd, 2);
 
-for(var i = 0; i < linhas.length; i++){
-	var linha = linhas[i];
-	linha.addEventListener("click", function(){
-//Adicionar ao atual
-	selLinha(this, false); //Selecione apenas um
-//selLinha(this, true); //Selecione quantos quiser
-});
-}
+      // Ref cell: cProd sempre; GTINs/Barra apenas no Mostrar+
+      const gtins = [];
+      if (cEAN) gtins.push(cEAN);
+      if (cEANTrib && cEANTrib !== cEAN) gtins.push(cEANTrib);
+      if (cBarra) gtins.push("Barra: " + cBarra);
+      if (cBarraTrib && cBarraTrib !== cBarra) gtins.push("Barra Trib: " + cBarraTrib);
 
-/**
-Caso passe true, você pode selecionar multiplas linhas.
-Caso passe false, você só pode selecionar uma linha por vez.
-**/
-function selLinha(linha, multiplos){
-	if(!multiplos){
-		var linhas = linha.parentElement.getElementsByTagName("tr");
-	for(var i = 0; i < linhas.length; i++){
-		var linha_ = linhas[i];
-		linha_.classList.remove("selecionado");    
-}
-}
-		linha.classList.toggle("selecionado");
-}
+      const gtinSpan =
+        gtins.length
+          ? `<span class="coluna1 coluna-oculta"><br>${gtins.map(escapeHtml).join("<br>")}</span>`
+          : "";
 
-}
+      // Descrição: xProd sempre; infAdProd e xPed só no Mostrar+
+      const descExtras = [];
+      if (infAdProd) descExtras.push(escapeHtml(infAdProd));
+      if (xPed) descExtras.push(`Pedido: <span style="color:red;">${escapeHtml(xPed)}</span>`);
+
+      const descSpan =
+        descExtras.length
+          ? `<span class="coluna1 coluna-oculta"><br>${descExtras.join("<br>")}</span>`
+          : "";
+
+      // ICMS (primeiro tipo dentro de <ICMS>)
+      const ICMS = firstChildByLocal(imposto, "ICMS");
+      const icmsTipo = ICMS ? Array.from(ICMS.childNodes).find(isElement) : null;
+
+      const orig = getTextPath(icmsTipo, ["orig"]);
+      const cst = getTextPath(icmsTipo, ["CST"]) || getTextPath(icmsTipo, ["CSOSN"]);
+      const icmsCstExib = (orig || "") + (cst || "");
+
+      const vBC = getTextPath(icmsTipo, ["vBC"]);
+      const pICMS = getTextPath(icmsTipo, ["pICMS"]);
+      const vICMS = getTextPath(icmsTipo, ["vICMS"]);
+      const vBCST = getTextPath(icmsTipo, ["vBCST"]);
+      const vICMSST = getTextPath(icmsTipo, ["vICMSST"]);
+      const vICMSDeson = getTextPath(icmsTipo, ["vICMSDeson"]);
+      const vFCPST = getTextPath(icmsTipo, ["vFCPST"]);
+      const pMVAST = getTextPath(icmsTipo, ["pMVAST"]);
+
+      // IPI
+      const IPI = firstChildByLocal(imposto, "IPI");
+      const IPITrib = firstChildByLocal(IPI, "IPITrib");
+      const IPINT = firstChildByLocal(IPI, "IPINT");
+      const vIPI = getTextPath(IPITrib, ["vIPI"]) || "0";
+      const pIPI = getTextPath(IPITrib, ["pIPI"]) || "0";
+      const cstIPI = getTextPath(IPITrib, ["CST"]) || getTextPath(IPINT, ["CST"]);
+
+      // PIS / COFINS
+      const PIS = firstChildByLocal(imposto, "PIS");
+      const pisTipo = PIS ? Array.from(PIS.childNodes).find(isElement) : null;
+      const pisCST = getTextPath(pisTipo, ["CST"]);
+      const pPIS = getTextPath(pisTipo, ["pPIS"]) || "0";
+
+      const COFINS = firstChildByLocal(imposto, "COFINS");
+      const cofinsTipo = COFINS ? Array.from(COFINS.childNodes).find(isElement) : null;
+      const cofinsCST = getTextPath(cofinsTipo, ["CST"]);
+      const pCOFINS = getTextPath(cofinsTipo, ["pCOFINS"]) || "0";
+
+      const rowHtml = `
+        <tr class="table-row">
+          <td class="nitem">${escapeHtml(nItem)}</td>
+          <td>${escapeHtml(cProd)}${gtinSpan}</td>
+          <td>${escapeHtml(xProd)}${descSpan}</td>
+          <td>${escapeHtml(NCM)}</td>
+          <td>${escapeHtml(icmsCstExib)}</td>
+          <td>${escapeHtml(CFOP)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(CEST)}</td>
+          <td>${unidade}</td>
+          <td class="num">${quantidade}</td>
+          <td class="num">${vlUnit}</td>
+          <td class="num">${vTotal}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(vDesc)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(vICMSDeson)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(vOutro)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(vFCPST)}</td>
+          <td>${fmtNumber(vBC, 2)}</td>
+          <td>${escapeHtml(pICMS)}</td>
+          <td>${fmtNumber(vICMS, 2)}</td>
+          <td>${fmtNumber(vBCST, 2)}</td>
+          <td>${fmtNumber(vICMSST, 2)}</td>
+          <td>${fmtNumber(vIPI, 2)}</td>
+          <td>${fmtNumber(pIPI, 2)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(pMVAST)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(cstIPI)}</td>
+          <td class="coluna1 coluna-oculta">${escapeHtml(pisCST)}<br>${escapeHtml(cofinsCST)}</td>
+          <td class="coluna1 coluna-oculta">${fmtNumber(pPIS, 2)}</td>
+          <td class="coluna1 coluna-oculta">${fmtNumber(pCOFINS, 2)}</td>
+        </tr>
+      `;
+      $id("tbody").insertAdjacentHTML("beforeend", rowHtml);
+    }
+
+    // ---------- Duplicatas / vencimentos ----------
+    if (cobr) {
+      const dups = childrenByLocal(cobr, "dup");
+      for (const dup of dups) {
+        const nDup = getTextPath(dup, ["nDup"]);
+        const dVenc = getTextPath(dup, ["dVenc"]);
+        const vDup = getTextPath(dup, ["vDup"]);
+
+        const boxHtml = `
+          <div class="vencimento">
+            <table class="GeralXslt box">
+              <tbody>
+                <tr><td class="c1">Nº</td><td class="c2">${escapeHtml(nDup)}</td></tr>
+                <tr><td class="c1">Venc.</td><td class="c2">${escapeHtml(dVenc)}</td></tr>
+                <tr><td class="c1">Valor</td><td class="c2">${fmtCurrency(vDup)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+        $id("ve1").insertAdjacentHTML("beforeend", boxHtml);
+      }
+    }
+
+    // ---------- Informações adicionais (só cria linhas se tiver conteúdo) ----------
+    const infAdFisc = getTextPath(infAdic, ["infAdFisc"]);
+    const infCpl = getTextPath(infAdic, ["infCpl"]);
+    const pedido = getTextPath(compra, ["xPed"]);
+
+    // NFref varia muito, pega qualquer descendente com esse nome:
+    const nfRefNode = firstDescByLocal(ide, "NFref");
+    const nfRef = textOf(nfRefNode);
+
+    const adicLines = [];
+    if (infAdFisc) adicLines.push(`<tr><td>${escapeHtml(infAdFisc)}</td></tr>`);
+    if (infCpl) adicLines.push(`<tr><td>${escapeHtml(infCpl)}</td></tr>`);
+    if (pedido) adicLines.push(`<tr><td style="color:red;font-weight:bold;font-size:16px;">Pedido: ${escapeHtml(pedido)}</td></tr>`);
+    if (nfRef) adicLines.push(`<tr><td>NF de Ref.: ${escapeHtml(nfRef)}</td></tr>`);
+
+    if (adicLines.length) {
+      $id("dadosAdic").insertAdjacentHTML("beforeend", adicLines.join(""));
+    }
+
+    // ---------- Totais ----------
+    const ICMSTot = total ? firstDescByLocal(total, "ICMSTot") : null;
+    if (ICMSTot) {
+      const totHtml = `
+        <tr>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vDesc"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vICMSDeson"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vBC"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vICMS"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vBCST"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vST"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vOutro"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vFCPST"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vIPI"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vProd"]), 2)}</td>
+          <td>${fmtNumber(getTextPath(ICMSTot, ["vNF"]), 2)}</td>
+        </tr>
+      `;
+      $id("totaisNfs").insertAdjacentHTML("beforeend", totHtml);
+    }
+  }
+})();
