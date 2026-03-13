@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Despesas ↔ Planilha (AUTO Operador + Cores + Datas separadas)
 // @namespace    clncentral/infradesk
-// @version      1.2.1
+// @version      1.2.2
 // @description  Envia TODAS as páginas de /backend/despesas pra planilha e injeta Operador automaticamente com cores.
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
@@ -551,6 +551,7 @@
 
 
 })();
+
 
 
 
