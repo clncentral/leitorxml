@@ -36,7 +36,7 @@
   // cores fixas (opcional). Se não bater aqui, ele gera uma cor automática pelo nome.
   const CORES_FIXAS_POR_OPERADOR = {
     "Elias Araujo": "#0324ff",
-    "Camily": "#ed5ac1",
+    "Camily": "#e6cff2",
     "Elia Maria": "#962bcc",
     "Patricia": "#ff8e03",
   };
@@ -551,6 +551,7 @@
 
 
 })();
+
 
 
 
