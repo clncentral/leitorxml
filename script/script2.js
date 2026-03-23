@@ -69,7 +69,7 @@ document.addEventListener("DOMContentLoaded", function() {
     adicionarTopico("Links Úteis", "Consulta CNPJ", "hist/cnpj.html", "2024-05-09");
     adicionarTopico("Links Úteis", "Descubra a Loja", "https://clncentral.github.io/leitorxml/hist/novo6.html", "2024-05-08");
     adicionarTopico("Links Úteis", "Leitor de Boleto", "https://clncentral.github.io/leitorxml/hist/boletos.html", "2024-05-08");
-	adicionarTopico("Links Úteis", "Leitor de Boleto", "https://clncentral.github.io/leitorxml/hist/leitor-tts-portugues.html", "2024-05-08");
+	adicionarTopico("Links Úteis", "Leitor de Texto com voz", "https://clncentral.github.io/leitorxml/hist/leitor-tts-portugues.html", "2024-05-08");
 
     // 🌟 Tópicos da coluna "Contratos"
 	adicionarTopico("Contratos", "Contratos Financeiros", "https://ajuda.bluesoft.com.br/modulo-financeiro/contrato-financeiro/7964", "2025-10-27");
