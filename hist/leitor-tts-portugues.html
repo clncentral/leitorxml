@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Leitor de texto com voz online gratuito em português do Brasil. Converta texto em áudio com múltiplas vozes, controle de velocidade e pausas.">
+  <title>Leitor de Texto com Voz (TTS) Online Grátis em Português</title>
+  <style>
+    :root {
+      --bg: #f3f6fa;
+      --panel: #ffffff;
+      --text: #17212b;
+      --muted: #6f7f90;
+      --line: #dbe4ee;
+      --primary: #4c7dff;
+      --primary-soft: #eaf1ff;
+      --warn: #b97910;
+      --warn-soft: #fff6e7;
+      --error: #c34940;
+      --error-soft: #fff2f1;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 10px 24px rgba(19, 39, 66, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 10px;
+    }
+
+    .app {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 0.98rem;
+      line-height: 1.2;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .notice {
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      border: 1px solid #f0c5c1;
+      background: var(--error-soft);
+      color: var(--error);
+      margin-bottom: 8px;
+    }
+
+    .characters-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .character-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px;
+      background: #fff;
+      display: grid;
+      gap: 8px;
+    }
+
+    .character-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .character-top strong {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #b5c9ff;
+      box-shadow: 0 0 0 3px rgba(76, 125, 255, 0.12);
+    }
+
+    textarea {
+      min-height: 320px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .btn,
+    .ghost-btn,
+    .icon-btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      min-height: 34px;
+      padding: 0 12px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.18s ease;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .ghost-btn {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .icon-btn {
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
+      padding: 0;
+      background: #fff;
+      color: var(--primary);
+      border-color: var(--line);
+      font-size: 1.05rem;
+    }
+
+    .btn:hover:not(:disabled),
+    .ghost-btn:hover:not(:disabled),
+    .icon-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled,
+    .ghost-btn:disabled,
+    .icon-btn:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .right-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .script-panel {
+      display: grid;
+      gap: 8px;
+    }
+
+    .controls-row {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .speed-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: #fbfdff;
+      display: grid;
+      gap: 6px;
+    }
+
+    .speed-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin: 0;
+    }
+
+    .transport {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .now-playing {
+      display: grid;
+      gap: 8px;
+    }
+
+    .now-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .chip {
+      font-size: 0.76rem;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid #d7e4ff;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .chip.muted {
+      background: #f1f5f9;
+      border-color: #e1e8ef;
+      color: var(--muted);
+    }
+
+    .chip.warn {
+      background: var(--warn-soft);
+      border-color: #ecd7aa;
+      color: var(--warn);
+    }
+
+    .chip.error {
+      background: var(--error-soft);
+      border-color: #f0c5c1;
+      color: var(--error);
+    }
+
+    .now-character {
+      margin: 0;
+      font-size: 1.06rem;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .now-text {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
+      min-height: 96px;
+      line-height: 1.65;
+      font-size: 1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+      background: #fbfdff;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 8px;
+      }
+
+      .panel {
+        padding: 8px;
+      }
+
+      .controls-row {
+        grid-template-columns: 1fr;
+      }
+
+      .transport {
+        justify-content: flex-start;
+      }
+
+      textarea {
+        min-height: 250px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .transport {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .transport .btn,
+      .transport .ghost-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Personagens</h2>
+          <button id="addCharacterBtn" class="icon-btn" aria-label="Adicionar personagem" title="Adicionar personagem">+</button>
+        </div>
+
+        <div id="supportWarning" class="notice hidden"></div>
+        <div id="charactersList" class="characters-list"></div>
+      </section>
+
+      <div class="right-grid">
+        <section class="panel script-panel">
+		<h1>Leitor de Texto com Voz Online (TTS Português)</h1>
+          <div class="panel-header">
+            <h2>Roteiro</h2>
+          </div>
+
+          <textarea id="scriptInput" spellcheck="false">[personagem 1] Cole seu texto aqui.
+Linhas sem personagem continuam com a voz anterior.
+Se o texto começar sem personagem, ele será lido com a voz do Personagem 1.
+[personagem 2] E quando você marcar outro personagem, a voz muda normalmente.</textarea>
+
+          <div class="controls-row">
+            <div class="speed-box">
+              <div class="speed-head">
+                <strong>Velocidade</strong>
+                <span id="speedValue">1.50x</span>
+              </div>
+              <input id="speedRange" type="range" min="0.50" max="3.00" step="0.05" value="1.50" />
+            </div>
+
+            <div class="transport">
+              <button id="startBtn" class="btn">Iniciar</button>
+              <button id="pauseBtn" class="ghost-btn">Pausar</button>
+              <button id="resumeBtn" class="ghost-btn">Continuar</button>
+              <button id="stopBtn" class="ghost-btn">Parar</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel now-playing">
+          <div class="panel-header">
+            <h2>Agora lendo</h2>
+          </div>
+
+          <div class="now-top">
+            <span id="queueChip" class="chip muted">0 / 0</span>
+            <span id="lineChip" class="chip muted">Linha —</span>
+            <span id="stateChip" class="chip muted">Aguardando</span>
+          </div>
+
+          <h3 id="nowCharacter" class="now-character">Nenhuma fala em reprodução</h3>
+          <div id="nowText" class="now-text">Quando a leitura começar, a fala atual vai aparecer aqui.</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const synth = window.speechSynthesis;
+      const supportsTTS =
+        "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+      const elements = {
+        addCharacterBtn: document.getElementById("addCharacterBtn"),
+        charactersList: document.getElementById("charactersList"),
+        supportWarning: document.getElementById("supportWarning"),
+        scriptInput: document.getElementById("scriptInput"),
+        startBtn: document.getElementById("startBtn"),
+        pauseBtn: document.getElementById("pauseBtn"),
+        resumeBtn: document.getElementById("resumeBtn"),
+        stopBtn: document.getElementById("stopBtn"),
+        speedRange: document.getElementById("speedRange"),
+        speedValue: document.getElementById("speedValue"),
+        queueChip: document.getElementById("queueChip"),
+        lineChip: document.getElementById("lineChip"),
+        stateChip: document.getElementById("stateChip"),
+        nowCharacter: document.getElementById("nowCharacter"),
+        nowText: document.getElementById("nowText")
+      };
+
+      const state = {
+        voices: [],
+        characters: [],
+        parsedLines: [],
+        queue: [],
+        queueIndex: -1,
+        currentUtterance: null,
+        currentChunk: null,
+        currentSession: 0,
+        isReading: false,
+        isPaused: false,
+        nextCharacterId: 1,
+        pendingStartTimer: null,
+        pendingAdvanceTimer: null
+      };
+
+      init();
+
+      function init() {
+        bindEvents();
+        createInitialCharacters();
+        updateSpeedLabel();
+
+        if (!supportsTTS) {
+          elements.supportWarning.textContent =
+            "Este navegador não oferece suporte à síntese de voz.";
+          elements.supportWarning.classList.remove("hidden");
+        } else {
+          loadVoices();
+          window.setTimeout(loadVoices, 250);
+
+          if (typeof synth.addEventListener === "function") {
+            synth.addEventListener("voiceschanged", loadVoices);
+          } else {
+            window.setInterval(loadVoices, 1200);
+          }
+        }
+
+        parseScript();
+        updateControls();
+        renderIdleNowPlaying();
+
+        window.addEventListener("beforeunload", () => {
+          clearPendingTimers();
+          if (supportsTTS) synth.cancel();
+        });
+      }
+
+      function bindEvents() {
+        elements.addCharacterBtn.addEventListener("click", () => {
+          state.characters.push(
+            createCharacter({
+              name: `personagem ${state.nextCharacterId}`,
+              pitch: 1,
+              volume: 1,
+              pauseAfterMs: 120
+            })
+          );
+
+          renderCharacters();
+          parseScript();
+        });
+
+        elements.charactersList.addEventListener("input", (event) => {
+          const card = event.target.closest(".character-card");
+          if (!card) return;
+
+          const character = getCharacterById(Number(card.dataset.id));
+          if (!character) return;
+
+          const field = event.target.dataset.field;
+          if (!field) return;
+
+          if (field === "name") {
+            character.name = event.target.value;
+            parseScript();
+            return;
+          }
+
+          if (field === "pitch") {
+            character.pitch = clamp(readNumber(event.target.value, 1), 0.5, 2);
+          } else if (field === "volume") {
+            character.volume = clamp(readNumber(event.target.value, 1), 0, 1);
+          } else if (field === "pauseAfterMs") {
+            character.pauseAfterMs = clamp(
+              Math.round(readNumber(event.target.value, 120)),
+              0,
+              5000
+            );
+          }
+
+          if (state.isReading) {
+            restartCurrentLineWithNewSettings();
+          }
+        });
+
+        elements.charactersList.addEventListener("change", (event) => {
+          const card = event.target.closest(".character-card");
+          if (!card) return;
+
+          const character = getCharacterById(Number(card.dataset.id));
+          if (!character) return;
+
+          const field = event.target.dataset.field;
+          if (field !== "voice") return;
+
+          character.voiceURI = event.target.value;
+
+          if (state.isReading) {
+            restartCurrentLineWithNewSettings();
+          } else {
+            parseScript();
+          }
+        });
+
+        elements.charactersList.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-action='remove']");
+          if (!button) return;
+
+          const card = button.closest(".character-card");
+          if (!card) return;
+
+          const id = Number(card.dataset.id);
+          const index = state.characters.findIndex((item) => item.id === id);
+          if (index === -1) return;
+
+          state.characters.splice(index, 1);
+
+          if (state.isReading) {
+            stopReading();
+          }
+
+          renderCharacters();
+          parseScript();
+        });
+
+        elements.scriptInput.addEventListener("input", () => {
+          if (state.isReading) stopReading();
+          parseScript();
+        });
+
+        elements.scriptInput.addEventListener("keydown", (event) => {
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            startReading();
+          }
+        });
+
+        elements.speedRange.addEventListener("input", () => {
+          updateSpeedLabel();
+
+          if (state.isReading) {
+            restartCurrentLineWithNewSettings();
+          }
+        });
+
+        elements.startBtn.addEventListener("click", startReading);
+        elements.pauseBtn.addEventListener("click", pauseReading);
+        elements.resumeBtn.addEventListener("click", resumeReading);
+        elements.stopBtn.addEventListener("click", stopReading);
+      }
+
+      function createInitialCharacters() {
+        if (state.characters.length) return;
+
+        state.characters.push(
+          createCharacter({
+            name: "personagem 1",
+            preferredVoiceNames: ["Daniel"],
+            preferredLangs: ["pt-BR", "pt"],
+            pitch: 0.80,
+            volume: 1,
+            pauseAfterMs: 0
+          }),
+          createCharacter({
+            name: "personagem 2",
+            preferredVoiceNames: ["Maria"],
+            preferredLangs: ["pt-BR", "pt"],
+            pitch: 0.80,
+            volume: 1,
+            pauseAfterMs: 0
+          })
+        );
+
+        renderCharacters();
+      }
+
+      function createCharacter(initial = {}) {
+        const id = state.nextCharacterId++;
+
+        const character = {
+          id,
+          name: initial.name ?? `personagem ${id}`,
+          voiceURI: initial.voiceURI ?? "",
+          preferredVoiceNames: Array.isArray(initial.preferredVoiceNames)
+            ? [...initial.preferredVoiceNames]
+            : [],
+          preferredLangs: Array.isArray(initial.preferredLangs)
+            ? [...initial.preferredLangs]
+            : ["pt-BR", "pt"],
+          pitch: clamp(readNumber(initial.pitch, 1), 0.5, 2),
+          volume: clamp(readNumber(initial.volume, 1), 0, 1),
+          pauseAfterMs: clamp(
+            Math.round(readNumber(initial.pauseAfterMs, 120)),
+            0,
+            5000
+          )
+        };
+
+        ensureCharacterVoice(character);
+        return character;
+      }
+
+      function loadVoices() {
+        if (!supportsTTS) return;
+
+        const voices = synth.getVoices() || [];
+        state.voices = [...voices].sort((a, b) => {
+          return (
+            getVoiceLanguageRank(a) - getVoiceLanguageRank(b) ||
+            Number(b.default) - Number(a.default) ||
+            String(a.name).localeCompare(String(b.name), "pt-BR")
+          );
+        });
+
+        state.characters.forEach(ensureCharacterVoice);
+        renderCharacters();
+        parseScript();
+        updateControls();
+      }
+
+      function getVoiceLanguageRank(voice) {
+        const lang = String(voice.lang || "").toLowerCase();
+
+        if (lang.startsWith("pt-br")) return 1;
+        if (lang.startsWith("pt-pt")) return 2;
+        if (lang.startsWith("pt")) return 3;
+        if (lang.startsWith("es")) return 4;
+        return 5;
+      }
+
+      function renderCharacters() {
+        elements.charactersList.innerHTML = "";
+
+        if (!state.characters.length) {
+          elements.charactersList.innerHTML =
+            '<div class="empty-state">Nenhum personagem cadastrado.</div>';
+          return;
+        }
+
+        for (const [index, character] of state.characters.entries()) {
+          ensureCharacterVoice(character);
+
+          const card = document.createElement("article");
+          card.className = "character-card";
+          card.dataset.id = String(character.id);
+
+          card.innerHTML = `
+            <div class="character-top">
+              <strong>Personagem ${index + 1}</strong>
+              <button
+                type="button"
+                class="icon-btn"
+                data-action="remove"
+                aria-label="Remover personagem"
+                title="Remover personagem"
+              >×</button>
+            </div>
+
+            <label class="field">
+              <span>Nome</span>
+              <input
+                type="text"
+                data-field="name"
+                value="${escapeHtml(character.name)}"
+                placeholder="Ex.: Narrador"
+              />
+            </label>
+
+            <label class="field">
+              <span>Voz</span>
+              <select data-field="voice"></select>
+            </label>
+
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+              <label class="field">
+                <span>Tom</span>
+                <input
+                  type="number"
+                  data-field="pitch"
+                  min="0.50"
+                  max="2.00"
+                  step="0.05"
+                  value="${escapeHtml(character.pitch.toFixed(2))}"
+                />
+              </label>
+
+              <label class="field">
+                <span>Volume</span>
+                <input
+                  type="number"
+                  data-field="volume"
+                  min="0.00"
+                  max="1.00"
+                  step="0.05"
+                  value="${escapeHtml(character.volume.toFixed(2))}"
+                />
+              </label>
+
+              <label class="field" style="grid-column:1 / -1;">
+                <span>Pausa final (ms)</span>
+                <input
+                  type="number"
+                  data-field="pauseAfterMs"
+                  min="0"
+                  max="5000"
+                  step="10"
+                  value="${escapeHtml(String(character.pauseAfterMs))}"
+                />
+              </label>
+            </div>
+          `;
+
+          const select = card.querySelector("[data-field='voice']");
+          populateVoiceSelect(select, character);
+          elements.charactersList.appendChild(card);
+        }
+      }
+
+      function populateVoiceSelect(selectElement, character) {
+        selectElement.innerHTML = "";
+
+        if (!state.voices.length) {
+          const option = document.createElement("option");
+          option.textContent = "Nenhuma voz disponível";
+          option.disabled = true;
+          option.selected = true;
+          selectElement.appendChild(option);
+          return;
+        }
+
+        const groups = new Map();
+
+        for (const voice of state.voices) {
+          const lang = String(voice.lang || "").toLowerCase();
+          let label = "Outras vozes";
+
+          if (lang.startsWith("pt-br")) label = "Português do Brasil";
+          else if (lang.startsWith("pt-pt")) label = "Português de Portugal";
+          else if (lang.startsWith("pt")) label = "Português";
+          else if (lang.startsWith("es")) label = "Espanhol";
+
+          if (!groups.has(label)) groups.set(label, []);
+          groups.get(label).push(voice);
+        }
+
+        let hasSelected = false;
+
+        for (const [label, voices] of groups.entries()) {
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = label;
+
+          for (const voice of voices) {
+            const option = document.createElement("option");
+            option.value = voice.voiceURI;
+            option.textContent = `${voice.name} (${voice.lang})`;
+
+            if (voice.voiceURI === character.voiceURI) {
+              option.selected = true;
+              hasSelected = true;
+            }
+
+            optgroup.appendChild(option);
+          }
+
+          selectElement.appendChild(optgroup);
+        }
+
+        if (!hasSelected) {
+          ensureCharacterVoice(character);
+
+          for (const option of Array.from(selectElement.options)) {
+            option.selected = option.value === character.voiceURI;
+          }
+        }
+      }
+
+      function parseScript() {
+  const text = elements.scriptInput.value.replace(/\r\n/g, "\n");
+  const lines = text.split("\n");
+  const characterMap = new Map();
+
+  for (const character of state.characters) {
+    const key = normalizeText(character.name);
+    if (key && !characterMap.has(key)) {
+      characterMap.set(key, character);
+    }
+  }
+
+  let activeCharacter = getDefaultPlainTextCharacter();
+
+  state.parsedLines = lines.map((raw, index) => {
+    const lineNumber = index + 1;
+    const trimmed = raw.trim();
+
+    if (!trimmed) {
+      return {
+        status: "blank",
+        lineNumber,
+        raw
+      };
+    }
+
+    const match = trimmed.match(/^\[([^\]]+)\]\s*(.*)$/);
+
+    // linha explícita: [personagem x] fala
+    if (match) {
+      const characterName = match[1].trim();
+      const speech = match[2].trim();
+
+      if (!characterName || !speech) {
+        return {
+          status: "invalid",
+          lineNumber,
+          raw
+        };
+      }
+
+      const character = characterMap.get(normalizeText(characterName));
+
+      if (!character) {
+        return {
+          status: "invalid",
+          lineNumber,
+          raw
+        };
+      }
+
+      const voice = getVoiceByURI(character.voiceURI);
+
+      if (!voice) {
+        return {
+          status: "invalid",
+          lineNumber,
+          raw
+        };
+      }
+
+      activeCharacter = character;
+
+      return {
+        status: "valid",
+        lineNumber,
+        raw,
+        characterId: character.id,
+        characterName: character.name,
+        speech,
+        voiceURI: voice.voiceURI,
+        inferredCharacter: false
+      };
+    }
+
+    // linha sem personagem: herda o anterior
+    const inheritedCharacter = activeCharacter || getDefaultPlainTextCharacter();
+
+    if (!inheritedCharacter) {
+      return {
+        status: "invalid",
+        lineNumber,
+        raw
+      };
+    }
+
+    const inheritedVoice = getVoiceByURI(inheritedCharacter.voiceURI);
+
+    if (!inheritedVoice) {
+      return {
+        status: "invalid",
+        lineNumber,
+        raw
+      };
+    }
+
+    activeCharacter = inheritedCharacter;
+
+    return {
+      status: "valid",
+      lineNumber,
+      raw,
+      characterId: inheritedCharacter.id,
+      characterName: inheritedCharacter.name,
+      speech: trimmed,
+      voiceURI: inheritedVoice.voiceURI,
+      inferredCharacter: true
+    };
+  });
+
+  updateControls();
+}
+
+      function startReading() {
+        if (!supportsTTS) {
+          renderNowPlaying({
+            queueText: "0 / 0",
+            lineText: "Linha —",
+            stateText: "Erro",
+            stateClass: "error",
+            character: "Navegador sem suporte",
+            text: "A síntese de voz não está disponível neste navegador."
+          });
+          return;
+        }
+
+        if (!state.voices.length) {
+          renderNowPlaying({
+            queueText: "0 / 0",
+            lineText: "Linha —",
+            stateText: "Erro",
+            stateClass: "error",
+            character: "Sem vozes",
+            text: "Nenhuma voz foi encontrada no navegador."
+          });
+          return;
+        }
+
+        parseScript();
+
+        const validLines = state.parsedLines.filter((line) => line.status === "valid");
+        const playbackQueue = buildPlaybackQueue(validLines);
+
+        if (!playbackQueue.length) {
+          renderNowPlaying({
+            queueText: "0 / 0",
+            lineText: "Linha —",
+            stateText: "Sem falas",
+            stateClass: "warn",
+            character: "Nada para ler",
+            text: "Verifique se o roteiro está no formato [personagem] texto."
+          });
+          updateControls();
+          return;
+        }
+
+        clearPendingTimers();
+        state.currentSession += 1;
+        synth.cancel();
+
+        state.queue = playbackQueue;
+        state.queueIndex = 0;
+        state.currentChunk = null;
+        state.currentUtterance = null;
+        state.isReading = true;
+        state.isPaused = false;
+
+        speakCurrentQueueItem();
+        updateControls();
+      }
+
+      function buildPlaybackQueue(validLines) {
+  const queue = [];
+  const speed = getCurrentSpeed();
+
+  for (const line of validLines) {
+    const character = getCharacterById(line.characterId);
+    if (!character) continue;
+
+    const cleanedText = normalizeSpeechText(line.speech);
+    const chunks = splitSpeechIntoPlayableChunks(cleanedText);
+
+    if (!chunks.length) continue;
+
+    chunks.forEach((chunk, index) => {
+      const isLastChunk = index === chunks.length - 1;
+
+      const rawPauseAfterMs = isLastChunk
+        ? character.pauseAfterMs
+        : chunk.pauseAfterMs;
+
+      queue.push({
+        lineNumber: line.lineNumber,
+        characterId: line.characterId,
+        characterName: line.characterName,
+        voiceURI: line.voiceURI,
+        text: chunk.text,
+        fullSpeech: cleanedText,
+        rate: speed,
+        pitch: character.pitch,
+        volume: character.volume,
+
+        // pausas agora acompanham a velocidade
+        preDelayMs: scalePauseMs(chunk.preDelayMs, speed),
+        pauseAfterMs: scalePauseMs(rawPauseAfterMs, speed),
+
+        // debug opcional
+        rawPreDelayMs: chunk.preDelayMs,
+        rawPauseAfterMs
+      });
+    });
+  }
+
+  return queue;
+}
+
+      function speakCurrentQueueItem() {
+        clearPendingTimers(false);
+
+        if (!state.isReading || state.isPaused) return;
+
+        const item = state.queue[state.queueIndex];
+        if (!item) {
+          finishReading();
+          return;
+        }
+
+        const voice = getVoiceByURI(item.voiceURI);
+        if (!voice) {
+          state.queueIndex += 1;
+          speakCurrentQueueItem();
+          return;
+        }
+
+        const session = state.currentSession;
+        state.currentChunk = item;
+
+        const startSpeak = () => {
+          if (!state.isReading || state.isPaused || session !== state.currentSession) return;
+
+          const utterance = new SpeechSynthesisUtterance(item.text);
+          utterance.voice = voice;
+          utterance.lang = voice.lang || "pt-BR";
+          utterance.rate = item.rate;
+          utterance.pitch = item.pitch;
+          utterance.volume = item.volume;
+
+          state.currentUtterance = utterance;
+
+          renderNowPlaying({
+            queueText: `${Math.min(state.queueIndex + 1, state.queue.length)} / ${state.queue.length}`,
+            lineText: `Linha ${item.lineNumber}`,
+            stateText: "Lendo",
+            stateClass: "",
+            character: item.characterName,
+            text: item.fullSpeech
+          });
+
+          utterance.onend = () => {
+            if (session !== state.currentSession) return;
+
+            state.currentUtterance = null;
+            state.queueIndex += 1;
+
+            const finishedAll = state.queueIndex >= state.queue.length;
+
+            state.pendingAdvanceTimer = window.setTimeout(() => {
+              state.pendingAdvanceTimer = null;
+
+              if (session !== state.currentSession || !state.isReading || state.isPaused) {
+                return;
+              }
+
+              if (finishedAll) {
+                finishReading();
+                return;
+              }
+
+              speakCurrentQueueItem();
+            }, item.pauseAfterMs);
+          };
+
+          utterance.onerror = () => {
+            if (session !== state.currentSession) return;
+
+            state.currentUtterance = null;
+            state.queueIndex += 1;
+
+            if (state.queueIndex >= state.queue.length) {
+              finishReading();
+              return;
+            }
+
+            speakCurrentQueueItem();
+          };
+
+          synth.speak(utterance);
+        };
+
+        if (item.preDelayMs > 0) {
+          state.pendingStartTimer = window.setTimeout(() => {
+            state.pendingStartTimer = null;
+            startSpeak();
+          }, item.preDelayMs);
+        } else {
+          startSpeak();
+        }
+
+        updateControls();
+      }
+
+      function pauseReading() {
+        if (!state.isReading || state.isPaused) return;
+
+        state.isPaused = true;
+
+        if (state.currentUtterance && synth.speaking && !synth.paused) {
+          synth.pause();
+        } else {
+          clearPendingTimers(false);
+        }
+
+        if (state.currentChunk) {
+          renderNowPlaying({
+            queueText: `${Math.min(state.queueIndex + 1, state.queue.length)} / ${state.queue.length}`,
+            lineText: `Linha ${state.currentChunk.lineNumber}`,
+            stateText: "Pausado",
+            stateClass: "warn",
+            character: state.currentChunk.characterName,
+            text: state.currentChunk.fullSpeech
+          });
+        }
+
+        updateControls();
+      }
+
+      function resumeReading() {
+        if (!state.isReading || !state.isPaused) return;
+
+        state.isPaused = false;
+
+        if (supportsTTS && synth.paused) {
+          synth.resume();
+
+          if (state.currentChunk) {
+            renderNowPlaying({
+              queueText: `${Math.min(state.queueIndex + 1, state.queue.length)} / ${state.queue.length}`,
+              lineText: `Linha ${state.currentChunk.lineNumber}`,
+              stateText: "Lendo",
+              stateClass: "",
+              character: state.currentChunk.characterName,
+              text: state.currentChunk.fullSpeech
+            });
+          }
+        } else {
+          speakCurrentQueueItem();
+        }
+
+        updateControls();
+      }
+
+      function stopReading() {
+        clearPendingTimers();
+        state.currentSession += 1;
+
+        state.isReading = false;
+        state.isPaused = false;
+        state.queue = [];
+        state.queueIndex = -1;
+        state.currentUtterance = null;
+        state.currentChunk = null;
+
+        if (supportsTTS) synth.cancel();
+
+        renderIdleNowPlaying();
+        updateControls();
+      }
+
+      function finishReading() {
+        clearPendingTimers(false);
+
+        const lastChunk = state.currentChunk;
+
+        state.isReading = false;
+        state.isPaused = false;
+        state.queue = [];
+        state.queueIndex = -1;
+        state.currentUtterance = null;
+
+        renderNowPlaying({
+          queueText: "0 / 0",
+          lineText: lastChunk ? `Linha ${lastChunk.lineNumber}` : "Linha —",
+          stateText: "Concluído",
+          stateClass: "",
+          character: "Leitura concluída",
+          text: lastChunk ? lastChunk.fullSpeech : "Fim da fila."
+        });
+
+        updateControls();
+      }
+
+      function restartCurrentLineWithNewSettings() {
+        if (!state.isReading) return;
+
+        const keepPaused = state.isPaused;
+        const currentLineNumber =
+          state.currentChunk?.lineNumber ??
+          state.queue[state.queueIndex]?.lineNumber ??
+          null;
+
+        clearPendingTimers();
+        state.currentSession += 1;
+        synth.cancel();
+        state.isPaused = false;
+
+        const validLines = state.parsedLines.filter((line) => line.status === "valid");
+        const playbackQueue = buildPlaybackQueue(validLines);
+
+        if (!playbackQueue.length) {
+          stopReading();
+          return;
+        }
+
+        let newIndex = state.queueIndex;
+
+        if (currentLineNumber !== null) {
+          const foundIndex = playbackQueue.findIndex(
+            (item) => item.lineNumber === currentLineNumber
+          );
+
+          if (foundIndex !== -1) {
+            newIndex = foundIndex;
+          }
+        }
+
+        newIndex = clamp(Math.round(newIndex), 0, Math.max(playbackQueue.length - 1, 0));
+
+        state.queue = playbackQueue;
+        state.queueIndex = newIndex;
+        state.currentUtterance = null;
+        state.currentChunk = state.queue[newIndex] || null;
+        state.isReading = true;
+
+        if (keepPaused) {
+          state.isPaused = true;
+
+          if (state.currentChunk) {
+            renderNowPlaying({
+              queueText: `${Math.min(state.queueIndex + 1, state.queue.length)} / ${state.queue.length}`,
+              lineText: `Linha ${state.currentChunk.lineNumber}`,
+              stateText: "Pausado",
+              stateClass: "warn",
+              character: state.currentChunk.characterName,
+              text: state.currentChunk.fullSpeech
+            });
+          }
+
+          updateControls();
+        } else {
+          speakCurrentQueueItem();
+        }
+      }
+
+      function renderIdleNowPlaying() {
+        renderNowPlaying({
+          queueText: "0 / 0",
+          lineText: "Linha —",
+          stateText: "Aguardando",
+          stateClass: "muted",
+          character: "Nenhuma fala em reprodução",
+          text: "Quando a leitura começar, a fala atual vai aparecer aqui."
+        });
+      }
+
+      function renderNowPlaying(payload) {
+        elements.queueChip.className = `chip ${payload.queueText === "0 / 0" ? "muted" : ""}`.trim();
+        elements.queueChip.textContent = payload.queueText;
+
+        elements.lineChip.className = `chip ${payload.lineText === "Linha —" ? "muted" : ""}`.trim();
+        elements.lineChip.textContent = payload.lineText;
+
+        elements.stateChip.className = `chip ${payload.stateClass}`.trim();
+        elements.stateChip.textContent = payload.stateText;
+
+        elements.nowCharacter.textContent = payload.character;
+        elements.nowText.textContent = payload.text;
+      }
+
+      function normalizeSpeechText(text) {
+        let result = String(text || "")
+          .replace(/\r?\n+/g, " ")
+          .replace(/\s+/g, " ")
+          .replace(/\s+([,.;:!?…])/g, "$1")
+          .replace(/\.{3,}/g, "…")
+          .replace(/[!]{2,}/g, "!")
+          .replace(/[?]{2,}/g, "?")
+          .replace(/([!?]){2,}/g, "$1")
+          .replace(/\s*[-–—]\s*/g, ", ")
+          .replace(/\*[^*]+\*/g, " ")
+          .trim();
+
+        result = result.replace(/\((?:pausa|pause)\s*(\d{2,4})\)/gi, (_, ms) => {
+          return ` <PAUSE_${clamp(Number(ms), 0, 5000)}> `;
+        });
+
+        result = result.replace(/\[(?:pausa|pause)\s*(\d{2,4})\]/gi, (_, ms) => {
+          return ` <PAUSE_${clamp(Number(ms), 0, 5000)}> `;
+        });
+
+        result = result
+          .replace(/\((pausa longa|longa pausa)\)/gi, " <PAUSE_700> ")
+          .replace(/\[(pausa longa|longa pausa)\]/gi, " <PAUSE_700> ")
+          .replace(/\((pausa curta|pausa)\)/gi, " <PAUSE_320> ")
+          .replace(/\[(pausa curta|pausa)\]/gi, " <PAUSE_320> ")
+          .replace(/\((respira|suspiro)\)/gi, " <PAUSE_220> ")
+          .replace(/\[(respira|suspiro)\]/gi, " <PAUSE_220> ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        return result;
+      }
+
+      function splitSpeechIntoPlayableChunks(text) {
+        const tokens = String(text || "")
+          .split(/(<PAUSE_\d+>)/g)
+          .map((token) => token.trim())
+          .filter(Boolean);
+
+        const chunks = [];
+        let carryPreDelay = 0;
+
+        for (const token of tokens) {
+          const pauseMatch = token.match(/^<PAUSE_(\d+)>$/);
+
+          if (pauseMatch) {
+            carryPreDelay += Number(pauseMatch[1]);
+            continue;
+          }
+
+          const sentenceParts =
+            token.match(/[^.!?;,…]+(?:[.!?;,…]+)?/g) || [token];
+
+          for (const rawPart of sentenceParts) {
+            const trimmed = rawPart.trim();
+            if (!trimmed) continue;
+
+            const smallerParts = splitOversizeSegment(trimmed, 170);
+
+            smallerParts.forEach((part, index) => {
+              if (!part) return;
+
+              chunks.push({
+                text: part,
+                preDelayMs: index === 0 ? carryPreDelay : 0,
+                pauseAfterMs: inferInternalPauseMs(part)
+              });
+
+              carryPreDelay = 0;
+            });
+          }
+        }
+
+        if (carryPreDelay > 0 && chunks.length) {
+          chunks[chunks.length - 1].pauseAfterMs += carryPreDelay;
+        }
+
+        return chunks.filter((chunk) => chunk.text && chunk.text.trim());
+      }
+
+      function splitOversizeSegment(segment, maxLength) {
+        const clean = String(segment || "").trim();
+        if (!clean) return [];
+        if (clean.length <= maxLength) return [clean];
+
+        const parts = [];
+        let remaining = clean;
+
+        while (remaining.length > maxLength) {
+          let cut = remaining.lastIndexOf(",", maxLength);
+
+          if (cut < Math.floor(maxLength * 0.45)) {
+            cut = remaining.lastIndexOf(" ", maxLength);
+          }
+
+          if (cut < Math.floor(maxLength * 0.45)) {
+            cut = maxLength;
+          }
+
+          let piece = remaining.slice(0, cut).trim();
+          remaining = remaining.slice(cut).trim();
+
+          if (!piece) break;
+          if (!/[.,;:!?…]$/.test(piece)) piece += ",";
+
+          parts.push(piece);
+        }
+
+        if (remaining) parts.push(remaining);
+        return parts;
+      }
+
+      function inferInternalPauseMs(text) {
+  const trimmed = String(text || "").trim();
+
+  if (/…$/.test(trimmed)) return 240;
+  if (/[!?]$/.test(trimmed)) return 190;
+  if (/\.$/.test(trimmed)) return 150;
+  if (/;$/.test(trimmed)) return 110;
+  if (/:$/.test(trimmed)) return 95;
+  if (/,$/.test(trimmed)) return 80;
+
+  return 35;
+}
+
+      function ensureCharacterVoice(character) {
+        if (getVoiceByURI(character.voiceURI)) return;
+
+        const preferred = findPreferredVoice(character);
+        if (preferred) {
+          character.voiceURI = preferred.voiceURI;
+          return;
+        }
+
+        const fallback = state.voices[0] || null;
+        character.voiceURI = fallback ? fallback.voiceURI : "";
+      }
+
+      function findPreferredVoice(character) {
+        if (!state.voices.length) return null;
+
+        const preferredNames = Array.isArray(character.preferredVoiceNames)
+          ? character.preferredVoiceNames
+          : [];
+
+        const preferredLangs = Array.isArray(character.preferredLangs) && character.preferredLangs.length
+          ? character.preferredLangs
+          : ["pt-BR", "pt"];
+
+        for (const lang of preferredLangs) {
+          const wantedLang = String(lang || "").toLowerCase();
+
+          for (const name of preferredNames) {
+            const wantedName = normalizeText(name);
+
+            const match = state.voices.find((voice) => {
+              const voiceLang = String(voice.lang || "").toLowerCase();
+              const voiceName = normalizeText(voice.name || "");
+
+              return voiceLang.startsWith(wantedLang) && voiceName.includes(wantedName);
+            });
+
+            if (match) return match;
+          }
+        }
+
+        for (const lang of preferredLangs) {
+          const wantedLang = String(lang || "").toLowerCase();
+          const match = state.voices.find((voice) =>
+            String(voice.lang || "").toLowerCase().startsWith(wantedLang)
+          );
+
+          if (match) return match;
+        }
+
+        return state.voices[0] || null;
+      }
+	  
+	  function getDefaultPlainTextCharacter() {
+  if (!state.characters.length) return null;
+
+  const danielByPreference = state.characters.find((character) => {
+    return Array.isArray(character.preferredVoiceNames) &&
+      character.preferredVoiceNames.some((name) =>
+        normalizeText(name).includes("daniel")
+      );
+  });
+
+  if (danielByPreference) return danielByPreference;
+
+  const danielByVoice = state.characters.find((character) => {
+    const voice = getVoiceByURI(character.voiceURI);
+    if (!voice) return false;
+
+    return (
+      String(voice.lang || "").toLowerCase().startsWith("pt-br") &&
+      normalizeText(voice.name || "").includes("daniel")
+    );
+  });
+
+  if (danielByVoice) return danielByVoice;
+
+  return state.characters[0] || null;
+}
+
+      function getCharacterById(id) {
+        return state.characters.find((character) => character.id === id) || null;
+      }
+
+      function getVoiceByURI(voiceURI) {
+        return state.voices.find((voice) => voice.voiceURI === voiceURI) || null;
+      }
+	  
+	  function scalePauseMs(ms, speed = getCurrentSpeed()) {
+  const numeric = Math.max(0, Number(ms) || 0);
+  if (numeric === 0) return 0;
+
+  return Math.max(0, Math.round(numeric / speed));
+}
+
+      function getCurrentSpeed() {
+        return clamp(Number(elements.speedRange.value), 0.6, 3);
+      }
+
+      function updateSpeedLabel() {
+        elements.speedValue.textContent = `${getCurrentSpeed().toFixed(2)}x`;
+      }
+
+      function updateControls() {
+        const validCount = state.parsedLines.filter((line) => line.status === "valid").length;
+        const canStart = supportsTTS && state.voices.length > 0 && validCount > 0;
+
+        elements.startBtn.disabled = !canStart;
+        elements.pauseBtn.disabled = !state.isReading || state.isPaused;
+        elements.resumeBtn.disabled = !state.isReading || !state.isPaused;
+        elements.stopBtn.disabled = !state.isReading && !state.isPaused;
+      }
+
+      function clearPendingTimers(cancelSpeech = true) {
+        if (state.pendingStartTimer) {
+          window.clearTimeout(state.pendingStartTimer);
+          state.pendingStartTimer = null;
+        }
+
+        if (state.pendingAdvanceTimer) {
+          window.clearTimeout(state.pendingAdvanceTimer);
+          state.pendingAdvanceTimer = null;
+        }
+
+        if (cancelSpeech && supportsTTS) {
+          synth.cancel();
+        }
+      }
+
+      function normalizeText(value) {
+        return String(value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+          .toLowerCase();
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function readNumber(value, fallback) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+    })();
+  </script>
+</body>
+</html>
