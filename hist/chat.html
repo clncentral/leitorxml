@@ -35,7 +35,9 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    button, textarea, input {
+    button,
+    textarea,
+    input {
       font: inherit;
     }
 
@@ -105,6 +107,12 @@
       text-overflow: ellipsis;
     }
 
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
     .pill-btn {
       border-radius: 999px;
       padding: 9px 12px;
@@ -112,6 +120,18 @@
       background: #eff6ff;
       border: 1px solid #bfdbfe;
       font-weight: 700;
+    }
+
+    .pill-btn.notify-on {
+      color: #166534;
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .pill-btn.notify-denied {
+      color: #991b1b;
+      background: #fee2e2;
+      border-color: #fecaca;
     }
 
     .messages {
@@ -154,6 +174,7 @@
       border-radius: 16px;
       box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
       border: 1px solid rgba(219, 231, 243, 0.9);
+      position: relative;
       word-break: break-word;
     }
 
@@ -491,7 +512,6 @@
       text-align: center;
       color: var(--muted);
       margin-top: 30vh;
-      padding: 0 18px;
     }
 
     @media (max-width: 560px) {
@@ -518,7 +538,10 @@
         <div id="peerName" class="peer-name">Chat</div>
         <div id="peerStatus" class="peer-status">conectando...</div>
       </div>
+      <div class="top-actions">
+        <button id="notificationsBtn" class="pill-btn" type="button" title="Notificações">🔕</button>
       <button id="profileBtn" class="pill-btn" type="button">Perfil</button>
+      </div>
     </header>
 
     <main id="messages" class="messages">
@@ -575,7 +598,7 @@
   <dialog id="stickersDialog">
     <div class="modal">
       <h2>Figurinhas</h2>
-      <p>Escolha uma reação.</p>
+      <p>Escolha uma reação para enviar.</p>
       <div id="stickerGrid" class="sticker-grid"></div>
       <div class="modal-actions">
         <button id="closeStickersBtn" class="secondary" type="button">Fechar</button>
@@ -606,6 +629,7 @@
     import {
       getDatabase,
       ref,
+      child,
       push,
       set,
       update,
@@ -631,7 +655,6 @@
     const SALA = "salas/pea_001";
     const CHAT_PATH = `${SALA}/chat/mensagens`;
     const USERS_PATH = `${SALA}/usuariosChat`;
-    const DEVICES_PATH = `${SALA}/usuariosDispositivos`;
 
     const avatars = ["🌞", "🌙", "👨", "🧔", "👨‍🦱", "👨‍🦰", "👩", "👩‍🦱", "👩‍🦰", "👩‍🦳"];
 
@@ -655,9 +678,16 @@
     let replyingTo = null;
     let messagesRefAtual = null;
     let peerRefAtual = null;
+    let presenceRefAtual = null;
     let currentAudioUrl = null;
     let currentAudioMessage = null;
     let audioFinished = false;
+    let notificacoesAtivas = false;
+    let primeiraCargaMensagens = true;
+    let contadorNaoLidasTitulo = 0;
+
+    const inicioSessaoNotificacoes = Date.now();
+    const mensagensNotificadas = new Set();
 
     const el = (id) => document.getElementById(id);
 
@@ -665,6 +695,7 @@
     const messageInput = el("messageInput");
     const sendBtn = el("sendBtn");
     const profileBtn = el("profileBtn");
+    const notificationsBtn = el("notificationsBtn");
     const profileDialog = el("profileDialog");
     const chooseSol = el("chooseSol");
     const chooseLua = el("chooseLua");
@@ -696,32 +727,6 @@
       showToast._timer = window.setTimeout(() => {
         toast.classList.remove("show");
       }, 3200);
-    }
-
-    function mostrarErroInicial(erro) {
-      console.error("Erro ao iniciar chat:", erro);
-
-      messagesEl.innerHTML = "";
-
-      const div = document.createElement("div");
-      div.className = "empty";
-      div.style.maxWidth = "620px";
-      div.style.margin = "22vh auto 0";
-      div.style.padding = "18px";
-      div.style.background = "#fff";
-      div.style.border = "1px solid #fecaca";
-      div.style.borderRadius = "18px";
-      div.style.color = "#991b1b";
-
-      div.innerHTML = `
-        <strong>Não foi possível conectar.</strong><br><br>
-        ${String(erro?.message || erro || "Erro desconhecido")}<br><br>
-        <span style="color:#64748b">
-          Abra por <b>http://localhost:8080</b> ou por HTTPS no GitHub Pages.
-        </span>
-      `;
-
-      messagesEl.appendChild(div);
     }
 
     function formatTime(ms) {
@@ -778,6 +783,10 @@
       localStorage.setItem("usuario_chat_recado", profile.recado || "Disponível");
     }
 
+    function otherProfileId() {
+      return perfil?.id === "sol" ? "lua" : "sol";
+    }
+
     function defaultProfile(id) {
       if (id === "lua") {
         return {
@@ -794,10 +803,6 @@
         emoji: "🌞",
         recado: "Disponível"
       };
-    }
-
-    function otherProfileId() {
-      return perfil?.id === "sol" ? "lua" : "sol";
     }
 
     function renderAvatarGrid() {
@@ -871,11 +876,14 @@
     async function registrarDispositivoWeb() {
       if (!uidAtual) return;
 
-      await set(ref(db, `${DEVICES_PATH}/${uidAtual}`), {
+      const dispositivoRef = ref(db, `${SALA}/usuariosDispositivos/${uidAtual}`);
+
+      await set(dispositivoRef, {
         ativo: true,
         tipo: "web",
         nome: "Navegador",
         plataforma: navigator.platform || "web",
+        userAgent: navigator.userAgent || "browser",
         atualizadoEm: Date.now()
       });
     }
@@ -884,7 +892,7 @@
       if (!perfil || !uidAtual) return;
 
       const userBase = ref(db, `${USERS_PATH}/${perfil.id}`);
-      const presenceRef = ref(db, `${USERS_PATH}/${perfil.id}/presenca/${uidAtual}`);
+      presenceRefAtual = ref(db, `${USERS_PATH}/${perfil.id}/presenca/${uidAtual}`);
 
       await update(userBase, {
         nome: perfil.nome,
@@ -894,12 +902,12 @@
         atualizadoEm: serverTimestamp()
       });
 
-      await set(presenceRef, {
+      await set(presenceRefAtual, {
         online: true,
         lastSeen: serverTimestamp()
       });
 
-      await onDisconnect(presenceRef).update({
+      await onDisconnect(presenceRefAtual).update({
         online: false,
         lastSeen: serverTimestamp()
       });
@@ -996,10 +1004,13 @@
 
       onValue(messagesRefAtual, (snap) => {
         const raw = snap.val() || {};
-
-        mensagens = Object.entries(raw)
+        const mensagensRecebidas = Object.entries(raw)
           .map(([id, data]) => parseMensagem(id, data || {}))
           .sort((a, b) => a.criadoEm - b.criadoEm);
+
+        processarNotificacoesMensagens(mensagensRecebidas);
+
+        mensagens = mensagensRecebidas;
 
         renderMensagens();
         marcarMensagensComoLidas();
@@ -1176,7 +1187,6 @@
         btn.textContent = minha
           ? `▶ Seu áudio ${duracaoAudio(msg.audioDuracaoMs)}`
           : `▶ Ouvir áudio ${duracaoAudio(msg.audioDuracaoMs)}`;
-
         btn.addEventListener("click", () => ouvirAudio(msg));
         return btn;
       }
@@ -1433,7 +1443,192 @@
 
       await marcarOnline();
       ouvirOutroUsuario();
+
+      primeiraCargaMensagens = true;
+      mensagensNotificadas.clear();
+
       ouvirMensagens();
+    }
+
+
+    function resumoNotificacao(msg) {
+      if (msg.tipo === "gif") return "Enviou uma figurinha";
+      if (msg.tipo === "audio") return "Enviou um áudio";
+      if (msg.tipo === "audio_consumido") return "Áudio ouvido";
+
+      const texto = String(msg.texto || "").trim();
+
+      if (!texto) return "Nova mensagem";
+      if (texto.length <= 90) return texto;
+
+      return `${texto.slice(0, 90)}...`;
+    }
+
+    function atualizarBotaoNotificacoes() {
+      if (!notificationsBtn) return;
+
+      notificationsBtn.classList.remove("notify-on", "notify-denied");
+
+      if (!("Notification" in window)) {
+        notificationsBtn.textContent = "🔕";
+        notificationsBtn.title = "Este navegador não suporta notificações.";
+        notificationsBtn.disabled = true;
+        notificacoesAtivas = false;
+        return;
+      }
+
+      const permissao = Notification.permission;
+      const desejaAtivar = localStorage.getItem("notificacoes_chat_web") === "true";
+
+      notificacoesAtivas = permissao === "granted" && desejaAtivar;
+
+      if (permissao === "denied") {
+        notificationsBtn.textContent = "🚫";
+        notificationsBtn.title = "Notificações bloqueadas no navegador.";
+        notificationsBtn.classList.add("notify-denied");
+        notificacoesAtivas = false;
+        return;
+      }
+
+      notificationsBtn.textContent = notificacoesAtivas ? "🔔" : "🔕";
+      notificationsBtn.title = notificacoesAtivas
+        ? "Notificações ativadas. Clique para desativar."
+        : "Ativar notificações de novas mensagens.";
+
+      if (notificacoesAtivas) {
+        notificationsBtn.classList.add("notify-on");
+      }
+    }
+
+    async function pedirPermissaoNotificacao() {
+      if (!("Notification" in window)) {
+        showToast("Este navegador não suporta notificações.");
+        atualizarBotaoNotificacoes();
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        const vaiAtivar = !notificacoesAtivas;
+
+        localStorage.setItem("notificacoes_chat_web", vaiAtivar ? "true" : "false");
+        notificacoesAtivas = vaiAtivar;
+
+        atualizarBotaoNotificacoes();
+
+        showToast(vaiAtivar ? "Notificações ativadas." : "Notificações desativadas.");
+        return;
+      }
+
+      if (Notification.permission === "denied") {
+        showToast("Notificações bloqueadas. Libere nas permissões do navegador.");
+        atualizarBotaoNotificacoes();
+        return;
+      }
+
+      const permissao = await Notification.requestPermission();
+
+      if (permissao === "granted") {
+        localStorage.setItem("notificacoes_chat_web", "true");
+        notificacoesAtivas = true;
+        showToast("Notificações ativadas.");
+      } else {
+        localStorage.setItem("notificacoes_chat_web", "false");
+        notificacoesAtivas = false;
+        showToast("Notificações não foram ativadas.");
+      }
+
+      atualizarBotaoNotificacoes();
+    }
+
+    function emitirNotificacaoMensagem(msg) {
+      const titulo = `${msg.autorEmoji || "💬"} ${msg.autorNome || "Nova mensagem"}`;
+      const corpo = resumoNotificacao(msg);
+
+      contadorNaoLidasTitulo += 1;
+      document.title = `(${contadorNaoLidasTitulo}) Comprinhas Chat`;
+
+      if (!notificacoesAtivas || !("Notification" in window) || Notification.permission !== "granted") {
+        showToast(`${titulo}: ${corpo}`);
+        return;
+      }
+
+      try {
+        const notificacao = new Notification(titulo, {
+          body: corpo,
+          tag: `comprinhas-${msg.id}`,
+          renotify: true,
+          silent: false
+        });
+
+        notificacao.onclick = () => {
+          window.focus();
+          notificacao.close();
+          resetarTituloNotificacoes();
+        };
+      } catch (_) {
+        showToast(`${titulo}: ${corpo}`);
+      }
+    }
+
+    function processarNotificacoesMensagens(novasMensagens) {
+      if (!perfil) return;
+
+      if (primeiraCargaMensagens) {
+        novasMensagens.forEach((msg) => mensagensNotificadas.add(msg.id));
+        primeiraCargaMensagens = false;
+        return;
+      }
+
+      for (const msg of novasMensagens) {
+        if (!msg || !msg.id) continue;
+        if (mensagensNotificadas.has(msg.id)) continue;
+
+        mensagensNotificadas.add(msg.id);
+
+        if (msg.apagada) continue;
+        if (msg.autorId === perfil.id) continue;
+        if (msg.criadoEm <= inicioSessaoNotificacoes) continue;
+
+        const paginaAberta = document.visibilityState === "visible" && document.hasFocus();
+
+        if (paginaAberta) {
+          showToast(`${msg.autorNome || "Nova mensagem"}: ${resumoNotificacao(msg)}`);
+        } else {
+          emitirNotificacaoMensagem(msg);
+        }
+      }
+    }
+
+    function resetarTituloNotificacoes() {
+      contadorNaoLidasTitulo = 0;
+      document.title = "Comprinhas Chat";
+    }
+
+    function mostrarErroInicial(erro) {
+      console.error("Erro ao iniciar chat:", erro);
+
+      messagesEl.innerHTML = "";
+
+      const div = document.createElement("div");
+      div.className = "empty";
+      div.style.maxWidth = "620px";
+      div.style.margin = "22vh auto 0";
+      div.style.padding = "18px";
+      div.style.background = "#fff";
+      div.style.border = "1px solid #fecaca";
+      div.style.borderRadius = "18px";
+      div.style.color = "#991b1b";
+
+      div.innerHTML = `
+        <strong>Não foi possível conectar.</strong><br><br>
+        ${String(erro?.message || erro || "Erro desconhecido")}<br><br>
+        <span style="color:#64748b">
+          Se estiver testando local, abra por <b>http://localhost:8080</b>, não por duplo clique no arquivo.
+          Se estiver no GitHub Pages, adicione seu domínio nos domínios autorizados do Firebase Authentication.
+        </span>
+      `;
+
+      messagesEl.appendChild(div);
     }
 
     async function init() {
@@ -1471,6 +1666,7 @@
         await registrarDispositivoWeb();
 
         renderStickers();
+        atualizarBotaoNotificacoes();
 
         perfil = profileFromStorage();
 
@@ -1489,6 +1685,7 @@
     chooseLua.addEventListener("click", () => setProfileChoice("lua"));
     saveProfileBtn.addEventListener("click", salvarPerfilDialog);
     profileBtn.addEventListener("click", openProfileDialog);
+    notificationsBtn.addEventListener("click", pedirPermissaoNotificacao);
     sendBtn.addEventListener("click", enviarMensagem);
     cancelReplyBtn.addEventListener("click", clearReply);
     stickersBtn.addEventListener("click", () => stickersDialog.showModal());
@@ -1515,6 +1712,8 @@
       }
     });
 
+    window.addEventListener("focus", resetarTituloNotificacoes);
+
     window.addEventListener("beforeunload", () => {
       marcarOffline();
       cleanupAudio();
@@ -1524,11 +1723,13 @@
       if (!perfil) return;
 
       if (document.visibilityState === "visible") {
+        resetarTituloNotificacoes();
         marcarOnline();
       } else {
         marcarOffline();
       }
     });
+
 
     window.addEventListener("error", (event) => {
       mostrarErroInicial(event.error || event.message || "Erro de JavaScript.");
