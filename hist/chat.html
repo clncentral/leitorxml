@@ -35,9 +35,7 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    button,
-    textarea,
-    input {
+    button, textarea, input {
       font: inherit;
     }
 
@@ -107,12 +105,6 @@
       text-overflow: ellipsis;
     }
 
-    .top-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
     .pill-btn {
       border-radius: 999px;
       padding: 9px 12px;
@@ -162,7 +154,6 @@
       border-radius: 16px;
       box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
       border: 1px solid rgba(219, 231, 243, 0.9);
-      position: relative;
       word-break: break-word;
     }
 
@@ -500,6 +491,7 @@
       text-align: center;
       color: var(--muted);
       margin-top: 30vh;
+      padding: 0 18px;
     }
 
     @media (max-width: 560px) {
@@ -526,9 +518,7 @@
         <div id="peerName" class="peer-name">Chat</div>
         <div id="peerStatus" class="peer-status">conectando...</div>
       </div>
-      <div class="top-actions">
-        <button id="profileBtn" class="pill-btn" type="button">Perfil</button>
-      </div>
+      <button id="profileBtn" class="pill-btn" type="button">Perfil</button>
     </header>
 
     <main id="messages" class="messages">
@@ -585,7 +575,7 @@
   <dialog id="stickersDialog">
     <div class="modal">
       <h2>Figurinhas</h2>
-      <p>Escolha uma reação para enviar.</p>
+      <p>Escolha uma reação.</p>
       <div id="stickerGrid" class="sticker-grid"></div>
       <div class="modal-actions">
         <button id="closeStickersBtn" class="secondary" type="button">Fechar</button>
@@ -616,7 +606,6 @@
     import {
       getDatabase,
       ref,
-      child,
       push,
       set,
       update,
@@ -642,6 +631,7 @@
     const SALA = "salas/pea_001";
     const CHAT_PATH = `${SALA}/chat/mensagens`;
     const USERS_PATH = `${SALA}/usuariosChat`;
+    const DEVICES_PATH = `${SALA}/usuariosDispositivos`;
 
     const avatars = ["🌞", "🌙", "👨", "🧔", "👨‍🦱", "👨‍🦰", "👩", "👩‍🦱", "👩‍🦰", "👩‍🦳"];
 
@@ -665,7 +655,6 @@
     let replyingTo = null;
     let messagesRefAtual = null;
     let peerRefAtual = null;
-    let presenceRefAtual = null;
     let currentAudioUrl = null;
     let currentAudioMessage = null;
     let audioFinished = false;
@@ -707,6 +696,32 @@
       showToast._timer = window.setTimeout(() => {
         toast.classList.remove("show");
       }, 3200);
+    }
+
+    function mostrarErroInicial(erro) {
+      console.error("Erro ao iniciar chat:", erro);
+
+      messagesEl.innerHTML = "";
+
+      const div = document.createElement("div");
+      div.className = "empty";
+      div.style.maxWidth = "620px";
+      div.style.margin = "22vh auto 0";
+      div.style.padding = "18px";
+      div.style.background = "#fff";
+      div.style.border = "1px solid #fecaca";
+      div.style.borderRadius = "18px";
+      div.style.color = "#991b1b";
+
+      div.innerHTML = `
+        <strong>Não foi possível conectar.</strong><br><br>
+        ${String(erro?.message || erro || "Erro desconhecido")}<br><br>
+        <span style="color:#64748b">
+          Abra por <b>http://localhost:8080</b> ou por HTTPS no GitHub Pages.
+        </span>
+      `;
+
+      messagesEl.appendChild(div);
     }
 
     function formatTime(ms) {
@@ -763,10 +778,6 @@
       localStorage.setItem("usuario_chat_recado", profile.recado || "Disponível");
     }
 
-    function otherProfileId() {
-      return perfil?.id === "sol" ? "lua" : "sol";
-    }
-
     function defaultProfile(id) {
       if (id === "lua") {
         return {
@@ -783,6 +794,10 @@
         emoji: "🌞",
         recado: "Disponível"
       };
+    }
+
+    function otherProfileId() {
+      return perfil?.id === "sol" ? "lua" : "sol";
     }
 
     function renderAvatarGrid() {
@@ -856,14 +871,11 @@
     async function registrarDispositivoWeb() {
       if (!uidAtual) return;
 
-      const dispositivoRef = ref(db, `${SALA}/usuariosDispositivos/${uidAtual}`);
-
-      await set(dispositivoRef, {
+      await set(ref(db, `${DEVICES_PATH}/${uidAtual}`), {
         ativo: true,
         tipo: "web",
         nome: "Navegador",
         plataforma: navigator.platform || "web",
-        userAgent: navigator.userAgent || "browser",
         atualizadoEm: Date.now()
       });
     }
@@ -872,7 +884,7 @@
       if (!perfil || !uidAtual) return;
 
       const userBase = ref(db, `${USERS_PATH}/${perfil.id}`);
-      presenceRefAtual = ref(db, `${USERS_PATH}/${perfil.id}/presenca/${uidAtual}`);
+      const presenceRef = ref(db, `${USERS_PATH}/${perfil.id}/presenca/${uidAtual}`);
 
       await update(userBase, {
         nome: perfil.nome,
@@ -882,12 +894,12 @@
         atualizadoEm: serverTimestamp()
       });
 
-      await set(presenceRefAtual, {
+      await set(presenceRef, {
         online: true,
         lastSeen: serverTimestamp()
       });
 
-      await onDisconnect(presenceRefAtual).update({
+      await onDisconnect(presenceRef).update({
         online: false,
         lastSeen: serverTimestamp()
       });
@@ -984,6 +996,7 @@
 
       onValue(messagesRefAtual, (snap) => {
         const raw = snap.val() || {};
+
         mensagens = Object.entries(raw)
           .map(([id, data]) => parseMensagem(id, data || {}))
           .sort((a, b) => a.criadoEm - b.criadoEm);
@@ -1163,6 +1176,7 @@
         btn.textContent = minha
           ? `▶ Seu áudio ${duracaoAudio(msg.audioDuracaoMs)}`
           : `▶ Ouvir áudio ${duracaoAudio(msg.audioDuracaoMs)}`;
+
         btn.addEventListener("click", () => ouvirAudio(msg));
         return btn;
       }
@@ -1422,33 +1436,6 @@
       ouvirMensagens();
     }
 
-    function mostrarErroInicial(erro) {
-      console.error("Erro ao iniciar chat:", erro);
-
-      messagesEl.innerHTML = "";
-
-      const div = document.createElement("div");
-      div.className = "empty";
-      div.style.maxWidth = "620px";
-      div.style.margin = "22vh auto 0";
-      div.style.padding = "18px";
-      div.style.background = "#fff";
-      div.style.border = "1px solid #fecaca";
-      div.style.borderRadius = "18px";
-      div.style.color = "#991b1b";
-
-      div.innerHTML = `
-        <strong>Não foi possível conectar.</strong><br><br>
-        ${String(erro?.message || erro || "Erro desconhecido")}<br><br>
-        <span style="color:#64748b">
-          Se estiver testando local, abra por <b>http://localhost:8080</b>, não por duplo clique no arquivo.
-          Se estiver no GitHub Pages, adicione seu domínio nos domínios autorizados do Firebase Authentication.
-        </span>
-      `;
-
-      messagesEl.appendChild(div);
-    }
-
     async function init() {
       messagesEl.innerHTML = '<div class="empty">Conectando ao Firebase...</div>';
 
@@ -1542,7 +1529,6 @@
         marcarOffline();
       }
     });
-
 
     window.addEventListener("error", (event) => {
       mostrarErroInicial(event.error || event.message || "Erro de JavaScript.");
