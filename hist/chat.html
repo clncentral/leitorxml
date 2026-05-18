@@ -114,6 +114,25 @@
       font-weight: 700;
     }
 
+    .notify-badge {
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 999px;
+      display: none;
+      place-items: center;
+      background: #dc2626;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28);
+    }
+
+    .notify-badge.visible {
+      display: grid;
+    }
+
     .messages {
       overflow-y: auto;
       padding: 12px 12px 16px;
@@ -518,6 +537,7 @@
         <div id="peerName" class="peer-name">Chat</div>
         <div id="peerStatus" class="peer-status">conectando...</div>
       </div>
+      <span id="unreadBadge" class="notify-badge" title="Novas mensagens">0</span>
       <button id="profileBtn" class="pill-btn" type="button">Perfil</button>
     </header>
 
@@ -666,6 +686,10 @@
     const mensagensConhecidasSom = new Set();
     const inicioSessaoSomMs = Date.now();
 
+    let novasMensagensNaoLidas = 0;
+    let paginaComFoco = !document.hidden;
+    const tituloOriginalPagina = document.title || "Comprinhas Chat";
+
     const el = (id) => document.getElementById(id);
 
     const messagesEl = el("messages");
@@ -695,6 +719,7 @@
     const stopAudioBtn = el("stopAudioBtn");
     const toast = el("toast");
     const notificationSound = el("notificationSound");
+    const unreadBadge = el("unreadBadge");
 
     async function desbloquearSomNotificacao() {
       if (notificationAudioUnlocked || !notificationSound) return;
@@ -733,6 +758,37 @@
       } catch (_) {}
     }
 
+    function atualizarIndicadorNovasMensagens() {
+      if (!unreadBadge) return;
+
+      if (novasMensagensNaoLidas <= 0) {
+        unreadBadge.textContent = "0";
+        unreadBadge.classList.remove("visible");
+        document.title = tituloOriginalPagina;
+        return;
+      }
+
+      const texto = novasMensagensNaoLidas > 99 ? "99+" : String(novasMensagensNaoLidas);
+
+      unreadBadge.textContent = texto;
+      unreadBadge.classList.add("visible");
+      document.title = `(${texto}) ${tituloOriginalPagina}`;
+    }
+
+    function zerarIndicadorNovasMensagens() {
+      novasMensagensNaoLidas = 0;
+      atualizarIndicadorNovasMensagens();
+    }
+
+    function registrarNovaMensagemRecebidaParaContador() {
+      if (paginaComFoco && document.visibilityState === "visible") {
+        return;
+      }
+
+      novasMensagensNaoLidas += 1;
+      atualizarIndicadorNovasMensagens();
+    }
+
     function processarSomNovaMensagem(listaMensagens) {
       if (!perfil) return;
 
@@ -756,6 +812,7 @@
         if (msg.autorId === perfil.id) return;
         if (msg.criadoEm <= inicioSessaoSomMs) return;
 
+        registrarNovaMensagemRecebidaParaContador();
         deveTocar = true;
       });
 
@@ -1599,7 +1656,22 @@
       cleanupAudio();
     });
 
+    window.addEventListener("focus", () => {
+      paginaComFoco = true;
+      zerarIndicadorNovasMensagens();
+    });
+
+    window.addEventListener("blur", () => {
+      paginaComFoco = false;
+    });
+
     document.addEventListener("visibilitychange", () => {
+      paginaComFoco = document.visibilityState === "visible";
+
+      if (paginaComFoco) {
+        zerarIndicadorNovasMensagens();
+      }
+
       if (!perfil) return;
 
       if (document.visibilityState === "visible") {
