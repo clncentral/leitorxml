@@ -1,15 +1,14 @@
 // ==UserScript==
-// @name         InfraDesk Despesas ↔ Planilha Realtime Firebase
+// @name         InfraDesk Despesas • Operador direto no Firebase
 // @namespace    clncentral/infradesk
-// @version      2.0.0
-// @description  Operadores em tempo real via Firebase. Consulta inicial uma vez, mantém cache local e atualiza só a linha alterada.
+// @version      3.4.1
+// @description  Injeta seletor pequeno de operador ao lado do número da despesa e grava direto no Firebase em tempo real.
+// @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
-// @connect      script.google.com
-// @connect      script.googleusercontent.com
 // @connect      infradesk-operadores-default-rtdb.firebaseio.com
 // @updateURL    https://clncentral.github.io/leitorxml/script/tamperMonkey.js
 // @downloadURL  https://clncentral.github.io/leitorxml/script/tamperMonkey.js
@@ -20,13 +19,15 @@
 
   var InfraDeskDespesas = {};
 
-  InfraDeskDespesas.WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw0DAs66VxKu_X5A1s2bCaxbPC6hRSYEg-7EG2hhnD4aA23P3GkMTw6uAuFdbIFpdNPPg/exec';
-  InfraDeskDespesas.SECRET = 'ksjddhasodiahsdlka';
   InfraDeskDespesas.FIREBASE_DB_URL = 'https://infradesk-operadores-default-rtdb.firebaseio.com';
 
-  InfraDeskDespesas.MAX_BATCH_POST = 300;
-  InfraDeskDespesas.MOSTRAR_SEM_OPERADOR = false;
-  InfraDeskDespesas.DEBOUNCE_HTML_MS = 500;
+  InfraDeskDespesas.OPERADORES = [
+    '',
+    'Elias Araujo',
+    'Camily',
+    'Elia Maria',
+    'Patricia'
+  ];
 
   InfraDeskDespesas.CORES_FIXAS_POR_OPERADOR = {
     "Elias Araujo": "#0324ff",
@@ -35,413 +36,239 @@
     "Patricia": "#ff8e03"
   };
 
+  InfraDeskDespesas.COR_SEM_OPERADOR = '#ffffff';
+
   InfraDeskDespesas.state = {
     started: false,
-    inFlight: false,
     ownMutation: false,
     observer: null,
-    debounceTimer: null,
     eventSource: null,
-    operatorsCache: {},
-    knownIds: new Set(),
-    lastFirebaseTs: 0
+    firebaseCache: {},
+    debounceTimer: null,
+    startupTimer: null,
+    startupCount: 0
   };
 
-  InfraDeskDespesas.toast = function (tipo, msg) {
-    try {
-      if (window.toastr && typeof window.toastr[tipo] === 'function') {
-        window.toastr[tipo](msg);
-        return;
-      }
-    } catch (_) {}
-
-    console.log(`[Sigma] ${String(tipo).toUpperCase()}: ${msg}`);
+  InfraDeskDespesas.clean = function (value) {
+    return String(value ?? '').replace(/\s+/g, ' ').trim();
   };
 
-  InfraDeskDespesas.ok = function (m) {
-    InfraDeskDespesas.toast('success', m);
-  };
-
-  InfraDeskDespesas.info = function (m) {
-    InfraDeskDespesas.toast('info', m);
-  };
-
-  InfraDeskDespesas.warn = function (m) {
-    InfraDeskDespesas.toast('warning', m);
-  };
-
-  InfraDeskDespesas.err = function (m) {
-    InfraDeskDespesas.toast('error', m);
-  };
-
-  InfraDeskDespesas.clean = function (s) {
-    return String(s ?? '')
-      .replace(/\u00a0/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  InfraDeskDespesas.onlyDigits = function (s) {
-    return (String(s ?? '').match(/\d+/g) || []).join('');
-  };
-
-  InfraDeskDespesas.normName = function (s) {
-    return InfraDeskDespesas.clean(s)
+  InfraDeskDespesas.norm = function (value) {
+    return InfraDeskDespesas.clean(value)
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
   };
 
-  InfraDeskDespesas.CORES_FIXAS_NORM = Object.fromEntries(
-    Object.entries(InfraDeskDespesas.CORES_FIXAS_POR_OPERADOR).map(([k, v]) => [
-      InfraDeskDespesas.normName(k),
-      v
-    ])
-  );
-
-  InfraDeskDespesas.hashHue = function (str) {
-    let h = 0;
-
-    for (let i = 0; i < str.length; i++) {
-      h = (h * 31 + str.charCodeAt(i)) | 0;
-    }
-
-    return Math.abs(h) % 360;
+  InfraDeskDespesas.firebaseUrl = function (path) {
+    const base = InfraDeskDespesas.FIREBASE_DB_URL.replace(/\/+$/, '');
+    const cleanPath = String(path || '').replace(/^\/+/, '');
+    return base + '/' + cleanPath + '.json';
   };
 
-  InfraDeskDespesas.colorForOperator = function (op) {
-    const key = InfraDeskDespesas.normName(op);
-
-    if (!key) return '#111827';
-    if (InfraDeskDespesas.CORES_FIXAS_NORM[key]) return InfraDeskDespesas.CORES_FIXAS_NORM[key];
-
-    const hue = InfraDeskDespesas.hashHue(key);
-    return `hsl(${hue} 70% 38%)`;
-  };
-
-  InfraDeskDespesas.absUrl = function (href) {
-    try {
-      return new URL(href, location.href).toString();
-    } catch (_) {
-      return null;
-    }
-  };
-
-  InfraDeskDespesas.gmJson = function (method, url, bodyObj) {
-    return new Promise((resolve, reject) => {
+  InfraDeskDespesas.request = function (opts) {
+    return new Promise(function (resolve, reject) {
       GM_xmlhttpRequest({
-        method,
-        url,
-        headers: bodyObj ? { 'Content-Type': 'application/json' } : {},
-        data: bodyObj ? JSON.stringify(bodyObj) : null,
+        method: opts.method || 'GET',
+        url: opts.url,
+        headers: opts.headers || {},
+        data: opts.data || null,
+        timeout: opts.timeout || 30000,
         onload: function (res) {
-          try {
-            const data = JSON.parse(res.responseText || '{}');
-            resolve({ status: res.status, data });
-          } catch (_) {
-            reject(new Error('Resposta inválida do WebApp.'));
-          }
+          resolve(res);
         },
-        onerror: function () {
-          reject(new Error('Falha de rede ao falar com o WebApp.'));
+        onerror: function (err) {
+          reject(err);
+        },
+        ontimeout: function () {
+          reject(new Error('timeout'));
         }
       });
     });
   };
 
-  InfraDeskDespesas.fetchHtml = async function (url) {
-    const r = await fetch(url, {
-      credentials: 'include',
-      cache: 'no-store'
-    });
+  InfraDeskDespesas.colorForOperator = function (name) {
+    name = InfraDeskDespesas.clean(name);
 
-    if (!r.ok) {
-      throw new Error(`Falha ao abrir a página (${r.status}). Você está logado?`);
+    if (InfraDeskDespesas.CORES_FIXAS_POR_OPERADOR[name]) {
+      return InfraDeskDespesas.CORES_FIXAS_POR_OPERADOR[name];
     }
 
-    return await r.text();
-  };
-
-  InfraDeskDespesas.injectCss = function () {
-    if (document.getElementById('sigmaDeskCss')) return;
-
-    const css = `
-#sigmaDotsBtn{
-  position:fixed; right:14px; bottom:14px; z-index:2147483647;
-  width:38px; height:38px; border-radius:12px;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(17,24,39,.95);
-  border:1px solid rgba(255,255,255,.12);
-  box-shadow:0 10px 24px rgba(0,0,0,.28);
-  cursor:pointer; user-select:none;
-  font-size:20px; color:#e8ecf1;
-}
-#sigmaDotsPanel{
-  position:fixed; right:14px; bottom:60px; z-index:2147483647;
-  width:380px; border-radius:14px;
-  background:rgba(17,24,39,.98);
-  border:1px solid rgba(255,255,255,.12);
-  box-shadow:0 14px 34px rgba(0,0,0,.35);
-  padding:10px;
-  display:none;
-}
-#sigmaDotsPanel .ttl{
-  font-size:12px;
-  color:rgba(232,236,241,.85);
-  margin:6px 8px 10px;
-}
-#sigmaDotsPanel .sub{
-  font-size:11px;
-  line-height:1.35;
-  color:rgba(232,236,241,.62);
-  margin:0 8px 10px;
-}
-#sigmaDotsPanel button{
-  width:100%;
-  text-align:left;
-  margin:6px 0;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.05);
-  color:#e8ecf1;
-  border-radius:12px;
-  padding:10px 12px;
-  cursor:pointer;
-  font-weight:700;
-}
-#sigmaDotsPanel button:hover{
-  background:rgba(255,255,255,.08);
-}
-.tm-op-badge{
-  display:inline-flex;
-  align-items:center;
-  margin-left:8px;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:900;
-  color:#fff;
-  vertical-align:middle;
-  box-shadow:0 8px 18px rgba(0,0,0,.20);
-}
-`;
-
-    const style = document.createElement('style');
-    style.id = 'sigmaDeskCss';
-    style.textContent = css;
-    document.head.appendChild(style);
-  };
-
-  InfraDeskDespesas.buildMenu = function () {
-    if (document.getElementById('sigmaDotsBtn')) return;
-
-    InfraDeskDespesas.injectCss();
-
-    const btn = document.createElement('div');
-    btn.id = 'sigmaDotsBtn';
-    btn.textContent = '⋯';
-
-    const panel = document.createElement('div');
-    panel.id = 'sigmaDotsPanel';
-
-    panel.innerHTML = `
-      <div class="ttl">Sigma • Despesas ↔ Planilha Realtime</div>
-      <div class="sub">Consulta inicial uma vez. Depois recebe alteração do Firebase e muda só a linha alterada.</div>
-      <button data-act="sync">📥 Limpar H vazia + enviar páginas + ordenar vencimento</button>
-      <button data-act="ops">👤 Recarregar operadores da planilha agora</button>
-      <button data-act="realtime">⚡ Reconectar Firebase</button>
-    `;
-
-    btn.addEventListener('click', function () {
-      panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
-    });
-
-    panel.addEventListener('click', async function (e) {
-      const b = e.target.closest('button[data-act]');
-      if (!b) return;
-
-      const act = b.getAttribute('data-act');
-
-      try {
-        if (act === 'sync') {
-          await InfraDeskDespesas.actionSyncAll();
-        }
-
-        if (act === 'ops') {
-          await InfraDeskDespesas.loadInitialOperators(true);
-        }
-
-        if (act === 'realtime') {
-          InfraDeskDespesas.connectFirebaseRealtime(true);
-        }
-      } catch (ex) {
-        InfraDeskDespesas.err(String(ex?.message || ex));
-      }
-    });
-
-    document.body.appendChild(btn);
-    document.body.appendChild(panel);
-
-    document.addEventListener('click', function (e) {
-      const inside = e.target.closest('#sigmaDotsPanel') || e.target.closest('#sigmaDotsBtn');
-      if (!inside) panel.style.display = 'none';
-    });
-  };
-
-  InfraDeskDespesas.findTableIn = function (root) {
-    return (
-      root.querySelector('.ibox-content table.table.table-stripped') ||
-      root.querySelector('table.table.table-stripped') ||
-      root.querySelector('table')
-    );
-  };
-
-  InfraDeskDespesas.getMainRows = function (root) {
-    const table = InfraDeskDespesas.findTableIn(root);
-    if (!table) return [];
-
-    let trs = [...table.querySelectorAll('tbody tr.tr-index:not(.expandir)')];
-
-    if (!trs.length) {
-      trs = [...table.querySelectorAll('tbody tr')];
+    if (!name) {
+      return InfraDeskDespesas.COR_SEM_OPERADOR;
     }
 
-    return trs;
-  };
+    let h = 0;
+    const key = InfraDeskDespesas.norm(name);
 
-  InfraDeskDespesas.getIdFromRow = function (tr) {
-    if (!tr) return null;
-
-    const cached = tr.getAttribute('data-sigma-id');
-    if (cached) return cached;
-
-    const firstTd = tr.querySelector('td');
-    const p = firstTd?.querySelector('p');
-    const id1 = InfraDeskDespesas.onlyDigits(p?.textContent || '');
-
-    if (id1) {
-      tr.setAttribute('data-sigma-id', id1);
-      return id1;
+    for (let i = 0; i < key.length; i++) {
+      h = (h * 31 + key.charCodeAt(i)) | 0;
     }
 
-    const any = tr.querySelectorAll('[onclick]');
+    return 'hsl(' + (Math.abs(h) % 360) + ' 72% 46%)';
+  };
 
-    for (const el of any) {
-      const oc = el.getAttribute('onclick') || '';
-      const m = oc.match(/abrirSolicitacao\s*\(\s*(\d+)\s*\)/i);
+  InfraDeskDespesas.textColorForOperator = function (name) {
+    name = InfraDeskDespesas.clean(name);
 
-      if (m) {
-        tr.setAttribute('data-sigma-id', m[1]);
-        return m[1];
+    if (!name) {
+      return '#334155';
+    }
+
+    if (name === 'Camily') {
+      return '#111827';
+    }
+
+    return '#ffffff';
+  };
+
+  InfraDeskDespesas.getRowId = function (tr) {
+    if (!tr) {
+      return '';
+    }
+
+    const dataId = InfraDeskDespesas.clean(tr.getAttribute('data-sigma-id'));
+
+    if (dataId) {
+      return dataId;
+    }
+
+    const firstCell = tr.children && tr.children.length ? tr.children[0] : null;
+
+    if (!firstCell) {
+      return '';
+    }
+
+    const p = firstCell.querySelector('p');
+
+    if (p) {
+      const pText = InfraDeskDespesas.clean(p.innerText || p.textContent || '');
+      const pMatch = pText.match(/^\d{3,}$/);
+
+      if (pMatch) {
+        return pMatch[0];
       }
     }
 
-    const m2 = (tr.innerHTML || '').match(/abrirSolicitacao\s*\(\s*(\d+)\s*\)/i);
-    const id2 = m2 ? m2[1] : null;
+    const text = InfraDeskDespesas.clean(firstCell.innerText || firstCell.textContent || '');
+    const match = text.match(/\b\d{4,}\b/);
 
-    if (id2) {
-      tr.setAttribute('data-sigma-id', id2);
-    }
-
-    return id2;
+    return match ? match[0] : '';
   };
 
-  InfraDeskDespesas.extrairEmissaoVencimento = function (td) {
-    if (!td) return { emissao: '', vencimento: '' };
-
-    const bs = [...td.querySelectorAll('b')]
-      .map(function (b) {
-        return InfraDeskDespesas.clean(b.textContent);
-      })
-      .filter(Boolean);
-
-    const reData = /\b\d{2}\/\d{2}\/\d{4}\b/;
-
-    if (bs.length >= 2 && reData.test(bs[0]) && reData.test(bs[1])) {
-      return {
-        emissao: bs[0],
-        vencimento: bs[1]
-      };
+  InfraDeskDespesas.isMainDespesaRow = function (tr) {
+    if (!tr) {
+      return false;
     }
 
-    const txt = InfraDeskDespesas.clean(td.innerText || td.textContent || '');
-    const matches = txt.match(/\b\d{2}\/\d{2}\/\d{4}\b/g) || [];
-
-    if (matches.length >= 2) {
-      return {
-        emissao: matches[0],
-        vencimento: matches[1]
-      };
+    if (tr.querySelector('th')) {
+      return false;
     }
 
-    if (matches.length === 1) {
-      return {
-        emissao: matches[0],
-        vencimento: ''
-      };
+    if (tr.classList.contains('expandir')) {
+      return false;
     }
 
-    const parts = (td.innerText || '')
-      .split('\n')
-      .map(InfraDeskDespesas.clean)
-      .filter(Boolean);
-
-    if (parts.length >= 2) {
-      return {
-        emissao: parts[0],
-        vencimento: parts[1]
-      };
+    if (String(tr.className || '').includes('expandir-')) {
+      return false;
     }
 
-    return {
-      emissao: txt,
-      vencimento: ''
-    };
-  };
+    const cells = Array.from(tr.children || []);
 
-  InfraDeskDespesas.parseRow = function (tr) {
-    const tds = [...tr.querySelectorAll('td')];
-    const id = InfraDeskDespesas.getIdFromRow(tr);
-
-    if (!id) return null;
-
-    const descricaoTd = tds[1];
-    const docTd = tds[2];
-    const fornTd = tds[3];
-    const datasTd = tds[4];
-    const valorTd = tds[5];
-
-    const descricao = InfraDeskDespesas.clean(descricaoTd?.innerText);
-
-    let documento = InfraDeskDespesas.clean(docTd?.innerText);
-    const isAtivo = !!docTd?.querySelector('i.fa-sitemap, i.fa.fa-sitemap');
-
-    if (isAtivo) {
-      documento = documento ? `${documento}\nAtivo` : 'Ativo';
+    if (cells.length < 6) {
+      return false;
     }
 
-    let fornecedor = InfraDeskDespesas.clean(fornTd?.innerText);
-    const badgesForn = [...(fornTd?.querySelectorAll('span.badge') || [])];
-    const isPgtoAntecipado = badgesForn.some(function (b) {
-      return /pgto\s*antecipado/i.test(InfraDeskDespesas.clean(b.textContent));
+    const id = InfraDeskDespesas.getRowId(tr);
+
+    if (!id) {
+      return false;
+    }
+
+    const hasButtons = !!tr.querySelector('.td-buttons, a.btn, button.btn');
+    const hasValor = cells.some(function (td) {
+      return /\bR\$\s*/.test(td.innerText || td.textContent || '');
     });
 
-    if (isPgtoAntecipado) {
-      fornecedor = fornecedor ? `${fornecedor}\nPgto Antecipado` : 'Pgto Antecipado';
+    return hasButtons || hasValor || tr.hasAttribute('data-sigma-id');
+  };
+
+  InfraDeskDespesas.getMainRows = function () {
+    const table = document.querySelector('.ibox-content table') || document.querySelector('table');
+
+    if (!table) {
+      return [];
     }
+
+    return Array.from(table.querySelectorAll('tbody tr')).filter(function (tr) {
+      return InfraDeskDespesas.isMainDespesaRow(tr);
+    });
+  };
+
+  InfraDeskDespesas.findRowsById = function (id) {
+    id = InfraDeskDespesas.clean(id);
+
+    if (!id) {
+      return [];
+    }
+
+    return InfraDeskDespesas.getMainRows().filter(function (tr) {
+      return InfraDeskDespesas.getRowId(tr) === id;
+    });
+  };
+
+  InfraDeskDespesas.getMainCell = function (tr) {
+    if (!tr || !tr.children || !tr.children.length) {
+      return null;
+    }
+
+    return tr.children[0];
+  };
+
+  InfraDeskDespesas.getNumberElement = function (tr) {
+    const cell = InfraDeskDespesas.getMainCell(tr);
+
+    if (!cell) {
+      return null;
+    }
+
+    return cell.querySelector('p') || null;
+  };
+
+  InfraDeskDespesas.getRowInfo = function (tr) {
+    const cells = Array.from(tr.children || []);
+
+    const descricao = cells[1]
+      ? InfraDeskDespesas.clean(cells[1].innerText || cells[1].textContent || '')
+      : '';
+
+    const documento = cells[2]
+      ? InfraDeskDespesas.clean(cells[2].innerText || cells[2].textContent || '')
+      : '';
+
+    const fornecedor = cells[3]
+      ? InfraDeskDespesas.clean(cells[3].innerText || cells[3].textContent || '')
+      : '';
 
     let emissao = '';
     let vencimento = '';
 
-    if (datasTd) {
-      const dv = InfraDeskDespesas.extrairEmissaoVencimento(datasTd);
-      emissao = dv.emissao;
-      vencimento = dv.vencimento;
+    if (cells[4]) {
+      const dateTexts = Array.from(cells[4].querySelectorAll('b'))
+        .map(function (el) {
+          return InfraDeskDespesas.clean(el.innerText || el.textContent || '');
+        })
+        .filter(Boolean);
+
+      emissao = dateTexts[0] || '';
+      vencimento = dateTexts[1] || '';
     }
 
-    const valor = InfraDeskDespesas.clean(valorTd?.innerText);
+    const valor = cells[5]
+      ? InfraDeskDespesas.clean(cells[5].innerText || cells[5].textContent || '')
+      : '';
 
     return {
-      id,
       descricao,
       documento,
       fornecedor,
@@ -451,461 +278,508 @@
     };
   };
 
-  InfraDeskDespesas.pageNumFromUrl = function (u) {
-    try {
-      const url = new URL(u);
-      const qp = url.searchParams;
-      const v = qp.get('page') || qp.get('pagina') || qp.get('p');
-
-      if (v && /^\d+$/.test(v)) return parseInt(v, 10);
-
-      const m = u.match(/(?:page|pagina)[:=](\d+)/i);
-      return m ? parseInt(m[1], 10) : 1;
-    } catch (_) {
-      return 1;
-    }
-  };
-
-  InfraDeskDespesas.getAllPageUrlsFromDocument = function (doc) {
-    const urls = new Map();
-    const here = location.href;
-
-    urls.set(here, InfraDeskDespesas.pageNumFromUrl(here));
-
-    const pagers = doc.querySelectorAll(
-      '.pagination a[href], ul.pagination a[href], .paginator a[href], a[href*="page"], a[href*="pagina"]'
-    );
-
-    pagers.forEach(function (a) {
-      const u = InfraDeskDespesas.absUrl(a.getAttribute('href'));
-
-      if (!u) return;
-      if (!u.includes('/backend/despesas')) return;
-
-      urls.set(u, InfraDeskDespesas.pageNumFromUrl(u));
-    });
-
-    return [...urls.entries()]
-      .sort(function (a, b) {
-        return a[1] - b[1];
-      })
-      .map(function ([u]) {
-        return u;
-      });
-  };
-
-  InfraDeskDespesas.actionSyncAll = async function () {
-    if (!InfraDeskDespesas.WEBAPP_URL.includes('/exec')) {
-      throw new Error('Cole a URL do WebApp terminando com /exec.');
-    }
-
-    const pageUrls = InfraDeskDespesas.getAllPageUrlsFromDocument(document);
-
-    if (!pageUrls.length) {
-      throw new Error('Não encontrei paginação aqui.');
-    }
-
-    InfraDeskDespesas.info(`Vou ler ${pageUrls.length} página(s)...`);
-
-    const all = [];
-    const byId = new Set();
-
-    for (let i = 0; i < pageUrls.length; i++) {
-      InfraDeskDespesas.info(`Lendo página ${i + 1} de ${pageUrls.length}...`);
-
-      const html = await InfraDeskDespesas.fetchHtml(pageUrls[i]);
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const trs = InfraDeskDespesas.getMainRows(doc);
-
-      for (const tr of trs) {
-        const r = InfraDeskDespesas.parseRow(tr);
-
-        if (!r) continue;
-        if (byId.has(r.id)) continue;
-
-        byId.add(r.id);
-        all.push(r);
-      }
-    }
-
-    if (!all.length) {
-      InfraDeskDespesas.warn('Não consegui capturar nenhum registro.');
+  InfraDeskDespesas.injectStyle = function () {
+    if (document.getElementById('tm-infradesk-operador-style')) {
       return;
     }
 
-    InfraDeskDespesas.info(`Coleta finalizada: ${all.length} registro(s).`);
-    InfraDeskDespesas.info('Limpando da planilha as linhas com coluna H vazia...');
-
-    const purgeRes = await InfraDeskDespesas.gmJson('POST', InfraDeskDespesas.WEBAPP_URL, {
-      secret: InfraDeskDespesas.SECRET,
-      action: 'purge_empty_h'
-    });
-
-    if (!purgeRes.data?.ok) {
-      throw new Error(purgeRes.data?.error || 'Erro ao limpar linhas com coluna H vazia.');
-    }
-
-    const purgedTotal = Number(purgeRes.data.removed || 0);
-
-    InfraDeskDespesas.info('Enviando registros em lotes para a planilha...');
-
-    let insertedTotal = 0;
-    let skippedTotal = 0;
-
-    for (let i = 0; i < all.length; i += InfraDeskDespesas.MAX_BATCH_POST) {
-      const chunk = all.slice(i, i + InfraDeskDespesas.MAX_BATCH_POST);
-
-      const res = await InfraDeskDespesas.gmJson('POST', InfraDeskDespesas.WEBAPP_URL, {
-        secret: InfraDeskDespesas.SECRET,
-        rows: chunk
-      });
-
-      if (!res.data?.ok) {
-        throw new Error(res.data?.error || 'Erro ao inserir na planilha.');
+    const style = document.createElement('style');
+    style.id = 'tm-infradesk-operador-style';
+    style.textContent = `
+      tr.tr-index > td:first-child p {
+        display: inline-block !important;
+        margin: 0 4px 0 4px !important;
+        vertical-align: middle !important;
+        line-height: 22px !important;
       }
 
-      insertedTotal += Number(res.data.inserted || 0);
-      skippedTotal += Number(res.data.skipped || 0);
+      .tm-op-inline {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+        margin: 0 0 0 4px !important;
+        vertical-align: middle !important;
+      }
+
+      .tm-op-select {
+        display: inline-block !important;
+        width: 92px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        max-height: 22px !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 7px !important;
+        color: #334155 !important;
+        font-size: 10px !important;
+        font-weight: 900 !important;
+        padding: 1px 4px !important;
+        outline: none !important;
+        cursor: pointer !important;
+        line-height: 18px !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .08) !important;
+        vertical-align: middle !important;
+      }
+
+      .tm-op-select:hover {
+        border-color: #2563eb !important;
+      }
+
+      .tm-op-select:focus {
+        border-color: #2563eb !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .14) !important;
+      }
+
+      .tm-op-select.tm-op-saving {
+        opacity: .6 !important;
+        pointer-events: none !important;
+      }
+
+      .tm-op-select option {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-weight: 800 !important;
+      }
+
+      .tm-op-status {
+        display: inline-block !important;
+        min-width: 11px !important;
+        color: #64748b !important;
+        font-size: 10px !important;
+        font-weight: 900 !important;
+        line-height: 1 !important;
+      }
+
+      .tm-firebase-panel {
+        position: fixed !important;
+        right: 14px !important;
+        bottom: 14px !important;
+        z-index: 999999 !important;
+        background: #111827 !important;
+        color: #fff !important;
+        border-radius: 16px !important;
+        padding: 9px 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        box-shadow: 0 14px 34px rgba(0,0,0,.25) !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+      }
+
+      .tm-firebase-dot {
+        width: 9px !important;
+        height: 9px !important;
+        border-radius: 999px !important;
+        background: #f59e0b !important;
+      }
+
+      .tm-firebase-dot.on {
+        background: #22c55e !important;
+        box-shadow: 0 0 0 4px rgba(34,197,94,.16) !important;
+      }
+
+      .tm-firebase-dot.off {
+        background: #ef4444 !important;
+        box-shadow: 0 0 0 4px rgba(239,68,68,.14) !important;
+      }
+
+      .tm-firebase-panel button {
+        border: 0 !important;
+        border-radius: 10px !important;
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        cursor: pointer !important;
+        background: #2563eb !important;
+        color: #fff !important;
+      }
+
+      .tm-debug-count {
+        color: #cbd5e1 !important;
+        font-size: 11px !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+  };
+
+  InfraDeskDespesas.setPanelStatus = function (online, text) {
+    const dot = document.querySelector('.tm-firebase-dot');
+    const label = document.querySelector('.tm-firebase-label');
+    const count = document.querySelector('.tm-debug-count');
+
+    if (dot) {
+      dot.classList.remove('on', 'off');
+      dot.classList.add(online ? 'on' : 'off');
     }
 
-    InfraDeskDespesas.info('Organizando a planilha com vencimento()...');
+    if (label) {
+      label.textContent = text;
+    }
 
-    const sortRes = await InfraDeskDespesas.gmJson('POST', InfraDeskDespesas.WEBAPP_URL, {
-      secret: InfraDeskDespesas.SECRET,
-      action: 'run_vencimento'
+    if (count) {
+      count.textContent = InfraDeskDespesas.getMainRows().length + ' linhas';
+    }
+  };
+
+  InfraDeskDespesas.injectPanel = function () {
+    if (document.getElementById('tm-firebase-panel')) {
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'tm-firebase-panel';
+    panel.className = 'tm-firebase-panel';
+
+    const dot = document.createElement('span');
+    dot.className = 'tm-firebase-dot';
+
+    const label = document.createElement('span');
+    label.className = 'tm-firebase-label';
+    label.textContent = 'Firebase...';
+
+    const count = document.createElement('span');
+    count.className = 'tm-debug-count';
+    count.textContent = '0 linhas';
+
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Recarregar';
+    reload.addEventListener('click', function () {
+      InfraDeskDespesas.forceRefresh();
     });
 
-    if (!sortRes.data?.ok) {
-      InfraDeskDespesas.warn(`Importação concluída, mas vencimento() falhou: ${sortRes.data?.error || 'erro desconhecido'}`);
-    } else if (sortRes.data?.vencimento_ok === false) {
-      InfraDeskDespesas.warn(`Importação concluída, mas vencimento() não rodou: ${sortRes.data?.vencimento_error || 'função não encontrada'}`);
-    }
+    panel.appendChild(dot);
+    panel.appendChild(label);
+    panel.appendChild(count);
+    panel.appendChild(reload);
 
-    InfraDeskDespesas.ok(`Planilha atualizada! Removidos H vazio: ${purgedTotal} | Inseridos: ${insertedTotal} | Ignorados: ${skippedTotal}`);
-
-    await InfraDeskDespesas.loadInitialOperators(false);
+    document.body.appendChild(panel);
   };
 
-  InfraDeskDespesas.ensureBadge = function (pEl) {
-    let badge = pEl.parentNode.querySelector('.tm-op-badge');
+  InfraDeskDespesas.createSelect = function (tr, id) {
+    const select = document.createElement('select');
+    select.className = 'tm-op-select';
+    select.dataset.sigmaId = id;
 
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'tm-op-badge';
-      pEl.parentNode.appendChild(badge);
+    for (const op of InfraDeskDespesas.OPERADORES) {
+      const option = document.createElement('option');
+      option.value = op;
+      option.textContent = op || 'Sem operador';
+      select.appendChild(option);
     }
 
-    return badge;
+    select.addEventListener('click', function (event) {
+      event.stopPropagation();
+    });
+
+    select.addEventListener('mousedown', function (event) {
+      event.stopPropagation();
+    });
+
+    select.addEventListener('change', function () {
+      const novoOperador = InfraDeskDespesas.clean(select.value);
+      const atual = InfraDeskDespesas.getCurrentOperator(id);
+
+      if (atual && novoOperador && atual !== novoOperador) {
+        const ok = window.confirm('Esta despesa está com ' + atual + '.\n\nDeseja assumir para ' + novoOperador + '?');
+
+        if (!ok) {
+          InfraDeskDespesas.setSelectValue(tr, atual);
+          return;
+        }
+      }
+
+      if (atual && !novoOperador) {
+        const ok = window.confirm('Esta despesa está com ' + atual + '.\n\nDeseja remover o operador?');
+
+        if (!ok) {
+          InfraDeskDespesas.setSelectValue(tr, atual);
+          return;
+        }
+      }
+
+      InfraDeskDespesas.saveOperatorFromRow(tr, id, novoOperador);
+    });
+
+    return select;
   };
 
-  InfraDeskDespesas.clearOperatorFromRow = function (tr) {
-    if (!tr) return;
+  InfraDeskDespesas.getCurrentOperator = function (id) {
+    id = InfraDeskDespesas.clean(id);
 
-    const firstTd = tr.querySelector('td');
-    const p = firstTd?.querySelector('p');
+    const item = InfraDeskDespesas.state.firebaseCache[id];
 
-    if (!p) return;
-
-    const old = p.parentNode.querySelector('.tm-op-badge');
-
-    if (old) {
-      old.remove();
+    if (!item || typeof item !== 'object') {
+      return '';
     }
 
-    const td = p.closest('td');
+    return InfraDeskDespesas.clean(item.operador);
+  };
 
-    if (td) {
-      td.style.boxShadow = '';
+  InfraDeskDespesas.ensureInlineSelect = function (tr) {
+    const id = InfraDeskDespesas.getRowId(tr);
+    const cell = InfraDeskDespesas.getMainCell(tr);
+
+    if (!id || !cell) {
+      return null;
+    }
+
+    let inline = cell.querySelector('.tm-op-inline');
+
+    if (!inline) {
+      inline = document.createElement('span');
+      inline.className = 'tm-op-inline';
+
+      const select = InfraDeskDespesas.createSelect(tr, id);
+      const status = document.createElement('span');
+      status.className = 'tm-op-status';
+
+      inline.appendChild(select);
+      inline.appendChild(status);
+
+      const numberEl = InfraDeskDespesas.getNumberElement(tr);
+
+      if (numberEl) {
+        numberEl.insertAdjacentElement('afterend', inline);
+      } else {
+        cell.insertBefore(inline, cell.firstChild);
+      }
+    }
+
+    return inline;
+  };
+
+  InfraDeskDespesas.setStatus = function (tr, text) {
+    const status = tr.querySelector('.tm-op-status');
+
+    if (status) {
+      status.textContent = text || '';
+    }
+  };
+
+  InfraDeskDespesas.setSelectValue = function (tr, operador) {
+    const select = tr.querySelector('.tm-op-select');
+
+    if (!select) {
+      return;
+    }
+
+    operador = InfraDeskDespesas.clean(operador);
+
+    const exists = Array.from(select.options).some(function (option) {
+      return option.value === operador;
+    });
+
+    if (!exists && operador) {
+      const option = document.createElement('option');
+      option.value = operador;
+      option.textContent = operador;
+      select.appendChild(option);
+    }
+
+    select.value = operador;
+    InfraDeskDespesas.styleSelect(select, operador);
+  };
+
+  InfraDeskDespesas.styleSelect = function (select, operador) {
+    operador = InfraDeskDespesas.clean(operador);
+
+    const color = InfraDeskDespesas.colorForOperator(operador);
+    const textColor = InfraDeskDespesas.textColorForOperator(operador);
+
+    select.style.setProperty('background', color, 'important');
+    select.style.setProperty('background-color', color, 'important');
+    select.style.setProperty('color', textColor, 'important');
+    select.style.setProperty('border-color', operador ? color : '#94a3b8', 'important');
+
+    if (operador) {
+      select.style.setProperty('box-shadow', '0 0 0 2px ' + color + '33', 'important');
+    } else {
+      select.style.setProperty('box-shadow', '0 1px 3px rgba(15, 23, 42, .08)', 'important');
     }
   };
 
   InfraDeskDespesas.paintOperatorOnRow = function (tr, operador) {
-    if (!tr) return;
+    operador = InfraDeskDespesas.clean(operador);
 
-    const firstTd = tr.querySelector('td');
-    const p = firstTd?.querySelector('p');
+    InfraDeskDespesas.ensureInlineSelect(tr);
+    InfraDeskDespesas.setSelectValue(tr, operador);
 
-    if (!p) return;
+    const color = InfraDeskDespesas.colorForOperator(operador);
+    const firstCell = InfraDeskDespesas.getMainCell(tr);
 
-    const op = InfraDeskDespesas.clean(operador);
+    if (!operador) {
+      tr.style.boxShadow = '';
 
-    if (!op && !InfraDeskDespesas.MOSTRAR_SEM_OPERADOR) {
-      InfraDeskDespesas.clearOperatorFromRow(tr);
+      if (firstCell) {
+        firstCell.style.boxShadow = '';
+      }
+
       return;
     }
 
-    const badge = InfraDeskDespesas.ensureBadge(p);
-    const cor = InfraDeskDespesas.colorForOperator(op);
-    const label = op || '—';
+    tr.style.boxShadow = 'inset 5px 0 0 ' + color;
 
-    if (badge.textContent !== label) {
-      badge.textContent = label;
-    }
-
-    if (badge.style.background !== cor) {
-      badge.style.background = cor;
-    }
-
-    if (badge.style.color !== 'rgb(255, 255, 255)') {
-      badge.style.color = '#fff';
-    }
-
-    const td = p.closest('td');
-    const next = `inset 6px 0 0 ${cor}`;
-
-    if (td && td.style.boxShadow !== next) {
-      td.style.boxShadow = next;
+    if (firstCell) {
+      firstCell.style.boxShadow = color + ' 6px 0px 0px inset';
     }
   };
 
-  InfraDeskDespesas.getRowsById = function (id) {
-    id = InfraDeskDespesas.clean(id);
-    if (!id) return [];
-
-    const rows = InfraDeskDespesas.getMainRows(document);
-    const found = [];
+  InfraDeskDespesas.updateRowUI = function (id, operador) {
+    const rows = InfraDeskDespesas.findRowsById(id);
 
     for (const tr of rows) {
-      const rowId = InfraDeskDespesas.getIdFromRow(tr);
-
-      if (rowId === id) {
-        found.push(tr);
-      }
+      InfraDeskDespesas.paintOperatorOnRow(tr, operador);
     }
-
-    return found;
   };
 
-  InfraDeskDespesas.updateSingleOperator = function (id, operador) {
+  InfraDeskDespesas.applyFirebaseItem = function (id, item) {
     id = InfraDeskDespesas.clean(id);
-    operador = InfraDeskDespesas.clean(operador);
 
-    if (!id) return 0;
-
-    if (operador) {
-      InfraDeskDespesas.state.operatorsCache[id] = operador;
-    } else {
-      delete InfraDeskDespesas.state.operatorsCache[id];
+    if (!id) {
+      return;
     }
 
-    const rows = InfraDeskDespesas.getRowsById(id);
+    item = item && typeof item === 'object' ? item : {};
+
+    const operador = InfraDeskDespesas.clean(item.operador);
+
+    InfraDeskDespesas.state.firebaseCache[id] = item;
+    InfraDeskDespesas.updateRowUI(id, operador);
+  };
+
+  InfraDeskDespesas.removeFirebaseItem = function (id) {
+    id = InfraDeskDespesas.clean(id);
+
+    if (!id) {
+      return;
+    }
+
+    delete InfraDeskDespesas.state.firebaseCache[id];
+    InfraDeskDespesas.updateRowUI(id, '');
+  };
+
+  InfraDeskDespesas.injectRow = function (tr) {
+    const id = InfraDeskDespesas.getRowId(tr);
+
+    if (!id) {
+      return;
+    }
+
+    InfraDeskDespesas.ensureInlineSelect(tr);
+
+    const cached = InfraDeskDespesas.state.firebaseCache[id];
+
+    if (cached) {
+      InfraDeskDespesas.paintOperatorOnRow(tr, InfraDeskDespesas.clean(cached.operador));
+    } else {
+      InfraDeskDespesas.paintOperatorOnRow(tr, '');
+    }
+  };
+
+  InfraDeskDespesas.injectAllRows = function () {
+    const rows = InfraDeskDespesas.getMainRows();
 
     InfraDeskDespesas.state.ownMutation = true;
 
     try {
       for (const tr of rows) {
-        InfraDeskDespesas.paintOperatorOnRow(tr, operador);
+        InfraDeskDespesas.injectRow(tr);
       }
     } finally {
       setTimeout(function () {
         InfraDeskDespesas.state.ownMutation = false;
-      }, 100);
+        InfraDeskDespesas.setPanelStatus(true, 'Firebase conectado');
+      }, 0);
     }
-
-    return rows.length;
   };
 
-  InfraDeskDespesas.paintAllFromCache = function () {
-    const trs = InfraDeskDespesas.getMainRows(document);
-    let count = 0;
+  InfraDeskDespesas.saveOperatorFromRow = async function (tr, id, operador) {
+    id = InfraDeskDespesas.clean(id);
+    operador = InfraDeskDespesas.clean(operador);
 
-    InfraDeskDespesas.state.ownMutation = true;
-
-    try {
-      for (const tr of trs) {
-        const id = InfraDeskDespesas.getIdFromRow(tr);
-
-        if (!id) continue;
-
-        InfraDeskDespesas.state.knownIds.add(id);
-
-        const operador = InfraDeskDespesas.state.operatorsCache[id] || '';
-        InfraDeskDespesas.paintOperatorOnRow(tr, operador);
-
-        count++;
-      }
-    } finally {
-      setTimeout(function () {
-        InfraDeskDespesas.state.ownMutation = false;
-      }, 100);
-    }
-
-    return count;
-  };
-
-  InfraDeskDespesas.getCurrentIds = function () {
-    const trs = InfraDeskDespesas.getMainRows(document);
-    const ids = [];
-
-    for (const tr of trs) {
-      const id = InfraDeskDespesas.getIdFromRow(tr);
-
-      if (id) {
-        ids.push(id);
-      }
-    }
-
-    return [...new Set(ids)];
-  };
-
-  InfraDeskDespesas.getOperadoresUrl = function (ids) {
-    const idsKey = ids.join(',');
-    const params = [];
-
-    params.push('ids=' + encodeURIComponent(idsKey));
-    params.push('nocache=1');
-    params.push('_tm=' + encodeURIComponent(String(Date.now())));
-
-    return InfraDeskDespesas.WEBAPP_URL +
-      (InfraDeskDespesas.WEBAPP_URL.includes('?') ? '&' : '?') +
-      params.join('&');
-  };
-
-  InfraDeskDespesas.loadInitialOperators = async function (manual) {
-    if (InfraDeskDespesas.state.inFlight) return;
-
-    const ids = InfraDeskDespesas.getCurrentIds();
-
-    if (!ids.length) {
-      if (manual) {
-        InfraDeskDespesas.warn('Não encontrei registros nesta página.');
-      }
-
+    if (!id) {
       return;
     }
 
-    InfraDeskDespesas.state.inFlight = true;
+    const select = tr.querySelector('.tm-op-select');
+
+    if (select) {
+      select.classList.add('tm-op-saving');
+    }
+
+    InfraDeskDespesas.setStatus(tr, '...');
+
+    const rowInfo = InfraDeskDespesas.getRowInfo(tr);
+
+    const payload = {
+      id: id,
+      operador: operador,
+      descricao: rowInfo.descricao,
+      documento: rowInfo.documento,
+      fornecedor: rowInfo.fornecedor,
+      emissao: rowInfo.emissao,
+      vencimento: rowInfo.vencimento,
+      valor: rowInfo.valor,
+      source: 'tampermonkey',
+      ts: Date.now()
+    };
+
+    InfraDeskDespesas.state.firebaseCache[id] = payload;
+    InfraDeskDespesas.updateRowUI(id, operador);
 
     try {
-      const url = InfraDeskDespesas.getOperadoresUrl(ids);
-      const res = await InfraDeskDespesas.gmJson('GET', url, null);
-
-      if (!res.data?.ok) {
-        throw new Error(res.data?.error || 'Erro ao buscar Operadores na planilha.');
-      }
-
-      const map = res.data.map || {};
-      Object.assign(InfraDeskDespesas.state.operatorsCache, map);
-
-      for (const id of ids) {
-        InfraDeskDespesas.state.knownIds.add(id);
-        if (!map[id] && !InfraDeskDespesas.state.operatorsCache[id]) {
-          delete InfraDeskDespesas.state.operatorsCache[id];
-        }
-      }
-
-      const painted = InfraDeskDespesas.paintAllFromCache();
-
-      if (manual) {
-        InfraDeskDespesas.ok(`Operadores recarregados: ${painted} linha(s).`);
-      }
-    } catch (ex) {
-      if (manual) {
-        InfraDeskDespesas.err(String(ex?.message || ex));
-      }
-    } finally {
-      InfraDeskDespesas.state.inFlight = false;
-    }
-  };
-
-  InfraDeskDespesas.fetchMissingIdsOnly = async function (ids) {
-    const missing = ids.filter(function (id) {
-      return !Object.prototype.hasOwnProperty.call(InfraDeskDespesas.state.operatorsCache, id);
-    });
-
-    if (!missing.length) {
-      InfraDeskDespesas.paintAllFromCache();
-      return;
-    }
-
-    if (InfraDeskDespesas.state.inFlight) {
-      InfraDeskDespesas.paintAllFromCache();
-      return;
-    }
-
-    InfraDeskDespesas.state.inFlight = true;
-
-    try {
-      const url = InfraDeskDespesas.getOperadoresUrl(missing);
-      const res = await InfraDeskDespesas.gmJson('GET', url, null);
-
-      if (res.data?.ok) {
-        const map = res.data.map || {};
-
-        for (const id of missing) {
-          if (map[id]) {
-            InfraDeskDespesas.state.operatorsCache[id] = map[id];
-          } else {
-            InfraDeskDespesas.state.operatorsCache[id] = '';
-          }
-        }
-      }
-
-      InfraDeskDespesas.paintAllFromCache();
-    } finally {
-      InfraDeskDespesas.state.inFlight = false;
-    }
-  };
-
-  InfraDeskDespesas.scheduleHtmlUpdate = function () {
-    clearTimeout(InfraDeskDespesas.state.debounceTimer);
-
-    InfraDeskDespesas.state.debounceTimer = setTimeout(function () {
-      const ids = InfraDeskDespesas.getCurrentIds();
-
-      for (const id of ids) {
-        InfraDeskDespesas.state.knownIds.add(id);
-      }
-
-      InfraDeskDespesas.fetchMissingIdsOnly(ids);
-    }, InfraDeskDespesas.DEBOUNCE_HTML_MS);
-  };
-
-  InfraDeskDespesas.attachObserver = function () {
-    const table = InfraDeskDespesas.findTableIn(document);
-    const tbody = table?.querySelector('tbody');
-
-    if (!tbody) return;
-
-    if (InfraDeskDespesas.state.observer) {
-      InfraDeskDespesas.state.observer.disconnect();
-      InfraDeskDespesas.state.observer = null;
-    }
-
-    InfraDeskDespesas.state.observer = new MutationObserver(function (mutations) {
-      if (InfraDeskDespesas.state.ownMutation) return;
-
-      const relevant = mutations.some(function (m) {
-        if (m.type !== 'childList') return false;
-
-        const added = [...m.addedNodes].some(function (n) {
-          if (n.nodeType !== 1) return false;
-          if (n.classList?.contains('tm-op-badge')) return false;
-          return true;
-        });
-
-        const removed = [...m.removedNodes].some(function (n) {
-          if (n.nodeType !== 1) return false;
-          if (n.classList?.contains('tm-op-badge')) return false;
-          return true;
-        });
-
-        return added || removed;
+      await InfraDeskDespesas.request({
+        method: 'PUT',
+        url: InfraDeskDespesas.firebaseUrl('despesas_updates/by_id/' + encodeURIComponent(id)),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify(payload)
       });
 
-      if (!relevant) return;
+      InfraDeskDespesas.setStatus(tr, '✓');
 
-      InfraDeskDespesas.scheduleHtmlUpdate();
-    });
+      setTimeout(function () {
+        InfraDeskDespesas.setStatus(tr, '');
+      }, 1200);
+    } catch (err) {
+      InfraDeskDespesas.setStatus(tr, '!');
+      console.warn('[InfraDeskDespesas] erro ao salvar no Firebase', err);
+    } finally {
+      if (select) {
+        select.classList.remove('tm-op-saving');
+      }
+    }
+  };
 
-    InfraDeskDespesas.state.observer.observe(tbody, {
-      childList: true,
-      subtree: false
-    });
+  InfraDeskDespesas.loadFirebaseState = async function () {
+    try {
+      const res = await InfraDeskDespesas.request({
+        method: 'GET',
+        url: InfraDeskDespesas.firebaseUrl('despesas_updates/by_id') + '?_=' + Date.now()
+      });
+
+      const data = JSON.parse(res.responseText || '{}') || {};
+
+      InfraDeskDespesas.state.firebaseCache = data;
+
+      for (const [id, item] of Object.entries(data)) {
+        InfraDeskDespesas.applyFirebaseItem(id, item);
+      }
+
+      InfraDeskDespesas.injectAllRows();
+      InfraDeskDespesas.setPanelStatus(true, 'Firebase conectado');
+    } catch (err) {
+      InfraDeskDespesas.setPanelStatus(false, 'Erro Firebase');
+      console.warn('[InfraDeskDespesas] erro ao carregar Firebase', err);
+    }
   };
 
   InfraDeskDespesas.firebaseStreamUrl = function () {
-    return InfraDeskDespesas.FIREBASE_DB_URL.replace(/\/+$/, '') + '/despesas_updates/latest.json';
+    return InfraDeskDespesas.FIREBASE_DB_URL.replace(/\/+$/, '') + '/despesas_updates/by_id.json';
   };
 
   InfraDeskDespesas.handleFirebaseEvent = function (raw) {
@@ -917,30 +791,58 @@
       return;
     }
 
-    const data = parsed && Object.prototype.hasOwnProperty.call(parsed, 'data')
-      ? parsed.data
-      : parsed;
+    const path = String(parsed.path || '');
+    const data = parsed.data;
 
-    if (!data || typeof data !== 'object') return;
+    if (path === '/' || path === '') {
+      if (data === null) {
+        InfraDeskDespesas.state.firebaseCache = {};
+        InfraDeskDespesas.injectAllRows();
+        return;
+      }
 
-    const id = InfraDeskDespesas.clean(data.id);
-    const operador = InfraDeskDespesas.clean(data.operador);
-    const ts = Number(data.ts || 0);
+      if (data && typeof data === 'object') {
+        InfraDeskDespesas.state.firebaseCache = data;
 
-    if (!id) return;
+        for (const [id, item] of Object.entries(data)) {
+          InfraDeskDespesas.applyFirebaseItem(id, item);
+        }
 
-    if (ts && ts < InfraDeskDespesas.state.lastFirebaseTs) {
+        InfraDeskDespesas.injectAllRows();
+      }
+
       return;
     }
 
-    if (ts) {
-      InfraDeskDespesas.state.lastFirebaseTs = ts;
+    const cleanPath = path.replace(/^\/+/, '');
+    const parts = cleanPath.split('/').filter(Boolean);
+
+    if (!parts.length) {
+      return;
     }
 
-    InfraDeskDespesas.updateSingleOperator(id, operador);
+    const id = InfraDeskDespesas.clean(parts[0]);
+
+    if (!id) {
+      return;
+    }
+
+    if (data === null) {
+      InfraDeskDespesas.removeFirebaseItem(id);
+      return;
+    }
+
+    if (parts.length === 1) {
+      InfraDeskDespesas.applyFirebaseItem(id, data);
+      return;
+    }
+
+    const current = InfraDeskDespesas.state.firebaseCache[id] || {};
+    current[parts[1]] = data;
+    InfraDeskDespesas.applyFirebaseItem(id, current);
   };
 
-  InfraDeskDespesas.connectFirebaseRealtime = function (manual) {
+  InfraDeskDespesas.connectRealtime = function (manual) {
     try {
       if (InfraDeskDespesas.state.eventSource) {
         InfraDeskDespesas.state.eventSource.close();
@@ -948,6 +850,10 @@
       }
 
       const es = new EventSource(InfraDeskDespesas.firebaseStreamUrl());
+
+      es.addEventListener('open', function () {
+        InfraDeskDespesas.setPanelStatus(true, 'Firebase conectado');
+      });
 
       es.addEventListener('put', function (event) {
         InfraDeskDespesas.handleFirebaseEvent(event.data);
@@ -958,33 +864,87 @@
       });
 
       es.onerror = function () {
-        console.warn('[Sigma] Firebase realtime desconectou. O navegador tentará reconectar automaticamente.');
+        InfraDeskDespesas.setPanelStatus(false, 'Reconectando...');
       };
 
       InfraDeskDespesas.state.eventSource = es;
 
       if (manual) {
-        InfraDeskDespesas.ok('Firebase realtime reconectado.');
+        InfraDeskDespesas.loadFirebaseState();
       }
-    } catch (ex) {
-      if (manual) {
-        InfraDeskDespesas.err('Erro ao conectar Firebase realtime.');
-      }
+    } catch (err) {
+      InfraDeskDespesas.setPanelStatus(false, 'Erro realtime');
+      console.warn('[InfraDeskDespesas] erro EventSource Firebase', err);
     }
   };
 
+  InfraDeskDespesas.observe = function () {
+    const tbody = document.querySelector('.ibox-content table tbody') || document.querySelector('table tbody');
+
+    if (!tbody) {
+      setTimeout(InfraDeskDespesas.observe, 700);
+      return;
+    }
+
+    if (InfraDeskDespesas.state.observer) {
+      InfraDeskDespesas.state.observer.disconnect();
+    }
+
+    InfraDeskDespesas.state.observer = new MutationObserver(function () {
+      if (InfraDeskDespesas.state.ownMutation) {
+        return;
+      }
+
+      clearTimeout(InfraDeskDespesas.state.debounceTimer);
+
+      InfraDeskDespesas.state.debounceTimer = setTimeout(function () {
+        InfraDeskDespesas.injectAllRows();
+      }, 250);
+    });
+
+    InfraDeskDespesas.state.observer.observe(tbody, {
+      childList: true,
+      subtree: false
+    });
+  };
+
+  InfraDeskDespesas.forceRefresh = function () {
+    InfraDeskDespesas.injectAllRows();
+    InfraDeskDespesas.loadFirebaseState();
+    InfraDeskDespesas.connectRealtime(true);
+  };
+
+  InfraDeskDespesas.startupLoop = function () {
+    clearInterval(InfraDeskDespesas.state.startupTimer);
+
+    InfraDeskDespesas.state.startupTimer = setInterval(function () {
+      InfraDeskDespesas.state.startupCount++;
+      InfraDeskDespesas.injectAllRows();
+      InfraDeskDespesas.setPanelStatus(true, 'Firebase conectado');
+
+      if (InfraDeskDespesas.state.startupCount >= 12) {
+        clearInterval(InfraDeskDespesas.state.startupTimer);
+      }
+    }, 700);
+  };
+
   InfraDeskDespesas.start = function () {
-    if (InfraDeskDespesas.state.started) return;
+    if (InfraDeskDespesas.state.started) {
+      return;
+    }
 
     InfraDeskDespesas.state.started = true;
 
-    InfraDeskDespesas.buildMenu();
-    InfraDeskDespesas.attachObserver();
-    InfraDeskDespesas.connectFirebaseRealtime(false);
+    InfraDeskDespesas.injectStyle();
+    InfraDeskDespesas.injectPanel();
 
     setTimeout(function () {
-      InfraDeskDespesas.loadInitialOperators(false);
-    }, 700);
+      InfraDeskDespesas.injectAllRows();
+      InfraDeskDespesas.loadFirebaseState();
+      InfraDeskDespesas.connectRealtime(false);
+      InfraDeskDespesas.observe();
+      InfraDeskDespesas.startupLoop();
+    }, 500);
   };
 
   if (window.Sahin && typeof window.Sahin.injectFunctionsToPage === 'function') {
@@ -996,5 +956,4 @@
   }
 
   InfraDeskDespesas.start();
-
 })();
