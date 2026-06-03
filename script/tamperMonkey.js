@@ -26,14 +26,18 @@
     'Elias Araujo',
     'Camily',
     'Elia Maria',
-    'Patricia'
+    'Patricia',
+    'Marcia',
+    'Helena'
   ];
 
   InfraDeskDespesas.CORES_FIXAS_POR_OPERADOR = {
     "Elias Araujo": "#0324ff",
     "Camily": "#e6cff2",
     "Elia Maria": "#962bcc",
-    "Patricia": "#ff8e03"
+    "Patricia": "#ff8e03",
+    "Marcia": "#6a0e9c",
+    "Helena": "#8c1223"
   };
 
   InfraDeskDespesas.COR_SEM_OPERADOR = '#ffffff';
