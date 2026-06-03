@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfraDesk • Painel de Operadores</title>
+
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --soft: #f8fafc;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 32%),
+        radial-gradient(circle at top right, rgba(168, 85, 247, 0.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .app {
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 22px 0 40px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .live {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px 14px;
+      min-width: 250px;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+
+    .liveRow {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 0;
+      color: var(--muted);
+    }
+
+    .liveRow strong {
+      color: var(--text);
+    }
+
+    .dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      margin-right: 6px;
+      background: #f59e0b;
+    }
+
+    .dot.on {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+    }
+
+    .dot.off {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.10);
+    }
+
+    .filters {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: 150px 150px 150px 1fr auto;
+      gap: 10px;
+      align-items: end;
+      backdrop-filter: blur(12px);
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #374151;
+    }
+
+    input,
+    select,
+    button {
+      min-height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 900;
+      transition: 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.10);
+    }
+
+    .btnPrimary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .quickBtns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .usersBox {
+      min-height: 40px;
+      max-height: 126px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 800;
+      color: #374151;
+    }
+
+    .chip input {
+      min-height: auto;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+
+    .chip.active {
+      border-color: #bfdbfe;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .statLabel {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .statValue {
+      font-size: 32px;
+      font-weight: 950;
+      letter-spacing: -0.06em;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 330px;
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .panelHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .panelTitle {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .chartTop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legendItem {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      color: #374151;
+    }
+
+    .legendDot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .chartWrap {
+      width: 100%;
+      overflow-x: auto;
+      padding: 4px 2px 8px;
+      border-radius: 18px;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(168, 85, 247, 0.14)) border-box;
+      border: 1px solid transparent;
+    }
+
+    .chart {
+      min-width: 780px;
+      height: 420px;
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      display: block;
+    }
+
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -115%);
+      background: #111827;
+      color: #fff;
+      padding: 9px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+      z-index: 20;
+      transition: opacity 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .sideList {
+      display: grid;
+      gap: 9px;
+    }
+
+    .rankItem {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border);
+      background: var(--soft);
+      border-radius: 16px;
+      padding: 11px;
+    }
+
+    .rankName {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .rankName span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .colorDot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .rankValue {
+      font-weight: 950;
+      color: var(--blue);
+    }
+
+    .progressTrack {
+      grid-column: 1 / -1;
+      height: 7px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+      margin-top: 1px;
+    }
+
+    .progressFill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .detailsPanel {
+      margin-top: 14px;
+    }
+
+    .detailsTop {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .search {
+      width: min(330px, 100%);
+    }
+
+    .tableBox {
+      max-height: 430px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 12px;
+    }
+
+    th {
+      background: #f9fafb;
+      color: #4b5563;
+      font-weight: 950;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover td {
+      background: #f9fbff;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 950;
+      color: #fff;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 34px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1050px) {
+      .filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .top {
+        flex-direction: column;
+      }
+
+      .live {
+        width: 100%;
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .quickBtns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="top">
+      <div>
+        <h1>Operadores por Data</h1>
+        <div class="subtitle">Painel em tempo real com filtros por período e usuários.</div>
+      </div>
+
+      <div class="live">
+        <div class="liveRow">
+          <span>Status</span>
+          <strong><span id="liveDot" class="dot"></span><span id="liveText">conectando...</span></strong>
+        </div>
+        <div class="liveRow">
+          <span>Atualizado</span>
+          <strong id="updatedAt">—</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label>
+        Data inicial
+        <input id="dateFrom" type="date" />
+      </label>
+
+      <label>
+        Data final
+        <input id="dateTo" type="date" />
+      </label>
+
+      <label>
+        Tipo de gráfico
+        <select id="viewMode">
+          <option value="auto" selected>Automático</option>
+          <option value="line">Linha por dia</option>
+          <option value="bar">Barras por dia</option>
+          <option value="donut">Participação</option>
+          <option value="total">Ranking total</option>
+        </select>
+      </label>
+
+      <label>
+        Usuários
+        <div id="usersBox" class="usersBox"></div>
+      </label>
+
+      <div class="quickBtns">
+        <button id="todayBtn" type="button">Hoje</button>
+        <button id="weekBtn" type="button">7 dias</button>
+        <button id="monthBtn" type="button">Mês</button>
+        <button id="clearBtn" type="button">Todos</button>
+        <button id="reloadBtn" class="btnPrimary" type="button">Recarregar</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="statLabel">Total no filtro</div>
+        <div id="statTotal" class="statValue">0</div>
+      </div>
+
+      <div class="stat">
+        <div class="statLabel">Com operador</div>
+        <div id="statWithOp" class="statValue">0</div>
+      </div>
+
+      <div class="stat">
+        <div class="statLabel">Sem operador</div>
+        <div id="statNoOp" class="statValue">0</div>
+      </div>
+
+      <div class="stat">
+        <div class="statLabel">Usuários ativos</div>
+        <div id="statUsers" class="statValue">0</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="chartTitle" class="panelTitle">Gráfico</h2>
+            <div id="chartHint" class="hint">Selecione um período e usuários.</div>
+          </div>
+
+          <button id="toggleDetailsBtn" type="button">Ver chamados</button>
+        </div>
+
+        <div class="chartTop">
+          <div id="legend" class="legend"></div>
+        </div>
+
+        <div class="chartWrap">
+          <div id="chart" class="chart"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelHead">
+          <h2 class="panelTitle">Resumo</h2>
+          <span id="summaryCount" class="hint">0 usuários</span>
+        </div>
+
+        <div id="ranking" class="sideList"></div>
+      </div>
+    </div>
+
+    <div id="detailsPanel" class="panel detailsPanel hidden">
+      <div class="detailsTop">
+        <div>
+          <h2 class="panelTitle">Chamados do filtro</h2>
+          <div class="hint">Detalhes aparecem somente quando necessário.</div>
+        </div>
+
+        <input id="searchInput" class="search" type="text" placeholder="Buscar ID ou operador..." />
+      </div>
+
+      <div class="tableBox">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 110px;">ID</th>
+              <th>Operador</th>
+              <th style="width: 110px;">Linha</th>
+              <th style="width: 190px;">Atualizado em</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip"></div>
+
+  <script>
+    const PainelOperadores = {};
+
+    PainelOperadores.FIREBASE_DB_URL = 'https://infradesk-operadores-default-rtdb.firebaseio.com';
+    PainelOperadores.PATH = '/despesas_updates/by_id.json';
+
+    PainelOperadores.state = {
+      byId: {},
+      eventSource: null,
+      renderTimer: null,
+      selectedUsers: new Set(),
+      userTouchedSelection: false
+    };
+
+    PainelOperadores.clean = function (value) {
+      return String(value ?? '').replace(/\s+/g, ' ').trim();
+    };
+
+    PainelOperadores.toNumber = function (value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelOperadores.operatorName = function (value) {
+      const op = PainelOperadores.clean(value);
+      return op || 'Sem operador';
+    };
+
+    PainelOperadores.pad = function (n) {
+      return String(n).padStart(2, '0');
+    };
+
+    PainelOperadores.dateKeyFromTs = function (ts) {
+      const n = PainelOperadores.toNumber(ts);
+      if (!n) return '';
+
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '';
+
+      return `${d.getFullYear()}-${PainelOperadores.pad(d.getMonth() + 1)}-${PainelOperadores.pad(d.getDate())}`;
+    };
+
+    PainelOperadores.dateLabel = function (key) {
+      if (!key) return 'Sem data';
+
+      const p = key.split('-');
+      if (p.length !== 3) return key;
+
+      return `${p[2]}/${p[1]}`;
+    };
+
+    PainelOperadores.fullDateLabel = function (key) {
+      if (!key) return 'Sem data';
+
+      const p = key.split('-');
+      if (p.length !== 3) return key;
+
+      return `${p[2]}/${p[1]}/${p[0]}`;
+    };
+
+    PainelOperadores.formatDateTime = function (ts) {
+      const n = PainelOperadores.toNumber(ts);
+      if (!n) return '—';
+
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '—';
+
+      return d.toLocaleString('pt-BR');
+    };
+
+    PainelOperadores.formatTime = function () {
+      return new Date().toLocaleTimeString('pt-BR');
+    };
+
+    PainelOperadores.norm = function (value) {
+      return PainelOperadores.clean(value)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    PainelOperadores.hashHue = function (str) {
+      let h = 0;
+
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 31 + str.charCodeAt(i)) | 0;
+      }
+
+      return Math.abs(h) % 360;
+    };
+
+    PainelOperadores.colorFor = function (name) {
+      const fixed = {
+        "elias araujo": "#2563eb",
+        "camily": "#a855f7",
+        "elia maria": "#7c3aed",
+        "patricia": "#f97316",
+        "sem operador": "#9ca3af"
+      };
+
+      const key = PainelOperadores.norm(name);
+
+      if (fixed[key]) {
+        return fixed[key];
+      }
+
+      const hue = PainelOperadores.hashHue(key || 'sem operador');
+      return `hsl(${hue} 72% 48%)`;
+    };
+
+    PainelOperadores.firebaseUrl = function () {
+      return PainelOperadores.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelOperadores.PATH;
+    };
+
+    PainelOperadores.setLiveStatus = function (ok, text) {
+      const dot = document.getElementById('liveDot');
+      const liveText = document.getElementById('liveText');
+
+      dot.classList.remove('on', 'off');
+      dot.classList.add(ok ? 'on' : 'off');
+      liveText.textContent = text;
+    };
+
+    PainelOperadores.setUpdated = function () {
+      document.getElementById('updatedAt').textContent = PainelOperadores.formatTime();
+    };
+
+    PainelOperadores.getItems = function () {
+      return Object.entries(PainelOperadores.state.byId || {})
+        .map(([id, item]) => ({
+          id: PainelOperadores.clean(item?.id || id),
+          operador: PainelOperadores.clean(item?.operador),
+          row: PainelOperadores.toNumber(item?.row),
+          ts: PainelOperadores.toNumber(item?.ts)
+        }))
+        .filter(item => item.id);
+    };
+
+    PainelOperadores.getAllUsers = function () {
+      return [...new Set(
+        PainelOperadores.getItems().map(item => PainelOperadores.operatorName(item.operador))
+      )].sort((a, b) => {
+        if (a === 'Sem operador') return 1;
+        if (b === 'Sem operador') return -1;
+        return a.localeCompare(b, 'pt-BR');
+      });
+    };
+
+    PainelOperadores.getSelectedUsers = function () {
+      const all = PainelOperadores.getAllUsers();
+
+      if (!PainelOperadores.state.userTouchedSelection || PainelOperadores.state.selectedUsers.size === 0) {
+        return all;
+      }
+
+      return all.filter(user => PainelOperadores.state.selectedUsers.has(user));
+    };
+
+    PainelOperadores.getFilteredItems = function () {
+      const from = document.getElementById('dateFrom').value;
+      const to = document.getElementById('dateTo').value;
+      const selected = new Set(PainelOperadores.getSelectedUsers());
+
+      return PainelOperadores.getItems().filter(item => {
+        const key = PainelOperadores.dateKeyFromTs(item.ts);
+        const user = PainelOperadores.operatorName(item.operador);
+
+        if (from && key && key < from) return false;
+        if (to && key && key > to) return false;
+        if (selected.size && !selected.has(user)) return false;
+
+        return true;
+      });
+    };
+
+    PainelOperadores.renderUsers = function () {
+      const box = document.getElementById('usersBox');
+      const allUsers = PainelOperadores.getAllUsers();
+
+      if (!PainelOperadores.state.userTouchedSelection) {
+        PainelOperadores.state.selectedUsers = new Set(allUsers);
+      }
+
+      for (const user of [...PainelOperadores.state.selectedUsers]) {
+        if (!allUsers.includes(user)) {
+          PainelOperadores.state.selectedUsers.delete(user);
+        }
+      }
+
+      box.innerHTML = '';
+
+      if (!allUsers.length) {
+        box.innerHTML = '<span class="hint">Sem usuários ainda</span>';
+        return;
+      }
+
+      for (const user of allUsers) {
+        const checked = PainelOperadores.state.selectedUsers.has(user);
+
+        const label = document.createElement('label');
+        label.className = 'chip' + (checked ? ' active' : '');
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+
+        input.addEventListener('change', function () {
+          PainelOperadores.state.userTouchedSelection = true;
+
+          if (input.checked) {
+            PainelOperadores.state.selectedUsers.add(user);
+          } else {
+            PainelOperadores.state.selectedUsers.delete(user);
+          }
+
+          PainelOperadores.render();
+        });
+
+        const text = document.createElement('span');
+        text.textContent = user;
+
+        label.appendChild(input);
+        label.appendChild(text);
+        box.appendChild(label);
+      }
+    };
+
+    PainelOperadores.renderStats = function (items) {
+      const withOp = items.filter(item => PainelOperadores.clean(item.operador)).length;
+      const noOp = items.length - withOp;
+      const users = new Set(items.map(item => PainelOperadores.operatorName(item.operador)));
+
+      document.getElementById('statTotal').textContent = items.length;
+      document.getElementById('statWithOp').textContent = withOp;
+      document.getElementById('statNoOp').textContent = noOp;
+      document.getElementById('statUsers').textContent = users.size;
+    };
+
+    PainelOperadores.groupDaily = function (items) {
+      const daysSet = new Set();
+      const usersSet = new Set();
+
+      const from = document.getElementById('dateFrom').value;
+      const to = document.getElementById('dateTo').value;
+
+      for (const item of items) {
+        const day = PainelOperadores.dateKeyFromTs(item.ts);
+        const user = PainelOperadores.operatorName(item.operador);
+
+        if (day) daysSet.add(day);
+        usersSet.add(user);
+      }
+
+      if (from && to) {
+        const current = new Date(from + 'T00:00:00');
+        const end = new Date(to + 'T00:00:00');
+
+        while (current <= end) {
+          const key = `${current.getFullYear()}-${PainelOperadores.pad(current.getMonth() + 1)}-${PainelOperadores.pad(current.getDate())}`;
+          daysSet.add(key);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+
+      const days = [...daysSet].sort();
+      const users = [...usersSet].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      const data = {};
+
+      for (const day of days) {
+        data[day] = {};
+        for (const user of users) {
+          data[day][user] = 0;
+        }
+      }
+
+      for (const item of items) {
+        const day = PainelOperadores.dateKeyFromTs(item.ts);
+        const user = PainelOperadores.operatorName(item.operador);
+
+        if (!data[day]) data[day] = {};
+        data[day][user] = (data[day][user] || 0) + 1;
+      }
+
+      return {
+        days,
+        users,
+        data
+      };
+    };
+
+    PainelOperadores.groupTotal = function (items) {
+      const totals = {};
+
+      for (const item of items) {
+        const user = PainelOperadores.operatorName(item.operador);
+        totals[user] = (totals[user] || 0) + 1;
+      }
+
+      return Object.entries(totals)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    };
+
+    PainelOperadores.showTooltip = function (event, html) {
+      const t = document.getElementById('tooltip');
+      t.innerHTML = html;
+      t.style.left = event.clientX + 'px';
+      t.style.top = event.clientY + 'px';
+      t.style.opacity = '1';
+    };
+
+    PainelOperadores.hideTooltip = function () {
+      document.getElementById('tooltip').style.opacity = '0';
+    };
+
+    PainelOperadores.svg = function (tag, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+
+      for (const [k, v] of Object.entries(attrs || {})) {
+        el.setAttribute(k, v);
+      }
+
+      return el;
+    };
+
+    PainelOperadores.renderLegend = function (users) {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+
+      for (const user of users) {
+        const item = document.createElement('div');
+        item.className = 'legendItem';
+
+        const dot = document.createElement('span');
+        dot.className = 'legendDot';
+        dot.style.background = PainelOperadores.colorFor(user);
+
+        const txt = document.createElement('span');
+        txt.textContent = user;
+
+        item.appendChild(dot);
+        item.appendChild(txt);
+        legend.appendChild(item);
+      }
+    };
+
+    PainelOperadores.getChartMode = function (items, users) {
+      const selected = document.getElementById('viewMode').value;
+
+      if (selected !== 'auto') return selected;
+
+      if (users.length === 1) return 'line';
+      if (users.length <= 4) return 'bar';
+      if (items.length && users.length > 4) return 'donut';
+
+      return 'bar';
+    };
+
+    PainelOperadores.niceTicks = function (max) {
+      max = Math.max(1, max);
+      const step = Math.ceil(max / 4);
+      const ticks = [];
+
+      for (let i = 0; i <= 4; i++) {
+        ticks.push(step * i);
+      }
+
+      return ticks;
+    };
+
+    PainelOperadores.drawGrid = function (svg, width, height, margin, max) {
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const ticks = PainelOperadores.niceTicks(max);
+
+      for (const value of ticks) {
+        const y = margin.top + plotH - (value / Math.max(...ticks)) * plotH;
+
+        svg.appendChild(PainelOperadores.svg('line', {
+          x1: margin.left,
+          y1: y,
+          x2: width - margin.right,
+          y2: y,
+          stroke: '#e5e7eb',
+          'stroke-width': 1
+        }));
+
+        const txt = PainelOperadores.svg('text', {
+          x: margin.left - 10,
+          y: y + 4,
+          'text-anchor': 'end',
+          'font-size': 11,
+          fill: '#6b7280'
+        });
+
+        txt.textContent = value;
+        svg.appendChild(txt);
+      }
+    };
+
+    PainelOperadores.renderLineChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelOperadores.groupDaily(items);
+      const days = grouped.days;
+      const users = grouped.users;
+
+      chart.innerHTML = '';
+
+      if (!items.length || !days.length || !users.length) {
+        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(users);
+
+      const user = users[0];
+
+      document.getElementById('chartTitle').textContent = users.length === 1
+        ? `Evolução diária • ${user}`
+        : 'Evolução diária';
+
+      document.getElementById('chartHint').textContent = users.length === 1
+        ? 'Linha suave mostrando a quantidade por dia.'
+        : 'Linhas por usuário no período selecionado.';
+
+      const width = Math.max(780, days.length * 84);
+      const height = 420;
+      const margin = { top: 30, right: 34, bottom: 64, left: 48 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+
+      const max = Math.max(1, ...days.flatMap(day => users.map(u => grouped.data[day]?.[u] || 0)));
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      PainelOperadores.drawGrid(svg, width, height, margin, max);
+
+      const xFor = function (index) {
+        if (days.length === 1) return margin.left + plotW / 2;
+        return margin.left + (index / (days.length - 1)) * plotW;
+      };
+
+      const yFor = function (value) {
+        return margin.top + plotH - (value / max) * plotH;
+      };
+
+      for (const u of users) {
+        const points = days.map((day, i) => ({
+          day,
+          x: xFor(i),
+          y: yFor(grouped.data[day]?.[u] || 0),
+          value: grouped.data[day]?.[u] || 0
+        }));
+
+        let d = '';
+
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+
+          if (i === 0) {
+            d += `M ${p.x} ${p.y}`;
+          } else {
+            const prev = points[i - 1];
+            const cx1 = prev.x + (p.x - prev.x) * 0.45;
+            const cy1 = prev.y;
+            const cx2 = prev.x + (p.x - prev.x) * 0.55;
+            const cy2 = p.y;
+            d += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
+          }
+        }
+
+        const areaD = d + ` L ${points[points.length - 1].x} ${margin.top + plotH} L ${points[0].x} ${margin.top + plotH} Z`;
+
+        if (users.length === 1) {
+          const gradientId = 'grad_' + PainelOperadores.norm(u).replace(/\W/g, '');
+          const defs = PainelOperadores.svg('defs', {});
+          const gradient = PainelOperadores.svg('linearGradient', {
+            id: gradientId,
+            x1: '0',
+            y1: '0',
+            x2: '0',
+            y2: '1'
+          });
+
+          const stop1 = PainelOperadores.svg('stop', {
+            offset: '0%',
+            'stop-color': PainelOperadores.colorFor(u),
+            'stop-opacity': '0.22'
+          });
+
+          const stop2 = PainelOperadores.svg('stop', {
+            offset: '100%',
+            'stop-color': PainelOperadores.colorFor(u),
+            'stop-opacity': '0'
+          });
+
+          gradient.appendChild(stop1);
+          gradient.appendChild(stop2);
+          defs.appendChild(gradient);
+          svg.appendChild(defs);
+
+          svg.appendChild(PainelOperadores.svg('path', {
+            d: areaD,
+            fill: `url(#${gradientId})`
+          }));
+        }
+
+        svg.appendChild(PainelOperadores.svg('path', {
+          d,
+          fill: 'none',
+          stroke: PainelOperadores.colorFor(u),
+          'stroke-width': 4,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round'
+        }));
+
+        for (const p of points) {
+          const circle = PainelOperadores.svg('circle', {
+            cx: p.x,
+            cy: p.y,
+            r: 6,
+            fill: '#fff',
+            stroke: PainelOperadores.colorFor(u),
+            'stroke-width': 4
+          });
+
+          circle.addEventListener('mousemove', function (event) {
+            PainelOperadores.showTooltip(event, `<strong>${u}</strong><br>${PainelOperadores.fullDateLabel(p.day)} • ${p.value} chamado(s)`);
+          });
+
+          circle.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+
+          svg.appendChild(circle);
+
+          if (p.value) {
+            const txt = PainelOperadores.svg('text', {
+              x: p.x,
+              y: p.y - 12,
+              'text-anchor': 'middle',
+              'font-size': 12,
+              'font-weight': 900,
+              fill: '#111827'
+            });
+
+            txt.textContent = p.value;
+            svg.appendChild(txt);
+          }
+        }
+      }
+
+      days.forEach((day, i) => {
+        const label = PainelOperadores.svg('text', {
+          x: xFor(i),
+          y: height - 30,
+          'text-anchor': 'middle',
+          'font-size': 11,
+          fill: '#6b7280'
+        });
+
+        label.textContent = PainelOperadores.dateLabel(day);
+        svg.appendChild(label);
+      });
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderGroupedBarChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelOperadores.groupDaily(items);
+      const days = grouped.days;
+      const users = grouped.users;
+
+      chart.innerHTML = '';
+
+      if (!items.length || !days.length || !users.length) {
+        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(users);
+
+      document.getElementById('chartTitle').textContent = 'Barras por dia';
+      document.getElementById('chartHint').textContent = 'Cada cor representa um usuário. Melhor para comparar poucos usuários.';
+
+      const width = Math.max(820, days.length * Math.max(90, users.length * 30));
+      const height = 420;
+      const margin = { top: 30, right: 34, bottom: 64, left: 48 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+
+      const max = Math.max(1, ...days.flatMap(day => users.map(u => grouped.data[day]?.[u] || 0)));
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      PainelOperadores.drawGrid(svg, width, height, margin, max);
+
+      const groupW = plotW / days.length;
+      const gap = 12;
+      const innerW = groupW - gap;
+      const barGap = 5;
+      const barW = Math.max(10, Math.min(34, (innerW - (users.length - 1) * barGap) / users.length));
+
+      days.forEach((day, dayIndex) => {
+        const groupX = margin.left + dayIndex * groupW + gap / 2;
+        const totalBarsW = users.length * barW + (users.length - 1) * barGap;
+        const startX = groupX + (innerW - totalBarsW) / 2;
+
+        users.forEach((u, userIndex) => {
+          const value = grouped.data[day]?.[u] || 0;
+          const h = value ? Math.max(4, (value / max) * plotH) : 0;
+          const x = startX + userIndex * (barW + barGap);
+          const y = margin.top + plotH - h;
+
+          const rect = PainelOperadores.svg('rect', {
+            x,
+            y,
+            width: barW,
+            height: h,
+            rx: 8,
+            fill: PainelOperadores.colorFor(u)
+          });
+
+          rect.addEventListener('mousemove', function (event) {
+            PainelOperadores.showTooltip(event, `<strong>${u}</strong><br>${PainelOperadores.fullDateLabel(day)} • ${value} chamado(s)`);
+          });
+
+          rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+
+          svg.appendChild(rect);
+
+          if (value) {
+            const txt = PainelOperadores.svg('text', {
+              x: x + barW / 2,
+              y: y - 7,
+              'text-anchor': 'middle',
+              'font-size': 11,
+              'font-weight': 900,
+              fill: '#111827'
+            });
+
+            txt.textContent = value;
+            svg.appendChild(txt);
+          }
+        });
+
+        const label = PainelOperadores.svg('text', {
+          x: groupX + innerW / 2,
+          y: height - 30,
+          'text-anchor': 'middle',
+          'font-size': 11,
+          fill: '#6b7280'
+        });
+
+        label.textContent = PainelOperadores.dateLabel(day);
+        svg.appendChild(label);
+      });
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderDonutChart = function (items) {
+      const chart = document.getElementById('chart');
+      const totals = PainelOperadores.groupTotal(items);
+
+      chart.innerHTML = '';
+
+      if (!totals.length) {
+        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(totals.map(([user]) => user));
+
+      document.getElementById('chartTitle').textContent = 'Participação por usuário';
+      document.getElementById('chartHint').textContent = 'Distribuição do total no período selecionado.';
+
+      const width = 780;
+      const height = 420;
+      const cx = 280;
+      const cy = 205;
+      const r = 130;
+      const stroke = 38;
+      const total = totals.reduce((sum, [, count]) => sum + count, 0);
+      const circumference = 2 * Math.PI * r;
+
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      svg.appendChild(PainelOperadores.svg('circle', {
+        cx,
+        cy,
+        r,
+        fill: 'none',
+        stroke: '#eef2f7',
+        'stroke-width': stroke
+      }));
+
+      let offset = 0;
+
+      for (const [user, count] of totals) {
+        const pct = count / total;
+        const dash = pct * circumference;
+
+        const circle = PainelOperadores.svg('circle', {
+          cx,
+          cy,
+          r,
+          fill: 'none',
+          stroke: PainelOperadores.colorFor(user),
+          'stroke-width': stroke,
+          'stroke-dasharray': `${dash} ${circumference - dash}`,
+          'stroke-dashoffset': -offset,
+          'stroke-linecap': 'round',
+          transform: `rotate(-90 ${cx} ${cy})`
+        });
+
+        circle.addEventListener('mousemove', function (event) {
+          PainelOperadores.showTooltip(event, `<strong>${user}</strong><br>${count} chamado(s) • ${(pct * 100).toFixed(1)}%`);
+        });
+
+        circle.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+
+        svg.appendChild(circle);
+        offset += dash;
+      }
+
+      const centerTotal = PainelOperadores.svg('text', {
+        x: cx,
+        y: cy - 4,
+        'text-anchor': 'middle',
+        'font-size': 42,
+        'font-weight': 950,
+        fill: '#111827'
+      });
+
+      centerTotal.textContent = total;
+      svg.appendChild(centerTotal);
+
+      const centerLabel = PainelOperadores.svg('text', {
+        x: cx,
+        y: cy + 25,
+        'text-anchor': 'middle',
+        'font-size': 13,
+        fill: '#6b7280'
+      });
+
+      centerLabel.textContent = 'chamados';
+      svg.appendChild(centerLabel);
+
+      const listX = 500;
+      let listY = 95;
+
+      for (const [user, count] of totals) {
+        const pct = total ? (count / total) * 100 : 0;
+
+        svg.appendChild(PainelOperadores.svg('circle', {
+          cx: listX,
+          cy: listY - 4,
+          r: 6,
+          fill: PainelOperadores.colorFor(user)
+        }));
+
+        const name = PainelOperadores.svg('text', {
+          x: listX + 16,
+          y: listY,
+          'font-size': 13,
+          'font-weight': 900,
+          fill: '#111827'
+        });
+
+        name.textContent = user;
+        svg.appendChild(name);
+
+        const value = PainelOperadores.svg('text', {
+          x: listX + 16,
+          y: listY + 20,
+          'font-size': 12,
+          fill: '#6b7280'
+        });
+
+        value.textContent = `${count} chamado(s) • ${pct.toFixed(1)}%`;
+        svg.appendChild(value);
+
+        listY += 48;
+      }
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderTotalChart = function (items) {
+      const chart = document.getElementById('chart');
+      const totals = PainelOperadores.groupTotal(items);
+
+      chart.innerHTML = '';
+
+      if (!totals.length) {
+        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(totals.map(([user]) => user));
+
+      document.getElementById('chartTitle').textContent = 'Ranking total';
+      document.getElementById('chartHint').textContent = 'Total de chamados por usuário no período.';
+
+      const width = 820;
+      const height = 420;
+      const margin = { top: 24, right: 42, bottom: 40, left: 150 };
+      const plotW = width - margin.left - margin.right;
+      const rowH = Math.min(54, (height - margin.top - margin.bottom) / totals.length);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      totals.forEach(([user, count], index) => {
+        const y = margin.top + index * rowH + 8;
+        const w = Math.max(10, (count / max) * plotW);
+
+        const label = PainelOperadores.svg('text', {
+          x: margin.left - 12,
+          y: y + 22,
+          'text-anchor': 'end',
+          'font-size': 12,
+          'font-weight': 900,
+          fill: '#374151'
+        });
+
+        label.textContent = user;
+        svg.appendChild(label);
+
+        svg.appendChild(PainelOperadores.svg('rect', {
+          x: margin.left,
+          y,
+          width: plotW,
+          height: 28,
+          rx: 14,
+          fill: '#eef2f7'
+        }));
+
+        const rect = PainelOperadores.svg('rect', {
+          x: margin.left,
+          y,
+          width: w,
+          height: 28,
+          rx: 14,
+          fill: PainelOperadores.colorFor(user)
+        });
+
+        rect.addEventListener('mousemove', function (event) {
+          PainelOperadores.showTooltip(event, `<strong>${user}</strong><br>${count} chamado(s)`);
+        });
+
+        rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+
+        svg.appendChild(rect);
+
+        const value = PainelOperadores.svg('text', {
+          x: margin.left + w + 9,
+          y: y + 20,
+          'font-size': 12,
+          'font-weight': 950,
+          fill: '#111827'
+        });
+
+        value.textContent = count;
+        svg.appendChild(value);
+      });
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderChart = function (items) {
+      const grouped = PainelOperadores.groupDaily(items);
+      const mode = PainelOperadores.getChartMode(items, grouped.users);
+
+      if (mode === 'line') {
+        PainelOperadores.renderLineChart(items);
+        return;
+      }
+
+      if (mode === 'bar') {
+        PainelOperadores.renderGroupedBarChart(items);
+        return;
+      }
+
+      if (mode === 'donut') {
+        PainelOperadores.renderDonutChart(items);
+        return;
+      }
+
+      PainelOperadores.renderTotalChart(items);
+    };
+
+    PainelOperadores.renderRanking = function (items) {
+      const box = document.getElementById('ranking');
+      const totals = PainelOperadores.groupTotal(items);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+
+      document.getElementById('summaryCount').textContent = `${totals.length} usuário(s)`;
+
+      if (!totals.length) {
+        box.innerHTML = '<div class="empty">Sem dados.</div>';
+        return;
+      }
+
+      box.innerHTML = '';
+
+      for (const [user, count] of totals) {
+        const item = document.createElement('div');
+        item.className = 'rankItem';
+
+        const name = document.createElement('div');
+        name.className = 'rankName';
+
+        const dot = document.createElement('span');
+        dot.className = 'colorDot';
+        dot.style.background = PainelOperadores.colorFor(user);
+
+        const text = document.createElement('span');
+        text.textContent = user;
+
+        name.appendChild(dot);
+        name.appendChild(text);
+
+        const value = document.createElement('div');
+        value.className = 'rankValue';
+        value.textContent = count;
+
+        const track = document.createElement('div');
+        track.className = 'progressTrack';
+
+        const fill = document.createElement('div');
+        fill.className = 'progressFill';
+        fill.style.background = PainelOperadores.colorFor(user);
+        fill.style.width = `${(count / max) * 100}%`;
+
+        track.appendChild(fill);
+
+        item.appendChild(name);
+        item.appendChild(value);
+        item.appendChild(track);
+
+        box.appendChild(item);
+      }
+    };
+
+    PainelOperadores.renderTable = function (items) {
+      const body = document.getElementById('tableBody');
+      const search = PainelOperadores.norm(document.getElementById('searchInput').value);
+
+      let rows = [...items].sort((a, b) => b.ts - a.ts);
+
+      if (search) {
+        rows = rows.filter(item => {
+          const text = PainelOperadores.norm(`${item.id} ${PainelOperadores.operatorName(item.operador)} ${item.row} ${PainelOperadores.formatDateTime(item.ts)}`);
+          return text.includes(search);
+        });
+      }
+
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4" class="empty">Nenhum chamado para mostrar.</td></tr>';
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+
+      for (const item of rows) {
+        const user = PainelOperadores.operatorName(item.operador);
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+          <td><strong>${item.id}</strong></td>
+          <td><span class="pill" style="background:${PainelOperadores.colorFor(user)}">${user}</span></td>
+          <td>${item.row || '—'}</td>
+          <td>${PainelOperadores.formatDateTime(item.ts)}</td>
+        `;
+
+        frag.appendChild(tr);
+      }
+
+      body.innerHTML = '';
+      body.appendChild(frag);
+    };
+
+    PainelOperadores.render = function () {
+      PainelOperadores.renderUsers();
+
+      const items = PainelOperadores.getFilteredItems();
+
+      PainelOperadores.renderStats(items);
+      PainelOperadores.renderChart(items);
+      PainelOperadores.renderRanking(items);
+      PainelOperadores.renderTable(items);
+      PainelOperadores.setUpdated();
+    };
+
+    PainelOperadores.scheduleRender = function () {
+      clearTimeout(PainelOperadores.state.renderTimer);
+
+      PainelOperadores.state.renderTimer = setTimeout(function () {
+        PainelOperadores.render();
+      }, 120);
+    };
+
+    PainelOperadores.loadInitial = async function () {
+      PainelOperadores.setLiveStatus(false, 'carregando...');
+
+      try {
+        const res = await fetch(PainelOperadores.firebaseUrl() + '?_=' + Date.now(), {
+          cache: 'no-store'
+        });
+
+        const data = await res.json();
+
+        PainelOperadores.state.byId = data || {};
+        PainelOperadores.setLiveStatus(true, 'conectado');
+        PainelOperadores.render();
+      } catch (error) {
+        PainelOperadores.setLiveStatus(false, 'erro');
+        console.error(error);
+      }
+    };
+
+    PainelOperadores.handleFirebaseEvent = function (eventData) {
+      let payload;
+
+      try {
+        payload = JSON.parse(eventData || '{}');
+      } catch (_) {
+        return;
+      }
+
+      const path = String(payload.path || '/');
+      const data = payload.data;
+
+      if (path === '/') {
+        PainelOperadores.state.byId = data || {};
+        PainelOperadores.scheduleRender();
+        return;
+      }
+
+      const cleanPath = path.replace(/^\/+/, '');
+      const id = cleanPath.split('/')[0];
+
+      if (!id) return;
+
+      if (data === null) {
+        delete PainelOperadores.state.byId[id];
+        PainelOperadores.scheduleRender();
+        return;
+      }
+
+      if (cleanPath.split('/').length === 1) {
+        PainelOperadores.state.byId[id] = data || {};
+        PainelOperadores.scheduleRender();
+        return;
+      }
+
+      PainelOperadores.loadInitial();
+    };
+
+    PainelOperadores.connectRealtime = function () {
+      if (PainelOperadores.state.eventSource) {
+        PainelOperadores.state.eventSource.close();
+      }
+
+      try {
+        const es = new EventSource(PainelOperadores.firebaseUrl());
+
+        es.addEventListener('open', function () {
+          PainelOperadores.setLiveStatus(true, 'conectado');
+        });
+
+        es.addEventListener('put', function (event) {
+          PainelOperadores.handleFirebaseEvent(event.data);
+        });
+
+        es.addEventListener('patch', function (event) {
+          PainelOperadores.handleFirebaseEvent(event.data);
+        });
+
+        es.onerror = function () {
+          PainelOperadores.setLiveStatus(false, 'reconectando...');
+        };
+
+        PainelOperadores.state.eventSource = es;
+      } catch (error) {
+        PainelOperadores.setLiveStatus(false, 'erro realtime');
+      }
+    };
+
+    PainelOperadores.toDateInput = function (date) {
+      return `${date.getFullYear()}-${PainelOperadores.pad(date.getMonth() + 1)}-${PainelOperadores.pad(date.getDate())}`;
+    };
+
+    PainelOperadores.setToday = function () {
+      const today = PainelOperadores.toDateInput(new Date());
+
+      document.getElementById('dateFrom').value = today;
+      document.getElementById('dateTo').value = today;
+
+      PainelOperadores.render();
+    };
+
+    PainelOperadores.setLastDays = function (days) {
+      const end = new Date();
+      const start = new Date();
+
+      start.setDate(end.getDate() - (days - 1));
+
+      document.getElementById('dateFrom').value = PainelOperadores.toDateInput(start);
+      document.getElementById('dateTo').value = PainelOperadores.toDateInput(end);
+
+      PainelOperadores.render();
+    };
+
+    PainelOperadores.setMonth = function () {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      document.getElementById('dateFrom').value = PainelOperadores.toDateInput(start);
+      document.getElementById('dateTo').value = PainelOperadores.toDateInput(end);
+
+      PainelOperadores.render();
+    };
+
+    PainelOperadores.clearAll = function () {
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+
+      PainelOperadores.state.userTouchedSelection = false;
+      PainelOperadores.state.selectedUsers = new Set(PainelOperadores.getAllUsers());
+
+      PainelOperadores.render();
+    };
+
+    PainelOperadores.toggleDetails = function () {
+      const panel = document.getElementById('detailsPanel');
+      const btn = document.getElementById('toggleDetailsBtn');
+
+      panel.classList.toggle('hidden');
+
+      btn.textContent = panel.classList.contains('hidden')
+        ? 'Ver chamados'
+        : 'Ocultar chamados';
+    };
+
+    PainelOperadores.bind = function () {
+      document.getElementById('dateFrom').addEventListener('change', PainelOperadores.render);
+      document.getElementById('dateTo').addEventListener('change', PainelOperadores.render);
+      document.getElementById('viewMode').addEventListener('change', PainelOperadores.render);
+      document.getElementById('todayBtn').addEventListener('click', PainelOperadores.setToday);
+      document.getElementById('weekBtn').addEventListener('click', function () {
+        PainelOperadores.setLastDays(7);
+      });
+      document.getElementById('monthBtn').addEventListener('click', PainelOperadores.setMonth);
+      document.getElementById('clearBtn').addEventListener('click', PainelOperadores.clearAll);
+      document.getElementById('reloadBtn').addEventListener('click', PainelOperadores.loadInitial);
+      document.getElementById('toggleDetailsBtn').addEventListener('click', PainelOperadores.toggleDetails);
+      document.getElementById('searchInput').addEventListener('input', PainelOperadores.render);
+
+      window.addEventListener('beforeunload', function () {
+        if (PainelOperadores.state.eventSource) {
+          PainelOperadores.state.eventSource.close();
+        }
+      });
+    };
+
+    PainelOperadores.start = function () {
+      PainelOperadores.bind();
+      PainelOperadores.setLastDays(7);
+      PainelOperadores.loadInitial();
+      PainelOperadores.connectRealtime();
+    };
+
+    PainelOperadores.start();
+  </script>
+</body>
+</html>
