@@ -37,6 +37,7 @@
   };
 
   InfraDeskDespesas.COR_SEM_OPERADOR = '#ffffff';
+  InfraDeskDespesas.MOSTRAR_PAINEL_STATUS = false;
 
   InfraDeskDespesas.state = {
     started: false,
@@ -424,6 +425,10 @@
   };
 
   InfraDeskDespesas.injectPanel = function () {
+    if (!InfraDeskDespesas.MOSTRAR_PAINEL_STATUS) {
+      return;
+    }
+
     if (document.getElementById('tm-firebase-panel')) {
       return;
     }
