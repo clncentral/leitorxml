@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Operador direto no Firebase
 // @namespace    clncentral/infradesk
-// @version      3.4.1
+// @version      3.4.2
 // @description  Injeta seletor pequeno de operador ao lado do número da despesa e grava direto no Firebase em tempo real.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
@@ -706,20 +706,40 @@
   };
 
   InfraDeskDespesas.saveOperatorFromRow = async function (tr, id, operador) {
-    id = InfraDeskDespesas.clean(id);
-    operador = InfraDeskDespesas.clean(operador);
+  id = InfraDeskDespesas.clean(id);
+  operador = InfraDeskDespesas.clean(operador);
 
-    if (!id) {
+  if (!id) {
+    return;
+  }
+
+  const select = tr.querySelector('.tm-op-select');
+  const previousItem = InfraDeskDespesas.state.firebaseCache[id] || null;
+
+  if (select) {
+    select.classList.add('tm-op-saving');
+  }
+
+  InfraDeskDespesas.setStatus(tr, '...');
+
+  try {
+    if (!operador) {
+      delete InfraDeskDespesas.state.firebaseCache[id];
+      InfraDeskDespesas.updateRowUI(id, '');
+
+      await InfraDeskDespesas.request({
+        method: 'DELETE',
+        url: InfraDeskDespesas.firebaseUrl('despesas_updates/by_id/' + encodeURIComponent(id))
+      });
+
+      InfraDeskDespesas.setStatus(tr, '✓');
+
+      setTimeout(function () {
+        InfraDeskDespesas.setStatus(tr, '');
+      }, 1200);
+
       return;
     }
-
-    const select = tr.querySelector('.tm-op-select');
-
-    if (select) {
-      select.classList.add('tm-op-saving');
-    }
-
-    InfraDeskDespesas.setStatus(tr, '...');
 
     const rowInfo = InfraDeskDespesas.getRowInfo(tr);
 
@@ -739,30 +759,34 @@
     InfraDeskDespesas.state.firebaseCache[id] = payload;
     InfraDeskDespesas.updateRowUI(id, operador);
 
-    try {
-      await InfraDeskDespesas.request({
-        method: 'PUT',
-        url: InfraDeskDespesas.firebaseUrl('despesas_updates/by_id/' + encodeURIComponent(id)),
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        data: JSON.stringify(payload)
-      });
+    await InfraDeskDespesas.request({
+      method: 'PUT',
+      url: InfraDeskDespesas.firebaseUrl('despesas_updates/by_id/' + encodeURIComponent(id)),
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      data: JSON.stringify(payload)
+    });
 
-      InfraDeskDespesas.setStatus(tr, '✓');
+    InfraDeskDespesas.setStatus(tr, '✓');
 
-      setTimeout(function () {
-        InfraDeskDespesas.setStatus(tr, '');
-      }, 1200);
-    } catch (err) {
-      InfraDeskDespesas.setStatus(tr, '!');
-      console.warn('[InfraDeskDespesas] erro ao salvar no Firebase', err);
-    } finally {
-      if (select) {
-        select.classList.remove('tm-op-saving');
-      }
+    setTimeout(function () {
+      InfraDeskDespesas.setStatus(tr, '');
+    }, 1200);
+  } catch (err) {
+    if (!operador && previousItem) {
+      InfraDeskDespesas.state.firebaseCache[id] = previousItem;
+      InfraDeskDespesas.updateRowUI(id, InfraDeskDespesas.clean(previousItem.operador));
     }
-  };
+
+    InfraDeskDespesas.setStatus(tr, '!');
+    console.warn('[InfraDeskDespesas] erro ao salvar/remover no Firebase', err);
+  } finally {
+    if (select) {
+      select.classList.remove('tm-op-saving');
+    }
+  }
+};
 
   InfraDeskDespesas.loadFirebaseState = async function () {
     try {
