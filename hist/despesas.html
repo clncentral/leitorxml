@@ -3,618 +3,809 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraDesk • Painel de Operadores</title>
+  <title>InfraDesk • Operadores</title>
 
   <style>
     :root {
-      --bg: #f4f7fb;
-      --card: #ffffff;
-      --text: #111827;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --soft: #f8fafc;
-      --blue: #2563eb;
-      --green: #16a34a;
-      --red: #dc2626;
-      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background:
-        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 32%),
-        radial-gradient(circle at top right, rgba(168, 85, 247, 0.10), transparent 28%),
-        var(--bg);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    .app {
-      width: min(1320px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 22px 0 40px;
-    }
-
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 18px;
-      margin-bottom: 16px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 25px;
-      letter-spacing: -0.04em;
-    }
-
-    .subtitle {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .live {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 12px 14px;
-      min-width: 250px;
-      box-shadow: var(--shadow);
-      font-size: 12px;
-    }
-
-    .liveRow {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 4px 0;
-      color: var(--muted);
-    }
-
-    .liveRow strong {
-      color: var(--text);
-    }
-
-    .dot {
-      display: inline-block;
-      width: 9px;
-      height: 9px;
-      border-radius: 999px;
-      margin-right: 6px;
-      background: #f59e0b;
-    }
-
-    .dot.on {
-      background: var(--green);
-      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
-    }
-
-    .dot.off {
-      background: var(--red);
-      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.10);
-    }
-
-    .filters {
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      padding: 14px;
-      margin-bottom: 14px;
-      display: grid;
-      grid-template-columns: 150px 150px 150px 1fr auto;
-      gap: 10px;
-      align-items: end;
-      backdrop-filter: blur(12px);
-    }
-
-    label {
-      display: grid;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 800;
-      color: #374151;
-    }
-
-    input,
-    select,
-    button {
-      min-height: 40px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      padding: 8px 10px;
-      font-size: 13px;
-      outline: none;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: #93c5fd;
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
-    }
-
-    button {
-      cursor: pointer;
-      font-weight: 900;
-      transition: 0.15s ease;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.10);
-    }
-
-    .btnPrimary {
-      background: var(--blue);
-      color: #fff;
-      border-color: var(--blue);
-    }
-
-    .quickBtns {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .usersBox {
-      min-height: 40px;
-      max-height: 126px;
-      overflow: auto;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px;
-      display: flex;
-      gap: 7px;
-      flex-wrap: wrap;
-      align-content: flex-start;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 9px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #f9fafb;
-      cursor: pointer;
-      user-select: none;
-      font-size: 12px;
-      font-weight: 800;
-      color: #374151;
-    }
-
-    .chip input {
-      min-height: auto;
-      width: 14px;
-      height: 14px;
-      margin: 0;
-      accent-color: var(--blue);
-    }
-
-    .chip.active {
-      border-color: #bfdbfe;
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .stat {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .statLabel {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
-    .statValue {
-      font-size: 32px;
-      font-weight: 950;
-      letter-spacing: -0.06em;
-    }
-
-    .main {
-      display: grid;
-      grid-template-columns: 1fr 330px;
-      gap: 14px;
-    }
-
-    .panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .panelHead {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .panelTitle {
-      margin: 0;
-      font-size: 16px;
-      letter-spacing: -0.02em;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 3px;
-    }
-
-    .chartTop {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-
-    .legend {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .legendItem {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: #fff;
-      font-size: 12px;
-      font-weight: 800;
-      color: #374151;
-    }
-
-    .legendDot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-    }
-
-    .chartWrap {
-      width: 100%;
-      overflow-x: auto;
-      padding: 4px 2px 8px;
-      border-radius: 18px;
-      background:
-        linear-gradient(#fff, #fff) padding-box,
-        linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(168, 85, 247, 0.14)) border-box;
-      border: 1px solid transparent;
-    }
-
-    .chart {
-      min-width: 780px;
-      height: 420px;
-      position: relative;
-    }
-
-    svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-      display: block;
-    }
-
-    .tooltip {
-      position: fixed;
-      pointer-events: none;
-      opacity: 0;
-      transform: translate(-50%, -115%);
-      background: #111827;
-      color: #fff;
-      padding: 9px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
-      z-index: 20;
-      transition: opacity 0.12s ease;
-      white-space: nowrap;
-    }
-
-    .sideList {
-      display: grid;
-      gap: 9px;
-    }
-
-    .rankItem {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: center;
-      border: 1px solid var(--border);
-      background: var(--soft);
-      border-radius: 16px;
-      padding: 11px;
-    }
-
-    .rankName {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
-      font-weight: 900;
-      font-size: 13px;
-    }
-
-    .rankName span:last-child {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .colorDot {
-      width: 11px;
-      height: 11px;
-      border-radius: 999px;
-      flex: 0 0 auto;
-    }
-
-    .rankValue {
-      font-weight: 950;
-      color: var(--blue);
-    }
-
-    .progressTrack {
-      grid-column: 1 / -1;
-      height: 7px;
-      border-radius: 999px;
-      background: #e5e7eb;
-      overflow: hidden;
-      margin-top: 1px;
-    }
-
-    .progressFill {
-      height: 100%;
-      border-radius: 999px;
-      width: 0%;
-      transition: width 0.25s ease;
-    }
-
-    .detailsPanel {
-      margin-top: 14px;
-    }
-
-    .detailsTop {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .search {
-      width: min(330px, 100%);
-    }
-
-    .tableBox {
-      max-height: 430px;
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-    }
-
-    th,
-    td {
-      padding: 10px 11px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-      font-size: 12px;
-    }
-
-    th {
-      background: #f9fafb;
-      color: #4b5563;
-      font-weight: 950;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    tr:hover td {
-      background: #f9fbff;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 11px;
-      font-weight: 950;
-      color: #fff;
-    }
-
-    .empty {
-      text-align: center;
-      padding: 34px 14px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    @media (max-width: 1050px) {
-      .filters {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .main {
-        grid-template-columns: 1fr;
-      }
-
-      .stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 680px) {
-      .top {
-        flex-direction: column;
-      }
-
-      .live {
-        width: 100%;
-      }
-
-      .filters {
-        grid-template-columns: 1fr;
-      }
-
-      .stats {
-        grid-template-columns: 1fr;
-      }
-
-      .quickBtns {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-      }
-    }
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --soft: #f8fafc;
+  --blue: #2563eb;
+  --blue-soft: #dbeafe;
+  --shadow: 0 12px 30px rgba(15, 23, 42, 0.075);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 32%),
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.10), transparent 30%),
+    var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.app {
+  width: min(1780px, calc(100% - 18px));
+  margin: 0 auto;
+  padding: 9px 0 22px;
+}
+
+/* =========================
+   FILTROS
+========================= */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  margin-bottom: 10px;
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.segmented {
+  order: 1;
+  flex: 0 0 auto;
+  display: inline-flex;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 4px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.segmented button,
+.navBtn,
+.idsBtn {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #334155;
+  padding: 8px 11px;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.15s ease;
+  white-space: nowrap;
+}
+
+.segmented button.active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+.segmented button:not(.active):hover,
+.navBtn:hover:not(:disabled),
+.idsBtn:hover {
+  background: #fff;
+  border-color: var(--border);
+  transform: translateY(-1px);
+}
+
+.periodNav {
+  order: 1;
+  flex: 0 0 270px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  gap: 6px;
+  align-items: center;
+  min-width: 240px;
+}
+
+.navBtn {
+  background: #fff;
+  border-color: var(--border);
+  padding: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.navBtn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.periodLabel {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 7px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customRange {
+  order: 1;
+  flex: 0 1 270px;
+  min-width: 250px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+  align-items: end;
+}
+
+.chartSelect {
+  order: 1;
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.customRange label,
+.chartSelect label {
+  display: grid;
+  gap: 4px;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.customRange input,
+.chartSelect select,
+.search {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 8px 9px;
+  font-size: 12px;
+  outline: none;
+}
+
+.customRange input:focus,
+.chartSelect select:focus,
+.search:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+.usersArea {
+  order: 2;
+  flex: 1 1 calc(100% - 135px);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.usersTitle {
+  font-size: 12px;
+  font-weight: 950;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.usersBox {
+  min-height: 40px;
+  max-height: 64px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 900;
+  color: #374151;
+}
+
+.chip input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+.chip.active {
+  border-color: #bfdbfe;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.summaryToggle {
+  order: 2;
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: auto;
+  min-height: 40px;
+  max-width: 130px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.summaryToggle input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    border-radius: 18px;
+  }
+
+  .segmented {
+    width: 100%;
+  }
+
+  .segmented button {
+    flex: 1;
+  }
+
+  .periodNav,
+  .customRange,
+  .chartSelect {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .usersArea {
+    flex: 1 1 100%;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .summaryToggle {
+    margin-left: 0;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+/* =========================
+   LAYOUT PRINCIPAL
+========================= */
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 235px;
+  gap: 10px;
+  align-items: start;
+}
+
+.main.noSummary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.idsBtn {
+  background: #fff;
+  border-color: var(--border);
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  color: #374151;
+}
+
+.legendDot,
+.colorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.chartWrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 4px 2px 7px;
+  border-radius: 18px;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(168, 85, 247, 0.14)) border-box;
+  border: 1px solid transparent;
+}
+
+.chart {
+  min-width: 720px;
+  height: clamp(430px, calc(100vh - 150px), 760px);
+  position: relative;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+/* =========================
+   RESUMO
+========================= */
+
+.summaryPanel {
+  padding: 10px;
+}
+
+.summaryBig {
+  background: linear-gradient(135deg, #eff6ff, #faf5ff);
+  border: 1px solid #dbeafe;
+  border-radius: 17px;
+  padding: 11px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.summaryBig span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.summaryBig strong {
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.sideList {
+  display: grid;
+  gap: 7px;
+}
+
+.rankItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--soft);
+  border-radius: 15px;
+  padding: 8px;
+}
+
+.rankName {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-weight: 950;
+  font-size: 12px;
+}
+
+.rankName span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankValue {
+  font-weight: 950;
+  color: var(--blue);
+}
+
+.progressTrack {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.25s ease;
+}
+
+/* =========================
+   TABELA DE IDS
+========================= */
+
+.detailsPanel {
+  margin-top: 10px;
+}
+
+.detailsTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 9px;
+}
+
+.search {
+  width: min(320px, 100%);
+  font-size: 13px;
+}
+
+.tableBox {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th,
+td {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 12px;
+}
+
+th {
+  background: #f9fafb;
+  color: #4b5563;
+  font-weight: 950;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tr:hover td {
+  background: #f9fbff;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 950;
+  color: #fff;
+}
+
+/* =========================
+   EXTRAS
+========================= */
+
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -115%);
+  background: #111827;
+  color: #fff;
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+  z-index: 20;
+  transition: opacity 0.12s ease;
+  white-space: nowrap;
+}
+
+.empty {
+  text-align: center;
+  padding: 34px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.pulse {
+  animation: pulseValue 0.55s ease;
+}
+
+@keyframes pulseValue {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.16);
+    color: #16a34a;
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* =========================
+   RESPONSIVO
+========================= */
+
+@media (max-width: 1320px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "modes nav"
+      "custom chart"
+      "users summary";
+  }
+
+  .toolbar:has(#customRange.hidden) {
+    grid-template-areas:
+      "modes nav"
+      "chart chart"
+      "users summary";
+  }
+
+  .segmented {
+    width: 100%;
+  }
+
+  .segmented button {
+    flex: 1;
+  }
+
+  .periodNav {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .customRange {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .app {
+    width: min(100% - 12px, 1780px);
+    padding-top: 7px;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "modes"
+      "nav"
+      "custom"
+      "chart"
+      "users"
+      "summary";
+    border-radius: 18px;
+  }
+
+  .toolbar:has(#customRange.hidden) {
+    grid-template-areas:
+      "modes"
+      "nav"
+      "chart"
+      "users"
+      "summary";
+  }
+
+  .segmented {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .segmented button {
+    flex: 1;
+  }
+
+  .periodNav {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .customRange {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .usersArea {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .summaryToggle {
+    justify-self: stretch;
+    justify-content: center;
+  }
+
+  .detailsTop {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chart {
+    min-width: 650px;
+    height: 450px;
+  }
+}
   </style>
 </head>
 
 <body>
   <div class="app">
-    <div class="top">
-      <div>
-        <h1>Operadores por Data</h1>
-        <div class="subtitle">Painel em tempo real com filtros por período e usuários.</div>
+    <div class="toolbar">
+      <div class="segmented" aria-label="Período">
+        <button id="modeWeek" type="button" data-mode="week" class="active">Semana</button>
+        <button id="modeMonth" type="button" data-mode="month">Mês</button>
+        <button id="modeCustom" type="button" data-mode="custom">Personalizado</button>
+        <button id="modeAll" type="button" data-mode="all">Tudo</button>
       </div>
 
-      <div class="live">
-        <div class="liveRow">
-          <span>Status</span>
-          <strong><span id="liveDot" class="dot"></span><span id="liveText">conectando...</span></strong>
-        </div>
-        <div class="liveRow">
-          <span>Atualizado</span>
-          <strong id="updatedAt">—</strong>
-        </div>
+      <div class="periodNav">
+        <button id="prevPeriodBtn" class="navBtn" type="button" aria-label="Período anterior">‹</button>
+        <div id="periodLabel" class="periodLabel">—</div>
+        <button id="nextPeriodBtn" class="navBtn" type="button" aria-label="Próximo período">›</button>
       </div>
-    </div>
 
-    <div class="filters">
-      <label>
-        Data inicial
-        <input id="dateFrom" type="date" />
-      </label>
+      <div id="customRange" class="customRange hidden">
+        <label>
+          Inicial
+          <input id="dateFrom" type="date" />
+        </label>
 
-      <label>
-        Data final
-        <input id="dateTo" type="date" />
-      </label>
+        <label>
+          Final
+          <input id="dateTo" type="date" />
+        </label>
+      </div>
 
-      <label>
-        Tipo de gráfico
-        <select id="viewMode">
-          <option value="auto" selected>Automático</option>
-          <option value="line">Linha por dia</option>
-          <option value="bar">Barras por dia</option>
-          <option value="donut">Participação</option>
-          <option value="total">Ranking total</option>
-        </select>
-      </label>
+      <div class="chartSelect">
+        <label>
+          Gráfico
+          <select id="chartMode">
+            <option value="auto" selected>Automático</option>
+            <option value="bar">Barras por dia</option>
+            <option value="line">Linha por dia</option>
+            <option value="total">Resumo total</option>
+          </select>
+        </label>
+      </div>
 
-      <label>
-        Usuários
+      <div class="usersArea">
+        <div class="usersTitle">Usuários</div>
         <div id="usersBox" class="usersBox"></div>
+      </div>
+
+      <label class="summaryToggle">
+        <input id="summaryToggle" type="checkbox" checked />
+        Resumo
       </label>
-
-      <div class="quickBtns">
-        <button id="todayBtn" type="button">Hoje</button>
-        <button id="weekBtn" type="button">7 dias</button>
-        <button id="monthBtn" type="button">Mês</button>
-        <button id="clearBtn" type="button">Todos</button>
-        <button id="reloadBtn" class="btnPrimary" type="button">Recarregar</button>
-      </div>
     </div>
 
-    <div class="stats">
-      <div class="stat">
-        <div class="statLabel">Total no filtro</div>
-        <div id="statTotal" class="statValue">0</div>
-      </div>
-
-      <div class="stat">
-        <div class="statLabel">Com operador</div>
-        <div id="statWithOp" class="statValue">0</div>
-      </div>
-
-      <div class="stat">
-        <div class="statLabel">Sem operador</div>
-        <div id="statNoOp" class="statValue">0</div>
-      </div>
-
-      <div class="stat">
-        <div class="statLabel">Usuários ativos</div>
-        <div id="statUsers" class="statValue">0</div>
-      </div>
-    </div>
-
-    <div class="main">
+    <div id="mainGrid" class="main">
       <div class="panel">
         <div class="panelHead">
           <div>
-            <h2 id="chartTitle" class="panelTitle">Gráfico</h2>
-            <div id="chartHint" class="hint">Selecione um período e usuários.</div>
+            <h2 id="chartTitle" class="panelTitle">Semana</h2>
+            <div id="chartHint" class="hint">Chamados únicos por operador.</div>
           </div>
 
-          <button id="toggleDetailsBtn" type="button">Ver chamados</button>
+          <button id="toggleDetailsBtn" class="idsBtn" type="button">Ver IDs</button>
         </div>
 
-        <div class="chartTop">
-          <div id="legend" class="legend"></div>
-        </div>
+        <div id="legend" class="legend"></div>
 
         <div class="chartWrap">
           <div id="chart" class="chart"></div>
         </div>
       </div>
 
-      <div class="panel">
+      <div id="summaryPanel" class="panel summaryPanel">
         <div class="panelHead">
-          <h2 class="panelTitle">Resumo</h2>
-          <span id="summaryCount" class="hint">0 usuários</span>
+          <div>
+            <h2 class="panelTitle">Resumo</h2>
+            <div id="summaryMeta" class="hint">0 usuário(s)</div>
+          </div>
+        </div>
+
+        <div class="summaryBig">
+          <span>Total</span>
+          <strong id="summaryTotal">0</strong>
         </div>
 
         <div id="ranking" class="sideList"></div>
@@ -624,8 +815,8 @@
     <div id="detailsPanel" class="panel detailsPanel hidden">
       <div class="detailsTop">
         <div>
-          <h2 class="panelTitle">Chamados do filtro</h2>
-          <div class="hint">Detalhes aparecem somente quando necessário.</div>
+          <h2 class="panelTitle">IDs</h2>
+          <div id="detailsHint" class="hint">0 chamado(s).</div>
         </div>
 
         <input id="searchInput" class="search" type="text" placeholder="Buscar ID ou operador..." />
@@ -635,10 +826,8 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 110px;">ID</th>
+              <th style="width: 160px;">ID</th>
               <th>Operador</th>
-              <th style="width: 110px;">Linha</th>
-              <th style="width: 190px;">Atualizado em</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -658,9 +847,14 @@
     PainelOperadores.state = {
       byId: {},
       eventSource: null,
-      renderTimer: null,
+      renderFrame: null,
       selectedUsers: new Set(),
-      userTouchedSelection: false
+      userTouchedSelection: false,
+      mode: 'week',
+      weekStart: null,
+      monthStart: null,
+      lastTotals: new Map(),
+      lastTotalCount: 0
     };
 
     PainelOperadores.clean = function (value) {
@@ -672,55 +866,102 @@
       return Number.isFinite(n) ? n : 0;
     };
 
-    PainelOperadores.operatorName = function (value) {
-      const op = PainelOperadores.clean(value);
-      return op || 'Sem operador';
-    };
-
     PainelOperadores.pad = function (n) {
       return String(n).padStart(2, '0');
     };
 
+    PainelOperadores.escapeHTML = function (value) {
+      return PainelOperadores.clean(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    PainelOperadores.toDateInput = function (date) {
+      return `${date.getFullYear()}-${PainelOperadores.pad(date.getMonth() + 1)}-${PainelOperadores.pad(date.getDate())}`;
+    };
+
+    PainelOperadores.dateFromKey = function (key) {
+      const d = new Date(String(key || '') + 'T00:00:00');
+      return String(d) === 'Invalid Date' ? null : d;
+    };
+
+    PainelOperadores.cloneDate = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+
+    PainelOperadores.addDays = function (date, days) {
+      const d = PainelOperadores.cloneDate(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
+    PainelOperadores.addMonths = function (date, months) {
+      return new Date(date.getFullYear(), date.getMonth() + months, 1);
+    };
+
+    PainelOperadores.startOfWeek = function (date) {
+      const d = PainelOperadores.cloneDate(date);
+      d.setDate(d.getDate() - d.getDay());
+      return d;
+    };
+
+    PainelOperadores.startOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    };
+
+    PainelOperadores.endOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    };
+
+    PainelOperadores.todayKey = function () {
+      return PainelOperadores.toDateInput(new Date());
+    };
+
     PainelOperadores.dateKeyFromTs = function (ts) {
       const n = PainelOperadores.toNumber(ts);
+
       if (!n) return '';
 
       const d = new Date(n);
+
       if (String(d) === 'Invalid Date') return '';
 
-      return `${d.getFullYear()}-${PainelOperadores.pad(d.getMonth() + 1)}-${PainelOperadores.pad(d.getDate())}`;
-    };
-
-    PainelOperadores.dateLabel = function (key) {
-      if (!key) return 'Sem data';
-
-      const p = key.split('-');
-      if (p.length !== 3) return key;
-
-      return `${p[2]}/${p[1]}`;
+      return PainelOperadores.toDateInput(d);
     };
 
     PainelOperadores.fullDateLabel = function (key) {
-      if (!key) return 'Sem data';
+      const p = String(key || '').split('-');
 
-      const p = key.split('-');
-      if (p.length !== 3) return key;
+      if (p.length !== 3) return key || '—';
 
       return `${p[2]}/${p[1]}/${p[0]}`;
     };
 
-    PainelOperadores.formatDateTime = function (ts) {
-      const n = PainelOperadores.toNumber(ts);
-      if (!n) return '—';
+    PainelOperadores.shortDateLabel = function (key) {
+      const p = String(key || '').split('-');
 
-      const d = new Date(n);
-      if (String(d) === 'Invalid Date') return '—';
+      if (p.length !== 3) return key || '—';
 
-      return d.toLocaleString('pt-BR');
+      return `${p[2]}/${p[1]}`;
     };
 
-    PainelOperadores.formatTime = function () {
-      return new Date().toLocaleTimeString('pt-BR');
+    PainelOperadores.weekdayLabel = function (key) {
+      const d = PainelOperadores.dateFromKey(key);
+      const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+      if (!d) return '';
+
+      return names[d.getDay()];
+    };
+
+    PainelOperadores.monthName = function (date) {
+      return date.toLocaleDateString('pt-BR', {
+        month: 'long',
+        year: 'numeric'
+      });
     };
 
     PainelOperadores.norm = function (value) {
@@ -744,9 +985,10 @@
       const fixed = {
         "elias araujo": "#2563eb",
         "camily": "#a855f7",
+        "helena": "#2dd4bf",
         "elia maria": "#7c3aed",
         "patricia": "#f97316",
-        "sem operador": "#9ca3af"
+        "marcia": "#9333ea"
       };
 
       const key = PainelOperadores.norm(name);
@@ -755,7 +997,7 @@
         return fixed[key];
       }
 
-      const hue = PainelOperadores.hashHue(key || 'sem operador');
+      const hue = PainelOperadores.hashHue(key || 'operador');
       return `hsl(${hue} 72% 48%)`;
     };
 
@@ -763,65 +1005,764 @@
       return PainelOperadores.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelOperadores.PATH;
     };
 
-    PainelOperadores.setLiveStatus = function (ok, text) {
-      const dot = document.getElementById('liveDot');
-      const liveText = document.getElementById('liveText');
+    PainelOperadores.normalizeItem = function (key, item) {
+      const raw = item && typeof item === 'object' ? item : {};
+      const id = PainelOperadores.clean(raw.id || key);
+      const operador = PainelOperadores.clean(raw.operador);
+      const ts = PainelOperadores.toNumber(raw.ts);
 
-      dot.classList.remove('on', 'off');
-      dot.classList.add(ok ? 'on' : 'off');
-      liveText.textContent = text;
+      if (!id || !operador) {
+        return null;
+      }
+
+      return {
+        id,
+        operador,
+        ts
+      };
     };
 
-    PainelOperadores.setUpdated = function () {
-      document.getElementById('updatedAt').textContent = PainelOperadores.formatTime();
+    PainelOperadores.normalizeSnapshot = function (data) {
+      const out = {};
+
+      for (const [key, item] of Object.entries(data || {})) {
+        const normalized = PainelOperadores.normalizeItem(key, item);
+
+        if (normalized) {
+          out[normalized.id] = normalized;
+        }
+      }
+
+      return out;
     };
 
     PainelOperadores.getItems = function () {
       return Object.entries(PainelOperadores.state.byId || {})
-        .map(([id, item]) => ({
-          id: PainelOperadores.clean(item?.id || id),
-          operador: PainelOperadores.clean(item?.operador),
-          row: PainelOperadores.toNumber(item?.row),
-          ts: PainelOperadores.toNumber(item?.ts)
-        }))
-        .filter(item => item.id);
+        .map(([key, item]) => PainelOperadores.normalizeItem(key, item))
+        .filter(Boolean);
     };
 
     PainelOperadores.getAllUsers = function () {
-      return [...new Set(
-        PainelOperadores.getItems().map(item => PainelOperadores.operatorName(item.operador))
-      )].sort((a, b) => {
-        if (a === 'Sem operador') return 1;
-        if (b === 'Sem operador') return -1;
-        return a.localeCompare(b, 'pt-BR');
-      });
+      return [...new Set(PainelOperadores.getItems().map(item => item.operador))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
     };
 
     PainelOperadores.getSelectedUsers = function () {
       const all = PainelOperadores.getAllUsers();
 
-      if (!PainelOperadores.state.userTouchedSelection || PainelOperadores.state.selectedUsers.size === 0) {
+      if (!PainelOperadores.state.userTouchedSelection) {
         return all;
       }
 
       return all.filter(user => PainelOperadores.state.selectedUsers.has(user));
     };
 
-    PainelOperadores.getFilteredItems = function () {
-      const from = document.getElementById('dateFrom').value;
-      const to = document.getElementById('dateTo').value;
+    PainelOperadores.normalizeCustomInputs = function () {
+      const fromInput = document.getElementById('dateFrom');
+      const toInput = document.getElementById('dateTo');
+
+      if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
+        const oldFrom = fromInput.value;
+        fromInput.value = toInput.value;
+        toInput.value = oldFrom;
+      }
+    };
+
+    PainelOperadores.currentRange = function () {
+      if (PainelOperadores.state.mode === 'week') {
+        const start = PainelOperadores.cloneDate(PainelOperadores.state.weekStart);
+        const end = PainelOperadores.addDays(start, 6);
+
+        return {
+          start,
+          end,
+          startKey: PainelOperadores.toDateInput(start),
+          endKey: PainelOperadores.toDateInput(end)
+        };
+      }
+
+      if (PainelOperadores.state.mode === 'month') {
+        const start = PainelOperadores.cloneDate(PainelOperadores.state.monthStart);
+        const end = PainelOperadores.endOfMonth(start);
+
+        return {
+          start,
+          end,
+          startKey: PainelOperadores.toDateInput(start),
+          endKey: PainelOperadores.toDateInput(end)
+        };
+      }
+
+      if (PainelOperadores.state.mode === 'custom') {
+        PainelOperadores.normalizeCustomInputs();
+
+        const from = document.getElementById('dateFrom').value;
+        const to = document.getElementById('dateTo').value;
+
+        return {
+          start: from ? PainelOperadores.dateFromKey(from) : null,
+          end: to ? PainelOperadores.dateFromKey(to) : null,
+          startKey: from || '',
+          endKey: to || ''
+        };
+      }
+
+      return {
+        start: null,
+        end: null,
+        startKey: '',
+        endKey: ''
+      };
+    };
+
+    PainelOperadores.daysInRange = function (start, end) {
+      const days = [];
+
+      if (!start || !end || end < start) {
+        return days;
+      }
+
+      const current = PainelOperadores.cloneDate(start);
+
+      while (current <= end) {
+        days.push(PainelOperadores.toDateInput(current));
+        current.setDate(current.getDate() + 1);
+      }
+
+      return days;
+    };
+
+    PainelOperadores.getDayKeysFromItems = function (items) {
+      return [...new Set(
+        items
+          .map(item => PainelOperadores.dateKeyFromTs(item.ts))
+          .filter(Boolean)
+      )].sort();
+    };
+
+    PainelOperadores.getVisibleItems = function () {
       const selected = new Set(PainelOperadores.getSelectedUsers());
+      const range = PainelOperadores.currentRange();
 
       return PainelOperadores.getItems().filter(item => {
-        const key = PainelOperadores.dateKeyFromTs(item.ts);
-        const user = PainelOperadores.operatorName(item.operador);
+        if (!selected.has(item.operador)) {
+          return false;
+        }
 
-        if (from && key && key < from) return false;
-        if (to && key && key > to) return false;
-        if (selected.size && !selected.has(user)) return false;
+        if (PainelOperadores.state.mode === 'all') {
+          return true;
+        }
+
+        const key = PainelOperadores.dateKeyFromTs(item.ts);
+
+        if (!key) {
+          return false;
+        }
+
+        if (range.startKey && key < range.startKey) {
+          return false;
+        }
+
+        if (range.endKey && key > range.endKey) {
+          return false;
+        }
 
         return true;
       });
+    };
+
+    PainelOperadores.getChartDays = function (items) {
+      const mode = PainelOperadores.state.mode;
+      const range = PainelOperadores.currentRange();
+
+      if (mode === 'week' || mode === 'month') {
+        return PainelOperadores.daysInRange(range.start, range.end);
+      }
+
+      const itemDays = PainelOperadores.getDayKeysFromItems(items);
+
+      if (mode === 'custom') {
+        let startKey = range.startKey;
+        let endKey = range.endKey;
+
+        if (!startKey && itemDays.length) {
+          startKey = itemDays[0];
+        }
+
+        if (!endKey && itemDays.length) {
+          endKey = itemDays[itemDays.length - 1];
+        }
+
+        if (startKey && endKey) {
+          return PainelOperadores.daysInRange(
+            PainelOperadores.dateFromKey(startKey),
+            PainelOperadores.dateFromKey(endKey)
+          );
+        }
+
+        return itemDays;
+      }
+
+      return itemDays;
+    };
+
+    PainelOperadores.groupDaily = function (items) {
+      const days = PainelOperadores.getChartDays(items);
+      const users = [...new Set(items.map(item => item.operador))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      const data = {};
+
+      for (const day of days) {
+        data[day] = {};
+
+        for (const user of users) {
+          data[day][user] = 0;
+        }
+      }
+
+      for (const item of items) {
+        const day = PainelOperadores.dateKeyFromTs(item.ts);
+
+        if (!day || !data[day]) {
+          continue;
+        }
+
+        data[day][item.operador] = (data[day][item.operador] || 0) + 1;
+      }
+
+      return {
+        days,
+        users,
+        data
+      };
+    };
+
+    PainelOperadores.groupTotal = function (items) {
+      const totals = {};
+
+      for (const item of items) {
+        totals[item.operador] = (totals[item.operador] || 0) + 1;
+      }
+
+      return Object.entries(totals)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    };
+
+    PainelOperadores.showTooltip = function (event, html) {
+      const t = document.getElementById('tooltip');
+
+      t.innerHTML = html;
+      t.style.left = event.clientX + 'px';
+      t.style.top = event.clientY + 'px';
+      t.style.opacity = '1';
+    };
+
+    PainelOperadores.hideTooltip = function () {
+      document.getElementById('tooltip').style.opacity = '0';
+    };
+
+    PainelOperadores.svg = function (tag, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+
+      for (const [k, v] of Object.entries(attrs || {})) {
+        el.setAttribute(k, v);
+      }
+
+      return el;
+    };
+
+    PainelOperadores.niceTicks = function (max) {
+      max = Math.max(1, max);
+
+      const step = Math.ceil(max / 4);
+      const ticks = [];
+
+      for (let i = 0; i <= 4; i++) {
+        ticks.push(step * i);
+      }
+
+      return ticks;
+    };
+
+    PainelOperadores.drawGrid = function (svg, width, height, margin, max) {
+      const plotH = height - margin.top - margin.bottom;
+      const ticks = PainelOperadores.niceTicks(max);
+      const tickMax = Math.max(...ticks);
+
+      for (const value of ticks) {
+        const y = margin.top + plotH - (value / tickMax) * plotH;
+
+        svg.appendChild(PainelOperadores.svg('line', {
+          x1: margin.left,
+          y1: y,
+          x2: width - margin.right,
+          y2: y,
+          stroke: '#e5e7eb',
+          'stroke-width': 1
+        }));
+
+        const txt = PainelOperadores.svg('text', {
+          x: margin.left - 10,
+          y: y + 4,
+          'text-anchor': 'end',
+          'font-size': 11,
+          fill: '#6b7280'
+        });
+
+        txt.textContent = value;
+        svg.appendChild(txt);
+      }
+    };
+
+    PainelOperadores.renderLegend = function (users) {
+      const legend = document.getElementById('legend');
+
+      legend.innerHTML = '';
+
+      for (const user of users) {
+        const item = document.createElement('div');
+        item.className = 'legendItem';
+
+        const dot = document.createElement('span');
+        dot.className = 'legendDot';
+        dot.style.background = PainelOperadores.colorFor(user);
+
+        const txt = document.createElement('span');
+        txt.textContent = user;
+
+        item.appendChild(dot);
+        item.appendChild(txt);
+        legend.appendChild(item);
+      }
+    };
+
+    PainelOperadores.getResolvedChartMode = function (items) {
+      const selected = document.getElementById('chartMode').value;
+
+      if (selected !== 'auto') {
+        return selected;
+      }
+
+      if (PainelOperadores.state.mode === 'week') {
+        return 'bar';
+      }
+
+      if (PainelOperadores.state.mode === 'month') {
+        return 'line';
+      }
+
+      if (PainelOperadores.state.mode === 'all') {
+        return 'total';
+      }
+
+      const days = PainelOperadores.getChartDays(items).length;
+
+      if (days <= 10) {
+        return 'bar';
+      }
+
+      if (days <= 120) {
+        return 'line';
+      }
+
+      return 'total';
+    };
+
+    PainelOperadores.renderBarChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelOperadores.groupDaily(items);
+      const days = grouped.days;
+      const users = grouped.users;
+      const today = PainelOperadores.todayKey();
+
+      chart.innerHTML = '';
+
+      if (!users.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(users);
+
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 10;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const groupMin = manyDays ? Math.max(38, users.length * 13) : Math.max(92, users.length * 30);
+      const width = Math.max(availableWidth, days.length * groupMin);
+      const height = Math.max(430, chart.clientHeight || 450);
+
+      const margin = {
+        top: 28,
+        right: 28,
+        bottom: manyDays ? 72 : 58,
+        left: 46
+      };
+
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => users.map(user => grouped.data[day]?.[user] || 0)));
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      PainelOperadores.drawGrid(svg, width, height, margin, max);
+
+      const groupW = plotW / days.length;
+      const gap = manyDays ? 7 : 12;
+      const innerW = Math.max(10, groupW - gap);
+      const barGap = manyDays ? 3 : 5;
+      const barW = Math.max(5, Math.min(manyDays ? 18 : 34, (innerW - (users.length - 1) * barGap) / users.length));
+
+      days.forEach((day, dayIndex) => {
+        if (day !== today) {
+          return;
+        }
+
+        const x = margin.left + dayIndex * groupW + 3;
+
+        svg.appendChild(PainelOperadores.svg('rect', {
+          x,
+          y: margin.top - 12,
+          width: Math.max(18, groupW - 6),
+          height: plotH + 22,
+          rx: 15,
+          fill: '#dbeafe',
+          opacity: 0.72
+        }));
+      });
+
+      days.forEach((day, dayIndex) => {
+        const groupX = margin.left + dayIndex * groupW + gap / 2;
+        const totalBarsW = users.length * barW + (users.length - 1) * barGap;
+        const startX = groupX + (innerW - totalBarsW) / 2;
+
+        users.forEach((user, userIndex) => {
+          const value = grouped.data[day]?.[user] || 0;
+          const h = value ? Math.max(4, (value / max) * plotH) : 0;
+          const x = startX + userIndex * (barW + barGap);
+          const y = margin.top + plotH - h;
+
+          const rect = PainelOperadores.svg('rect', {
+            x,
+            y,
+            width: barW,
+            height: h,
+            rx: manyDays ? 5 : 8,
+            fill: PainelOperadores.colorFor(user)
+          });
+
+          rect.addEventListener('mousemove', function (event) {
+            PainelOperadores.showTooltip(
+              event,
+              `<strong>${PainelOperadores.escapeHTML(user)}</strong><br>${PainelOperadores.fullDateLabel(day)} • ${value} chamado(s)`
+            );
+          });
+
+          rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+          svg.appendChild(rect);
+
+          if (value && !manyDays) {
+            const txt = PainelOperadores.svg('text', {
+              x: x + barW / 2,
+              y: y - 7,
+              'text-anchor': 'middle',
+              'font-size': 11,
+              'font-weight': 950,
+              fill: '#111827'
+            });
+
+            txt.textContent = value;
+            svg.appendChild(txt);
+          }
+        });
+
+        const isToday = day === today;
+        const labelX = groupX + innerW / 2;
+        const labelY = height - (manyDays ? 34 : 28);
+
+        const label = PainelOperadores.svg('text', {
+          x: labelX,
+          y: labelY,
+          'text-anchor': 'middle',
+          'font-size': manyDays ? 10 : 11,
+          'font-weight': isToday ? 950 : 500,
+          fill: isToday ? '#2563eb' : '#6b7280'
+        });
+
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${labelX} ${labelY})`);
+          label.textContent = isToday ? 'Hoje' : PainelOperadores.shortDateLabel(day);
+        } else {
+          label.textContent = isToday
+            ? 'Hoje'
+            : `${PainelOperadores.weekdayLabel(day)} ${PainelOperadores.shortDateLabel(day)}`;
+        }
+
+        svg.appendChild(label);
+      });
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderLineChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelOperadores.groupDaily(items);
+      const days = grouped.days;
+      const users = grouped.users;
+      const today = PainelOperadores.todayKey();
+
+      chart.innerHTML = '';
+
+      if (!users.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelOperadores.renderLegend([]);
+        return;
+      }
+
+      PainelOperadores.renderLegend(users);
+
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 18;
+      const veryManyDays = days.length > 60;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const dayW = veryManyDays ? 18 : manyDays ? 36 : 76;
+      const width = Math.max(availableWidth, days.length * dayW);
+      const height = Math.max(430, chart.clientHeight || 450);
+
+      const margin = {
+        top: 30,
+        right: 36,
+        bottom: manyDays ? 72 : 58,
+        left: 46
+      };
+
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => users.map(user => grouped.data[day]?.[user] || 0)));
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      PainelOperadores.drawGrid(svg, width, height, margin, max);
+
+      const xFor = function (index) {
+        if (days.length === 1) {
+          return margin.left + plotW / 2;
+        }
+
+        return margin.left + (index / (days.length - 1)) * plotW;
+      };
+
+      const yFor = function (value) {
+        return margin.top + plotH - (value / max) * plotH;
+      };
+
+      days.forEach((day, index) => {
+        if (day !== today) {
+          return;
+        }
+
+        const x = xFor(index);
+
+        svg.appendChild(PainelOperadores.svg('line', {
+          x1: x,
+          y1: margin.top - 12,
+          x2: x,
+          y2: margin.top + plotH + 8,
+          stroke: '#2563eb',
+          'stroke-width': 2,
+          'stroke-dasharray': '6 6',
+          opacity: 0.48
+        }));
+      });
+
+      for (const user of users) {
+        const points = days.map((day, index) => ({
+          day,
+          x: xFor(index),
+          y: yFor(grouped.data[day]?.[user] || 0),
+          value: grouped.data[day]?.[user] || 0
+        }));
+
+        let d = '';
+
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+
+          if (i === 0) {
+            d += `M ${p.x} ${p.y}`;
+          } else {
+            const prev = points[i - 1];
+            const cx1 = prev.x + (p.x - prev.x) * 0.45;
+            const cy1 = prev.y;
+            const cx2 = prev.x + (p.x - prev.x) * 0.55;
+            const cy2 = p.y;
+
+            d += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
+          }
+        }
+
+        svg.appendChild(PainelOperadores.svg('path', {
+          d,
+          fill: 'none',
+          stroke: PainelOperadores.colorFor(user),
+          'stroke-width': 4,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round'
+        }));
+
+        for (const p of points) {
+          if (!p.value && veryManyDays) {
+            continue;
+          }
+
+          const circle = PainelOperadores.svg('circle', {
+            cx: p.x,
+            cy: p.y,
+            r: manyDays ? 4 : 6,
+            fill: '#fff',
+            stroke: PainelOperadores.colorFor(user),
+            'stroke-width': manyDays ? 3 : 4
+          });
+
+          circle.addEventListener('mousemove', function (event) {
+            PainelOperadores.showTooltip(
+              event,
+              `<strong>${PainelOperadores.escapeHTML(user)}</strong><br>${PainelOperadores.fullDateLabel(p.day)} • ${p.value} chamado(s)`
+            );
+          });
+
+          circle.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+          svg.appendChild(circle);
+
+          if (p.value && !manyDays) {
+            const txt = PainelOperadores.svg('text', {
+              x: p.x,
+              y: p.y - 12,
+              'text-anchor': 'middle',
+              'font-size': 11,
+              'font-weight': 950,
+              fill: '#111827'
+            });
+
+            txt.textContent = p.value;
+            svg.appendChild(txt);
+          }
+        }
+      }
+
+      days.forEach((day, index) => {
+        const isToday = day === today;
+        const x = xFor(index);
+        const y = height - (manyDays ? 34 : 28);
+
+        const label = PainelOperadores.svg('text', {
+          x,
+          y,
+          'text-anchor': 'middle',
+          'font-size': manyDays ? 10 : 11,
+          'font-weight': isToday ? 950 : 500,
+          fill: isToday ? '#2563eb' : '#6b7280'
+        });
+
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${x} ${y})`);
+          label.textContent = isToday ? 'Hoje' : PainelOperadores.shortDateLabel(day);
+        } else {
+          label.textContent = isToday
+            ? 'Hoje'
+            : `${PainelOperadores.weekdayLabel(day)} ${PainelOperadores.shortDateLabel(day)}`;
+        }
+
+        svg.appendChild(label);
+      });
+
+      chart.appendChild(svg);
+    };
+
+    PainelOperadores.renderTotalChart = function (items) {
+      const chart = document.getElementById('chart');
+      const totals = PainelOperadores.groupTotal(items);
+
+      chart.innerHTML = '';
+      PainelOperadores.renderLegend(totals.map(([user]) => user));
+
+      if (!totals.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado para mostrar.</div>';
+        return;
+      }
+
+      const wrap = chart.parentElement;
+      const width = Math.max(760, wrap.clientWidth - 8);
+      const height = Math.max(430, Math.min(760, totals.length * 54 + 80, chart.clientHeight || 450));
+
+      const margin = {
+        top: 28,
+        right: 55,
+        bottom: 34,
+        left: 150
+      };
+
+      const plotW = width - margin.left - margin.right;
+      const rowH = Math.min(54, (height - margin.top - margin.bottom) / totals.length);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+
+      totals.forEach(([user, count], index) => {
+        const y = margin.top + index * rowH + 8;
+        const w = Math.max(10, (count / max) * plotW);
+
+        const label = PainelOperadores.svg('text', {
+          x: margin.left - 12,
+          y: y + 22,
+          'text-anchor': 'end',
+          'font-size': 12,
+          'font-weight': 950,
+          fill: '#374151'
+        });
+
+        label.textContent = user;
+        svg.appendChild(label);
+
+        svg.appendChild(PainelOperadores.svg('rect', {
+          x: margin.left,
+          y,
+          width: plotW,
+          height: 28,
+          rx: 14,
+          fill: '#eef2f7'
+        }));
+
+        const rect = PainelOperadores.svg('rect', {
+          x: margin.left,
+          y,
+          width: w,
+          height: 28,
+          rx: 14,
+          fill: PainelOperadores.colorFor(user)
+        });
+
+        rect.addEventListener('mousemove', function (event) {
+          PainelOperadores.showTooltip(
+            event,
+            `<strong>${PainelOperadores.escapeHTML(user)}</strong><br>${count} chamado(s)`
+          );
+        });
+
+        rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
+        svg.appendChild(rect);
+
+        const value = PainelOperadores.svg('text', {
+          x: Math.min(margin.left + w + 9, width - margin.right + 8),
+          y: y + 20,
+          'font-size': 12,
+          'font-weight': 950,
+          fill: '#111827'
+        });
+
+        value.textContent = count;
+        svg.appendChild(value);
+      });
+
+      chart.appendChild(svg);
     };
 
     PainelOperadores.renderUsers = function () {
@@ -864,7 +1805,7 @@
             PainelOperadores.state.selectedUsers.delete(user);
           }
 
-          PainelOperadores.render();
+          PainelOperadores.scheduleRender();
         });
 
         const text = document.createElement('span');
@@ -876,686 +1817,102 @@
       }
     };
 
-    PainelOperadores.renderStats = function (items) {
-      const withOp = items.filter(item => PainelOperadores.clean(item.operador)).length;
-      const noOp = items.length - withOp;
-      const users = new Set(items.map(item => PainelOperadores.operatorName(item.operador)));
+    PainelOperadores.renderHeader = function () {
+      const mode = PainelOperadores.state.mode;
+      const label = document.getElementById('periodLabel');
+      const title = document.getElementById('chartTitle');
+      const hint = document.getElementById('chartHint');
+      const prev = document.getElementById('prevPeriodBtn');
+      const next = document.getElementById('nextPeriodBtn');
+      const customRange = document.getElementById('customRange');
+      const chartMode = PainelOperadores.getResolvedChartMode(PainelOperadores.getVisibleItems());
 
-      document.getElementById('statTotal').textContent = items.length;
-      document.getElementById('statWithOp').textContent = withOp;
-      document.getElementById('statNoOp').textContent = noOp;
-      document.getElementById('statUsers').textContent = users.size;
-    };
-
-    PainelOperadores.groupDaily = function (items) {
-      const daysSet = new Set();
-      const usersSet = new Set();
-
-      const from = document.getElementById('dateFrom').value;
-      const to = document.getElementById('dateTo').value;
-
-      for (const item of items) {
-        const day = PainelOperadores.dateKeyFromTs(item.ts);
-        const user = PainelOperadores.operatorName(item.operador);
-
-        if (day) daysSet.add(day);
-        usersSet.add(user);
+      for (const btn of document.querySelectorAll('.segmented button')) {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
       }
 
-      if (from && to) {
-        const current = new Date(from + 'T00:00:00');
-        const end = new Date(to + 'T00:00:00');
+      customRange.classList.toggle('hidden', mode !== 'custom');
 
-        while (current <= end) {
-          const key = `${current.getFullYear()}-${PainelOperadores.pad(current.getMonth() + 1)}-${PainelOperadores.pad(current.getDate())}`;
-          daysSet.add(key);
-          current.setDate(current.getDate() + 1);
-        }
-      }
+      if (mode === 'week') {
+        const range = PainelOperadores.currentRange();
+        const currentWeek = PainelOperadores.startOfWeek(new Date());
 
-      const days = [...daysSet].sort();
-      const users = [...usersSet].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        title.textContent = chartMode === 'line' ? 'Semana em linha' : chartMode === 'total' ? 'Resumo da semana' : 'Semana';
+        hint.textContent = 'Domingo a sábado, com hoje em destaque.';
+        label.textContent = `${PainelOperadores.shortDateLabel(range.startKey)} até ${PainelOperadores.shortDateLabel(range.endKey)}`;
 
-      const data = {};
-
-      for (const day of days) {
-        data[day] = {};
-        for (const user of users) {
-          data[day][user] = 0;
-        }
-      }
-
-      for (const item of items) {
-        const day = PainelOperadores.dateKeyFromTs(item.ts);
-        const user = PainelOperadores.operatorName(item.operador);
-
-        if (!data[day]) data[day] = {};
-        data[day][user] = (data[day][user] || 0) + 1;
-      }
-
-      return {
-        days,
-        users,
-        data
-      };
-    };
-
-    PainelOperadores.groupTotal = function (items) {
-      const totals = {};
-
-      for (const item of items) {
-        const user = PainelOperadores.operatorName(item.operador);
-        totals[user] = (totals[user] || 0) + 1;
-      }
-
-      return Object.entries(totals)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
-    };
-
-    PainelOperadores.showTooltip = function (event, html) {
-      const t = document.getElementById('tooltip');
-      t.innerHTML = html;
-      t.style.left = event.clientX + 'px';
-      t.style.top = event.clientY + 'px';
-      t.style.opacity = '1';
-    };
-
-    PainelOperadores.hideTooltip = function () {
-      document.getElementById('tooltip').style.opacity = '0';
-    };
-
-    PainelOperadores.svg = function (tag, attrs) {
-      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-
-      for (const [k, v] of Object.entries(attrs || {})) {
-        el.setAttribute(k, v);
-      }
-
-      return el;
-    };
-
-    PainelOperadores.renderLegend = function (users) {
-      const legend = document.getElementById('legend');
-      legend.innerHTML = '';
-
-      for (const user of users) {
-        const item = document.createElement('div');
-        item.className = 'legendItem';
-
-        const dot = document.createElement('span');
-        dot.className = 'legendDot';
-        dot.style.background = PainelOperadores.colorFor(user);
-
-        const txt = document.createElement('span');
-        txt.textContent = user;
-
-        item.appendChild(dot);
-        item.appendChild(txt);
-        legend.appendChild(item);
-      }
-    };
-
-    PainelOperadores.getChartMode = function (items, users) {
-      const selected = document.getElementById('viewMode').value;
-
-      if (selected !== 'auto') return selected;
-
-      if (users.length === 1) return 'line';
-      if (users.length <= 4) return 'bar';
-      if (items.length && users.length > 4) return 'donut';
-
-      return 'bar';
-    };
-
-    PainelOperadores.niceTicks = function (max) {
-      max = Math.max(1, max);
-      const step = Math.ceil(max / 4);
-      const ticks = [];
-
-      for (let i = 0; i <= 4; i++) {
-        ticks.push(step * i);
-      }
-
-      return ticks;
-    };
-
-    PainelOperadores.drawGrid = function (svg, width, height, margin, max) {
-      const plotW = width - margin.left - margin.right;
-      const plotH = height - margin.top - margin.bottom;
-      const ticks = PainelOperadores.niceTicks(max);
-
-      for (const value of ticks) {
-        const y = margin.top + plotH - (value / Math.max(...ticks)) * plotH;
-
-        svg.appendChild(PainelOperadores.svg('line', {
-          x1: margin.left,
-          y1: y,
-          x2: width - margin.right,
-          y2: y,
-          stroke: '#e5e7eb',
-          'stroke-width': 1
-        }));
-
-        const txt = PainelOperadores.svg('text', {
-          x: margin.left - 10,
-          y: y + 4,
-          'text-anchor': 'end',
-          'font-size': 11,
-          fill: '#6b7280'
-        });
-
-        txt.textContent = value;
-        svg.appendChild(txt);
-      }
-    };
-
-    PainelOperadores.renderLineChart = function (items) {
-      const chart = document.getElementById('chart');
-      const grouped = PainelOperadores.groupDaily(items);
-      const days = grouped.days;
-      const users = grouped.users;
-
-      chart.innerHTML = '';
-
-      if (!items.length || !days.length || !users.length) {
-        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
-        PainelOperadores.renderLegend([]);
+        prev.disabled = false;
+        next.disabled = PainelOperadores.toDateInput(PainelOperadores.state.weekStart) >= PainelOperadores.toDateInput(currentWeek);
         return;
       }
 
-      PainelOperadores.renderLegend(users);
+      if (mode === 'month') {
+        const currentMonth = PainelOperadores.startOfMonth(new Date());
 
-      const user = users[0];
+        title.textContent = chartMode === 'bar' ? 'Mês em barras' : chartMode === 'total' ? 'Resumo do mês' : 'Mês em linha';
+        hint.textContent = 'Evolução diária dos usuários no mês.';
+        label.textContent = PainelOperadores.monthName(PainelOperadores.state.monthStart);
 
-      document.getElementById('chartTitle').textContent = users.length === 1
-        ? `Evolução diária • ${user}`
-        : 'Evolução diária';
+        prev.disabled = false;
+        next.disabled = PainelOperadores.toDateInput(PainelOperadores.state.monthStart) >= PainelOperadores.toDateInput(currentMonth);
+        return;
+      }
 
-      document.getElementById('chartHint').textContent = users.length === 1
-        ? 'Linha suave mostrando a quantidade por dia.'
-        : 'Linhas por usuário no período selecionado.';
+      if (mode === 'custom') {
+        const range = PainelOperadores.currentRange();
 
-      const width = Math.max(780, days.length * 84);
-      const height = 420;
-      const margin = { top: 30, right: 34, bottom: 64, left: 48 };
-      const plotW = width - margin.left - margin.right;
-      const plotH = height - margin.top - margin.bottom;
+        title.textContent = chartMode === 'bar' ? 'Período em barras' : chartMode === 'total' ? 'Resumo do período' : 'Período em linha';
 
-      const max = Math.max(1, ...days.flatMap(day => users.map(u => grouped.data[day]?.[u] || 0)));
-      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
-
-      PainelOperadores.drawGrid(svg, width, height, margin, max);
-
-      const xFor = function (index) {
-        if (days.length === 1) return margin.left + plotW / 2;
-        return margin.left + (index / (days.length - 1)) * plotW;
-      };
-
-      const yFor = function (value) {
-        return margin.top + plotH - (value / max) * plotH;
-      };
-
-      for (const u of users) {
-        const points = days.map((day, i) => ({
-          day,
-          x: xFor(i),
-          y: yFor(grouped.data[day]?.[u] || 0),
-          value: grouped.data[day]?.[u] || 0
-        }));
-
-        let d = '';
-
-        for (let i = 0; i < points.length; i++) {
-          const p = points[i];
-
-          if (i === 0) {
-            d += `M ${p.x} ${p.y}`;
-          } else {
-            const prev = points[i - 1];
-            const cx1 = prev.x + (p.x - prev.x) * 0.45;
-            const cy1 = prev.y;
-            const cx2 = prev.x + (p.x - prev.x) * 0.55;
-            const cy2 = p.y;
-            d += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
-          }
+        if (range.startKey && range.endKey) {
+          label.textContent = `${PainelOperadores.shortDateLabel(range.startKey)} até ${PainelOperadores.shortDateLabel(range.endKey)}`;
+        } else if (range.startKey) {
+          label.textContent = `Desde ${PainelOperadores.shortDateLabel(range.startKey)}`;
+        } else if (range.endKey) {
+          label.textContent = `Até ${PainelOperadores.shortDateLabel(range.endKey)}`;
+        } else {
+          label.textContent = 'Personalizado';
         }
 
-        const areaD = d + ` L ${points[points.length - 1].x} ${margin.top + plotH} L ${points[0].x} ${margin.top + plotH} Z`;
-
-        if (users.length === 1) {
-          const gradientId = 'grad_' + PainelOperadores.norm(u).replace(/\W/g, '');
-          const defs = PainelOperadores.svg('defs', {});
-          const gradient = PainelOperadores.svg('linearGradient', {
-            id: gradientId,
-            x1: '0',
-            y1: '0',
-            x2: '0',
-            y2: '1'
-          });
-
-          const stop1 = PainelOperadores.svg('stop', {
-            offset: '0%',
-            'stop-color': PainelOperadores.colorFor(u),
-            'stop-opacity': '0.22'
-          });
-
-          const stop2 = PainelOperadores.svg('stop', {
-            offset: '100%',
-            'stop-color': PainelOperadores.colorFor(u),
-            'stop-opacity': '0'
-          });
-
-          gradient.appendChild(stop1);
-          gradient.appendChild(stop2);
-          defs.appendChild(gradient);
-          svg.appendChild(defs);
-
-          svg.appendChild(PainelOperadores.svg('path', {
-            d: areaD,
-            fill: `url(#${gradientId})`
-          }));
-        }
-
-        svg.appendChild(PainelOperadores.svg('path', {
-          d,
-          fill: 'none',
-          stroke: PainelOperadores.colorFor(u),
-          'stroke-width': 4,
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round'
-        }));
-
-        for (const p of points) {
-          const circle = PainelOperadores.svg('circle', {
-            cx: p.x,
-            cy: p.y,
-            r: 6,
-            fill: '#fff',
-            stroke: PainelOperadores.colorFor(u),
-            'stroke-width': 4
-          });
-
-          circle.addEventListener('mousemove', function (event) {
-            PainelOperadores.showTooltip(event, `<strong>${u}</strong><br>${PainelOperadores.fullDateLabel(p.day)} • ${p.value} chamado(s)`);
-          });
-
-          circle.addEventListener('mouseleave', PainelOperadores.hideTooltip);
-
-          svg.appendChild(circle);
-
-          if (p.value) {
-            const txt = PainelOperadores.svg('text', {
-              x: p.x,
-              y: p.y - 12,
-              'text-anchor': 'middle',
-              'font-size': 12,
-              'font-weight': 900,
-              fill: '#111827'
-            });
-
-            txt.textContent = p.value;
-            svg.appendChild(txt);
-          }
-        }
-      }
-
-      days.forEach((day, i) => {
-        const label = PainelOperadores.svg('text', {
-          x: xFor(i),
-          y: height - 30,
-          'text-anchor': 'middle',
-          'font-size': 11,
-          fill: '#6b7280'
-        });
-
-        label.textContent = PainelOperadores.dateLabel(day);
-        svg.appendChild(label);
-      });
-
-      chart.appendChild(svg);
-    };
-
-    PainelOperadores.renderGroupedBarChart = function (items) {
-      const chart = document.getElementById('chart');
-      const grouped = PainelOperadores.groupDaily(items);
-      const days = grouped.days;
-      const users = grouped.users;
-
-      chart.innerHTML = '';
-
-      if (!items.length || !days.length || !users.length) {
-        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
-        PainelOperadores.renderLegend([]);
+        hint.textContent = 'Use as datas para filtrar qualquer intervalo.';
+        prev.disabled = true;
+        next.disabled = true;
         return;
       }
 
-      PainelOperadores.renderLegend(users);
-
-      document.getElementById('chartTitle').textContent = 'Barras por dia';
-      document.getElementById('chartHint').textContent = 'Cada cor representa um usuário. Melhor para comparar poucos usuários.';
-
-      const width = Math.max(820, days.length * Math.max(90, users.length * 30));
-      const height = 420;
-      const margin = { top: 30, right: 34, bottom: 64, left: 48 };
-      const plotW = width - margin.left - margin.right;
-      const plotH = height - margin.top - margin.bottom;
-
-      const max = Math.max(1, ...days.flatMap(day => users.map(u => grouped.data[day]?.[u] || 0)));
-      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
-
-      PainelOperadores.drawGrid(svg, width, height, margin, max);
-
-      const groupW = plotW / days.length;
-      const gap = 12;
-      const innerW = groupW - gap;
-      const barGap = 5;
-      const barW = Math.max(10, Math.min(34, (innerW - (users.length - 1) * barGap) / users.length));
-
-      days.forEach((day, dayIndex) => {
-        const groupX = margin.left + dayIndex * groupW + gap / 2;
-        const totalBarsW = users.length * barW + (users.length - 1) * barGap;
-        const startX = groupX + (innerW - totalBarsW) / 2;
-
-        users.forEach((u, userIndex) => {
-          const value = grouped.data[day]?.[u] || 0;
-          const h = value ? Math.max(4, (value / max) * plotH) : 0;
-          const x = startX + userIndex * (barW + barGap);
-          const y = margin.top + plotH - h;
-
-          const rect = PainelOperadores.svg('rect', {
-            x,
-            y,
-            width: barW,
-            height: h,
-            rx: 8,
-            fill: PainelOperadores.colorFor(u)
-          });
-
-          rect.addEventListener('mousemove', function (event) {
-            PainelOperadores.showTooltip(event, `<strong>${u}</strong><br>${PainelOperadores.fullDateLabel(day)} • ${value} chamado(s)`);
-          });
-
-          rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
-
-          svg.appendChild(rect);
-
-          if (value) {
-            const txt = PainelOperadores.svg('text', {
-              x: x + barW / 2,
-              y: y - 7,
-              'text-anchor': 'middle',
-              'font-size': 11,
-              'font-weight': 900,
-              fill: '#111827'
-            });
-
-            txt.textContent = value;
-            svg.appendChild(txt);
-          }
-        });
-
-        const label = PainelOperadores.svg('text', {
-          x: groupX + innerW / 2,
-          y: height - 30,
-          'text-anchor': 'middle',
-          'font-size': 11,
-          fill: '#6b7280'
-        });
-
-        label.textContent = PainelOperadores.dateLabel(day);
-        svg.appendChild(label);
-      });
-
-      chart.appendChild(svg);
-    };
-
-    PainelOperadores.renderDonutChart = function (items) {
-      const chart = document.getElementById('chart');
-      const totals = PainelOperadores.groupTotal(items);
-
-      chart.innerHTML = '';
-
-      if (!totals.length) {
-        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
-        PainelOperadores.renderLegend([]);
-        return;
-      }
-
-      PainelOperadores.renderLegend(totals.map(([user]) => user));
-
-      document.getElementById('chartTitle').textContent = 'Participação por usuário';
-      document.getElementById('chartHint').textContent = 'Distribuição do total no período selecionado.';
-
-      const width = 780;
-      const height = 420;
-      const cx = 280;
-      const cy = 205;
-      const r = 130;
-      const stroke = 38;
-      const total = totals.reduce((sum, [, count]) => sum + count, 0);
-      const circumference = 2 * Math.PI * r;
-
-      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
-
-      svg.appendChild(PainelOperadores.svg('circle', {
-        cx,
-        cy,
-        r,
-        fill: 'none',
-        stroke: '#eef2f7',
-        'stroke-width': stroke
-      }));
-
-      let offset = 0;
-
-      for (const [user, count] of totals) {
-        const pct = count / total;
-        const dash = pct * circumference;
-
-        const circle = PainelOperadores.svg('circle', {
-          cx,
-          cy,
-          r,
-          fill: 'none',
-          stroke: PainelOperadores.colorFor(user),
-          'stroke-width': stroke,
-          'stroke-dasharray': `${dash} ${circumference - dash}`,
-          'stroke-dashoffset': -offset,
-          'stroke-linecap': 'round',
-          transform: `rotate(-90 ${cx} ${cy})`
-        });
-
-        circle.addEventListener('mousemove', function (event) {
-          PainelOperadores.showTooltip(event, `<strong>${user}</strong><br>${count} chamado(s) • ${(pct * 100).toFixed(1)}%`);
-        });
-
-        circle.addEventListener('mouseleave', PainelOperadores.hideTooltip);
-
-        svg.appendChild(circle);
-        offset += dash;
-      }
-
-      const centerTotal = PainelOperadores.svg('text', {
-        x: cx,
-        y: cy - 4,
-        'text-anchor': 'middle',
-        'font-size': 42,
-        'font-weight': 950,
-        fill: '#111827'
-      });
-
-      centerTotal.textContent = total;
-      svg.appendChild(centerTotal);
-
-      const centerLabel = PainelOperadores.svg('text', {
-        x: cx,
-        y: cy + 25,
-        'text-anchor': 'middle',
-        'font-size': 13,
-        fill: '#6b7280'
-      });
-
-      centerLabel.textContent = 'chamados';
-      svg.appendChild(centerLabel);
-
-      const listX = 500;
-      let listY = 95;
-
-      for (const [user, count] of totals) {
-        const pct = total ? (count / total) * 100 : 0;
-
-        svg.appendChild(PainelOperadores.svg('circle', {
-          cx: listX,
-          cy: listY - 4,
-          r: 6,
-          fill: PainelOperadores.colorFor(user)
-        }));
-
-        const name = PainelOperadores.svg('text', {
-          x: listX + 16,
-          y: listY,
-          'font-size': 13,
-          'font-weight': 900,
-          fill: '#111827'
-        });
-
-        name.textContent = user;
-        svg.appendChild(name);
-
-        const value = PainelOperadores.svg('text', {
-          x: listX + 16,
-          y: listY + 20,
-          'font-size': 12,
-          fill: '#6b7280'
-        });
-
-        value.textContent = `${count} chamado(s) • ${pct.toFixed(1)}%`;
-        svg.appendChild(value);
-
-        listY += 48;
-      }
-
-      chart.appendChild(svg);
-    };
-
-    PainelOperadores.renderTotalChart = function (items) {
-      const chart = document.getElementById('chart');
-      const totals = PainelOperadores.groupTotal(items);
-
-      chart.innerHTML = '';
-
-      if (!totals.length) {
-        chart.innerHTML = '<div class="empty">Nenhum dado no filtro selecionado.</div>';
-        PainelOperadores.renderLegend([]);
-        return;
-      }
-
-      PainelOperadores.renderLegend(totals.map(([user]) => user));
-
-      document.getElementById('chartTitle').textContent = 'Ranking total';
-      document.getElementById('chartHint').textContent = 'Total de chamados por usuário no período.';
-
-      const width = 820;
-      const height = 420;
-      const margin = { top: 24, right: 42, bottom: 40, left: 150 };
-      const plotW = width - margin.left - margin.right;
-      const rowH = Math.min(54, (height - margin.top - margin.bottom) / totals.length);
-      const max = Math.max(1, ...totals.map(([, count]) => count));
-
-      const svg = PainelOperadores.svg('svg', { viewBox: `0 0 ${width} ${height}` });
-
-      totals.forEach(([user, count], index) => {
-        const y = margin.top + index * rowH + 8;
-        const w = Math.max(10, (count / max) * plotW);
-
-        const label = PainelOperadores.svg('text', {
-          x: margin.left - 12,
-          y: y + 22,
-          'text-anchor': 'end',
-          'font-size': 12,
-          'font-weight': 900,
-          fill: '#374151'
-        });
-
-        label.textContent = user;
-        svg.appendChild(label);
-
-        svg.appendChild(PainelOperadores.svg('rect', {
-          x: margin.left,
-          y,
-          width: plotW,
-          height: 28,
-          rx: 14,
-          fill: '#eef2f7'
-        }));
-
-        const rect = PainelOperadores.svg('rect', {
-          x: margin.left,
-          y,
-          width: w,
-          height: 28,
-          rx: 14,
-          fill: PainelOperadores.colorFor(user)
-        });
-
-        rect.addEventListener('mousemove', function (event) {
-          PainelOperadores.showTooltip(event, `<strong>${user}</strong><br>${count} chamado(s)`);
-        });
-
-        rect.addEventListener('mouseleave', PainelOperadores.hideTooltip);
-
-        svg.appendChild(rect);
-
-        const value = PainelOperadores.svg('text', {
-          x: margin.left + w + 9,
-          y: y + 20,
-          'font-size': 12,
-          'font-weight': 950,
-          fill: '#111827'
-        });
-
-        value.textContent = count;
-        svg.appendChild(value);
-      });
-
-      chart.appendChild(svg);
-    };
-
-    PainelOperadores.renderChart = function (items) {
-      const grouped = PainelOperadores.groupDaily(items);
-      const mode = PainelOperadores.getChartMode(items, grouped.users);
-
-      if (mode === 'line') {
-        PainelOperadores.renderLineChart(items);
-        return;
-      }
-
-      if (mode === 'bar') {
-        PainelOperadores.renderGroupedBarChart(items);
-        return;
-      }
-
-      if (mode === 'donut') {
-        PainelOperadores.renderDonutChart(items);
-        return;
-      }
-
-      PainelOperadores.renderTotalChart(items);
+      title.textContent = 'Tudo';
+      hint.textContent = 'Todos os chamados únicos encontrados.';
+      label.textContent = 'Todos os registros';
+      prev.disabled = true;
+      next.disabled = true;
     };
 
     PainelOperadores.renderRanking = function (items) {
       const box = document.getElementById('ranking');
+      const totalEl = document.getElementById('summaryTotal');
       const totals = PainelOperadores.groupTotal(items);
+      const totalCount = totals.reduce((sum, [, count]) => sum + count, 0);
       const max = Math.max(1, ...totals.map(([, count]) => count));
 
-      document.getElementById('summaryCount').textContent = `${totals.length} usuário(s)`;
+      document.getElementById('summaryMeta').textContent = `${totals.length} usuário(s)`;
+
+      if (PainelOperadores.state.lastTotalCount < totalCount) {
+        totalEl.classList.remove('pulse');
+        void totalEl.offsetWidth;
+        totalEl.classList.add('pulse');
+      }
+
+      totalEl.textContent = totalCount;
 
       if (!totals.length) {
         box.innerHTML = '<div class="empty">Sem dados.</div>';
+        PainelOperadores.state.lastTotals = new Map();
+        PainelOperadores.state.lastTotalCount = totalCount;
         return;
       }
 
-      box.innerHTML = '';
+      const previousTotals = PainelOperadores.state.lastTotals;
+      const nextTotals = new Map(totals);
+      const frag = document.createDocumentFragment();
 
       for (const [user, count] of totals) {
         const item = document.createElement('div');
@@ -1576,6 +1933,11 @@
 
         const value = document.createElement('div');
         value.className = 'rankValue';
+
+        if ((previousTotals.get(user) || 0) < count) {
+          value.classList.add('pulse');
+        }
+
         value.textContent = count;
 
         const track = document.createElement('div');
@@ -1592,40 +1954,55 @@
         item.appendChild(value);
         item.appendChild(track);
 
-        box.appendChild(item);
+        frag.appendChild(item);
       }
+
+      box.innerHTML = '';
+      box.appendChild(frag);
+
+      PainelOperadores.state.lastTotals = nextTotals;
+      PainelOperadores.state.lastTotalCount = totalCount;
     };
 
     PainelOperadores.renderTable = function (items) {
       const body = document.getElementById('tableBody');
       const search = PainelOperadores.norm(document.getElementById('searchInput').value);
 
-      let rows = [...items].sort((a, b) => b.ts - a.ts);
+      let rows = [...items].sort((a, b) => b.ts - a.ts || a.id.localeCompare(b.id, 'pt-BR'));
 
       if (search) {
         rows = rows.filter(item => {
-          const text = PainelOperadores.norm(`${item.id} ${PainelOperadores.operatorName(item.operador)} ${item.row} ${PainelOperadores.formatDateTime(item.ts)}`);
+          const text = PainelOperadores.norm(`${item.id} ${item.operador}`);
           return text.includes(search);
         });
       }
 
+      document.getElementById('detailsHint').textContent = `${rows.length} chamado(s).`;
+
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="4" class="empty">Nenhum chamado para mostrar.</td></tr>';
+        body.innerHTML = '<tr><td colspan="2" class="empty">Nenhum ID para mostrar.</td></tr>';
         return;
       }
 
       const frag = document.createDocumentFragment();
 
       for (const item of rows) {
-        const user = PainelOperadores.operatorName(item.operador);
         const tr = document.createElement('tr');
 
-        tr.innerHTML = `
-          <td><strong>${item.id}</strong></td>
-          <td><span class="pill" style="background:${PainelOperadores.colorFor(user)}">${user}</span></td>
-          <td>${item.row || '—'}</td>
-          <td>${PainelOperadores.formatDateTime(item.ts)}</td>
-        `;
+        const tdId = document.createElement('td');
+        const strong = document.createElement('strong');
+        strong.textContent = item.id;
+        tdId.appendChild(strong);
+
+        const tdOperador = document.createElement('td');
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.style.background = PainelOperadores.colorFor(item.operador);
+        pill.textContent = item.operador;
+        tdOperador.appendChild(pill);
+
+        tr.appendChild(tdId);
+        tr.appendChild(tdOperador);
 
         frag.appendChild(tr);
       }
@@ -1634,50 +2011,60 @@
       body.appendChild(frag);
     };
 
+    PainelOperadores.renderChart = function (items) {
+      const mode = PainelOperadores.getResolvedChartMode(items);
+
+      if (mode === 'bar') {
+        PainelOperadores.renderBarChart(items);
+        return;
+      }
+
+      if (mode === 'line') {
+        PainelOperadores.renderLineChart(items);
+        return;
+      }
+
+      PainelOperadores.renderTotalChart(items);
+    };
+
     PainelOperadores.render = function () {
       PainelOperadores.renderUsers();
+      PainelOperadores.renderHeader();
 
-      const items = PainelOperadores.getFilteredItems();
+      const items = PainelOperadores.getVisibleItems();
 
-      PainelOperadores.renderStats(items);
       PainelOperadores.renderChart(items);
       PainelOperadores.renderRanking(items);
       PainelOperadores.renderTable(items);
-      PainelOperadores.setUpdated();
     };
 
     PainelOperadores.scheduleRender = function () {
-      clearTimeout(PainelOperadores.state.renderTimer);
-
-      PainelOperadores.state.renderTimer = setTimeout(function () {
-        PainelOperadores.render();
-      }, 120);
-    };
-
-    PainelOperadores.loadInitial = async function () {
-      PainelOperadores.setLiveStatus(false, 'carregando...');
-
-      try {
-        const res = await fetch(PainelOperadores.firebaseUrl() + '?_=' + Date.now(), {
-          cache: 'no-store'
-        });
-
-        const data = await res.json();
-
-        PainelOperadores.state.byId = data || {};
-        PainelOperadores.setLiveStatus(true, 'conectado');
-        PainelOperadores.render();
-      } catch (error) {
-        PainelOperadores.setLiveStatus(false, 'erro');
-        console.error(error);
+      if (PainelOperadores.state.renderFrame) {
+        cancelAnimationFrame(PainelOperadores.state.renderFrame);
       }
+
+      PainelOperadores.state.renderFrame = requestAnimationFrame(function () {
+        PainelOperadores.state.renderFrame = null;
+        PainelOperadores.render();
+      });
     };
 
-    PainelOperadores.handleFirebaseEvent = function (eventData) {
+    PainelOperadores.applyRemoteItem = function (id, item) {
+      const normalized = PainelOperadores.normalizeItem(id, item);
+
+      if (!normalized) {
+        delete PainelOperadores.state.byId[id];
+        return;
+      }
+
+      PainelOperadores.state.byId[normalized.id] = normalized;
+    };
+
+    PainelOperadores.handleFirebaseEvent = function (raw) {
       let payload;
 
       try {
-        payload = JSON.parse(eventData || '{}');
+        payload = JSON.parse(raw || '{}');
       } catch (_) {
         return;
       }
@@ -1685,16 +2072,19 @@
       const path = String(payload.path || '/');
       const data = payload.data;
 
-      if (path === '/') {
-        PainelOperadores.state.byId = data || {};
+      if (path === '/' || path === '') {
+        PainelOperadores.state.byId = PainelOperadores.normalizeSnapshot(data || {});
         PainelOperadores.scheduleRender();
         return;
       }
 
       const cleanPath = path.replace(/^\/+/, '');
-      const id = cleanPath.split('/')[0];
+      const parts = cleanPath.split('/').filter(Boolean);
+      const id = PainelOperadores.clean(parts[0]);
 
-      if (!id) return;
+      if (!id) {
+        return;
+      }
 
       if (data === null) {
         delete PainelOperadores.state.byId[id];
@@ -1702,13 +2092,32 @@
         return;
       }
 
-      if (cleanPath.split('/').length === 1) {
-        PainelOperadores.state.byId[id] = data || {};
+      if (parts.length === 1) {
+        PainelOperadores.applyRemoteItem(id, data);
         PainelOperadores.scheduleRender();
         return;
       }
 
-      PainelOperadores.loadInitial();
+      const current = PainelOperadores.state.byId[id] || { id };
+      current[parts[1]] = data;
+
+      PainelOperadores.applyRemoteItem(id, current);
+      PainelOperadores.scheduleRender();
+    };
+
+    PainelOperadores.loadInitial = async function () {
+      try {
+        const res = await fetch(PainelOperadores.firebaseUrl() + '?_=' + Date.now(), {
+          cache: 'no-store'
+        });
+
+        const data = await res.json();
+
+        PainelOperadores.state.byId = PainelOperadores.normalizeSnapshot(data || {});
+        PainelOperadores.scheduleRender();
+      } catch (error) {
+        console.error('Erro ao carregar Firebase:', error);
+      }
     };
 
     PainelOperadores.connectRealtime = function () {
@@ -1719,10 +2128,6 @@
       try {
         const es = new EventSource(PainelOperadores.firebaseUrl());
 
-        es.addEventListener('open', function () {
-          PainelOperadores.setLiveStatus(true, 'conectado');
-        });
-
         es.addEventListener('put', function (event) {
           PainelOperadores.handleFirebaseEvent(event.data);
         });
@@ -1732,59 +2137,60 @@
         });
 
         es.onerror = function () {
-          PainelOperadores.setLiveStatus(false, 'reconectando...');
+          console.warn('Realtime desconectado. O navegador tentará reconectar automaticamente.');
         };
 
         PainelOperadores.state.eventSource = es;
       } catch (error) {
-        PainelOperadores.setLiveStatus(false, 'erro realtime');
+        console.error('Erro no realtime:', error);
       }
     };
 
-    PainelOperadores.toDateInput = function (date) {
-      return `${date.getFullYear()}-${PainelOperadores.pad(date.getMonth() + 1)}-${PainelOperadores.pad(date.getDate())}`;
+    PainelOperadores.resetPulseMemory = function () {
+      PainelOperadores.state.lastTotals = new Map();
+      PainelOperadores.state.lastTotalCount = 0;
     };
 
-    PainelOperadores.setToday = function () {
-      const today = PainelOperadores.toDateInput(new Date());
-
-      document.getElementById('dateFrom').value = today;
-      document.getElementById('dateTo').value = today;
-
-      PainelOperadores.render();
+    PainelOperadores.setMode = function (mode) {
+      PainelOperadores.state.mode = mode;
+      PainelOperadores.resetPulseMemory();
+      PainelOperadores.scheduleRender();
     };
 
-    PainelOperadores.setLastDays = function (days) {
-      const end = new Date();
-      const start = new Date();
+    PainelOperadores.prevPeriod = function () {
+      if (PainelOperadores.state.mode === 'week') {
+        PainelOperadores.state.weekStart = PainelOperadores.addDays(PainelOperadores.state.weekStart, -7);
+      }
 
-      start.setDate(end.getDate() - (days - 1));
+      if (PainelOperadores.state.mode === 'month') {
+        PainelOperadores.state.monthStart = PainelOperadores.addMonths(PainelOperadores.state.monthStart, -1);
+      }
 
-      document.getElementById('dateFrom').value = PainelOperadores.toDateInput(start);
-      document.getElementById('dateTo').value = PainelOperadores.toDateInput(end);
-
-      PainelOperadores.render();
+      PainelOperadores.resetPulseMemory();
+      PainelOperadores.scheduleRender();
     };
 
-    PainelOperadores.setMonth = function () {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    PainelOperadores.nextPeriod = function () {
+      if (PainelOperadores.state.mode === 'week') {
+        const currentWeek = PainelOperadores.startOfWeek(new Date());
+        const next = PainelOperadores.addDays(PainelOperadores.state.weekStart, 7);
 
-      document.getElementById('dateFrom').value = PainelOperadores.toDateInput(start);
-      document.getElementById('dateTo').value = PainelOperadores.toDateInput(end);
+        if (PainelOperadores.toDateInput(next) <= PainelOperadores.toDateInput(currentWeek)) {
+          PainelOperadores.state.weekStart = next;
+        }
+      }
 
-      PainelOperadores.render();
-    };
+      if (PainelOperadores.state.mode === 'month') {
+        const currentMonth = PainelOperadores.startOfMonth(new Date());
+        const next = PainelOperadores.addMonths(PainelOperadores.state.monthStart, 1);
 
-    PainelOperadores.clearAll = function () {
-      document.getElementById('dateFrom').value = '';
-      document.getElementById('dateTo').value = '';
+        if (PainelOperadores.toDateInput(next) <= PainelOperadores.toDateInput(currentMonth)) {
+          PainelOperadores.state.monthStart = next;
+        }
+      }
 
-      PainelOperadores.state.userTouchedSelection = false;
-      PainelOperadores.state.selectedUsers = new Set(PainelOperadores.getAllUsers());
-
-      PainelOperadores.render();
+      PainelOperadores.resetPulseMemory();
+      PainelOperadores.scheduleRender();
     };
 
     PainelOperadores.toggleDetails = function () {
@@ -1794,23 +2200,63 @@
       panel.classList.toggle('hidden');
 
       btn.textContent = panel.classList.contains('hidden')
-        ? 'Ver chamados'
-        : 'Ocultar chamados';
+        ? 'Ver IDs'
+        : 'Ocultar IDs';
+    };
+
+    PainelOperadores.toggleSummary = function () {
+      const checked = document.getElementById('summaryToggle').checked;
+
+      document.getElementById('summaryPanel').classList.toggle('hidden', !checked);
+      document.getElementById('mainGrid').classList.toggle('noSummary', !checked);
+
+      PainelOperadores.scheduleRender();
     };
 
     PainelOperadores.bind = function () {
-      document.getElementById('dateFrom').addEventListener('change', PainelOperadores.render);
-      document.getElementById('dateTo').addEventListener('change', PainelOperadores.render);
-      document.getElementById('viewMode').addEventListener('change', PainelOperadores.render);
-      document.getElementById('todayBtn').addEventListener('click', PainelOperadores.setToday);
-      document.getElementById('weekBtn').addEventListener('click', function () {
-        PainelOperadores.setLastDays(7);
+      document.getElementById('modeWeek').addEventListener('click', function () {
+        PainelOperadores.setMode('week');
       });
-      document.getElementById('monthBtn').addEventListener('click', PainelOperadores.setMonth);
-      document.getElementById('clearBtn').addEventListener('click', PainelOperadores.clearAll);
-      document.getElementById('reloadBtn').addEventListener('click', PainelOperadores.loadInitial);
+
+      document.getElementById('modeMonth').addEventListener('click', function () {
+        PainelOperadores.setMode('month');
+      });
+
+      document.getElementById('modeCustom').addEventListener('click', function () {
+        PainelOperadores.setMode('custom');
+      });
+
+      document.getElementById('modeAll').addEventListener('click', function () {
+        PainelOperadores.setMode('all');
+      });
+
+      document.getElementById('prevPeriodBtn').addEventListener('click', PainelOperadores.prevPeriod);
+      document.getElementById('nextPeriodBtn').addEventListener('click', PainelOperadores.nextPeriod);
       document.getElementById('toggleDetailsBtn').addEventListener('click', PainelOperadores.toggleDetails);
-      document.getElementById('searchInput').addEventListener('input', PainelOperadores.render);
+      document.getElementById('summaryToggle').addEventListener('change', PainelOperadores.toggleSummary);
+
+      document.getElementById('chartMode').addEventListener('change', function () {
+        PainelOperadores.resetPulseMemory();
+        PainelOperadores.scheduleRender();
+      });
+
+      document.getElementById('dateFrom').addEventListener('change', function () {
+        PainelOperadores.normalizeCustomInputs();
+        PainelOperadores.resetPulseMemory();
+        PainelOperadores.scheduleRender();
+      });
+
+      document.getElementById('dateTo').addEventListener('change', function () {
+        PainelOperadores.normalizeCustomInputs();
+        PainelOperadores.resetPulseMemory();
+        PainelOperadores.scheduleRender();
+      });
+
+      document.getElementById('searchInput').addEventListener('input', function () {
+        PainelOperadores.renderTable(PainelOperadores.getVisibleItems());
+      });
+
+      window.addEventListener('resize', PainelOperadores.scheduleRender);
 
       window.addEventListener('beforeunload', function () {
         if (PainelOperadores.state.eventSource) {
@@ -1820,8 +2266,13 @@
     };
 
     PainelOperadores.start = function () {
+      const now = new Date();
+
+      PainelOperadores.state.weekStart = PainelOperadores.startOfWeek(now);
+      PainelOperadores.state.monthStart = PainelOperadores.startOfMonth(now);
+
       PainelOperadores.bind();
-      PainelOperadores.setLastDays(7);
+      PainelOperadores.render();
       PainelOperadores.loadInitial();
       PainelOperadores.connectRealtime();
     };
