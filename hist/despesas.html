@@ -981,24 +981,65 @@ tr:hover td {
       return Math.abs(h) % 360;
     };
 
-    PainelOperadores.colorFor = function (name) {
-      const fixed = {
-        "elias araujo": "#2563eb",
-        "camily": "#a855f7",
-        "helena": "#2dd4bf",
-        "elia maria": "#7c3aed",
-        "patricia": "#f97316",
-        "marcia": "#9333ea"
-      };
+    PainelOperadores.CORES_FIXAS_POR_USUARIO = {
+      'Elias Araujo': '#0324ff',
+      'Camily Assis': '#e6cff2',
+      'Elia Maria': '#962bcc',
+      'Patricia': '#ff8e03',
+      'Marcia': '#6a0e9c',
+      'Helena': '#8c1223'
+    };
 
+    PainelOperadores.fixedColorFor = function (name) {
       const key = PainelOperadores.norm(name);
 
-      if (fixed[key]) {
-        return fixed[key];
+      if (!key) {
+        return '';
       }
 
+      for (const [fixedName, color] of Object.entries(PainelOperadores.CORES_FIXAS_POR_USUARIO)) {
+        const fixedKey = PainelOperadores.norm(fixedName);
+
+        if (!fixedKey) {
+          continue;
+        }
+
+        if (key === fixedKey || key.includes(fixedKey) || fixedKey.includes(key)) {
+          return color;
+        }
+      }
+
+      return '';
+    };
+
+    PainelOperadores.colorFor = function (name) {
+      const fixed = PainelOperadores.fixedColorFor(name);
+
+      if (fixed) {
+        return fixed;
+      }
+
+      const key = PainelOperadores.norm(name);
       const hue = PainelOperadores.hashHue(key || 'operador');
-      return `hsl(${hue} 72% 48%)`;
+
+      return `hsl(${hue} 72% 46%)`;
+    };
+
+    PainelOperadores.textColorFor = function (name) {
+      const color = PainelOperadores.colorFor(name);
+      const match = String(color || '').match(/^#([0-9a-f]{6})$/i);
+
+      if (!match) {
+        return '#ffffff';
+      }
+
+      const hex = match[1];
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+      return luminance > 0.62 ? '#111827' : '#ffffff';
     };
 
     PainelOperadores.firebaseUrl = function () {
@@ -1808,10 +1849,15 @@ tr:hover td {
           PainelOperadores.scheduleRender();
         });
 
+        const dot = document.createElement('span');
+        dot.className = 'colorDot';
+        dot.style.background = PainelOperadores.colorFor(user);
+
         const text = document.createElement('span');
         text.textContent = user;
 
         label.appendChild(input);
+        label.appendChild(dot);
         label.appendChild(text);
         box.appendChild(label);
       }
@@ -1998,6 +2044,7 @@ tr:hover td {
         const pill = document.createElement('span');
         pill.className = 'pill';
         pill.style.background = PainelOperadores.colorFor(item.operador);
+        pill.style.color = PainelOperadores.textColorFor(item.operador);
         pill.textContent = item.operador;
         tdOperador.appendChild(pill);
 
