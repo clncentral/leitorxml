@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      4.0.4
+// @version      4.0.5
 // @description  Marca/libera despesa no Firebase com operador e ts, e bloqueia abertura/gravação para outro usuário.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
@@ -35,7 +35,7 @@
 
   InfraDeskDespesas.CORES_FIXAS_POR_USUARIO = {
     'Elias Araujo': '#0324ff',
-    'Camily': '#e6cff2',
+    'Camily Assis': '#e6cff2',
     'Elia Maria': '#962bcc',
     'Patricia': '#ff8e03',
     'Marcia': '#6a0e9c',
