@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     adicionarTopico("Favoritos", "Spotify", "https://open.spotify.com/", "2024-04-22");
     adicionarTopico("Favoritos", "Rádio Online", "hist/radio.html", "2024-04-20");
+	adicionarTopico("Favoritos", "Doca", "hist/doca.html", "2024-04-20");
 	adicionarTopico("Favoritos", "Despesas", "hist/despesas.html", "2024-04-20");
 });
 
