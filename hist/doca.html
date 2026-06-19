@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraDesk Doca • Painel de Capturas v3</title>
+  <title>InfraDesk Doca • Painel de Capturas v4</title>
 
   <style>
     :root {
@@ -426,7 +426,7 @@
       width: 100%;
       border-collapse: collapse;
       background: #fff;
-      min-width: 1180px;
+      min-width: 1320px;
     }
 
     th,
@@ -572,6 +572,26 @@
       font-size: 13px;
       font-weight: 800;
     }
+
+    .dateCell {
+      white-space: nowrap;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .dateCell .muted {
+      display: block;
+      margin-top: 2px;
+    }
+
+    .userPill,
+    .chip span:last-child,
+    .rankName span:last-child {
+      max-width: 190px;
+    }
+
 
     .toast {
       position: fixed;
@@ -747,12 +767,14 @@
           <table>
             <thead>
               <tr>
-                <th style="width: 105px;">ID</th>
+                <th style="width: 95px;">ID</th>
+                <th style="width: 110px;">Reservado</th>
+                <th style="width: 110px;">Aberto</th>
                 <th style="width: 180px;">Loja</th>
                 <th>Fornecedor</th>
                 <th style="width: 130px;">Subcategoria</th>
                 <th>Chave de acesso</th>
-                <th style="width: 160px;">Usuário</th>
+                <th style="width: 150px;">Usuário</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -794,11 +816,28 @@
       selectedStores: new Set(),
       touchedUsers: false,
       touchedStores: false,
-      filterSignature: ''
+      filterSignature: '',
+      hasInitialLoad: false
     };
 
     PainelDoca.clean = function (value) {
       return String(value ?? '').replace(/\s+/g, ' ').trim();
+    };
+
+    PainelDoca.shortUserName = function (value) {
+      value = PainelDoca.clean(value);
+
+      if (!value) {
+        return '';
+      }
+
+      const parts = value.split(' ').filter(Boolean);
+
+      if (parts.length <= 2) {
+        return value;
+      }
+
+      return parts[0] + ' ' + parts[1];
     };
 
     PainelDoca.onlyDigits = function (value) {
@@ -1185,7 +1224,8 @@
         dot.style.background = boxId === 'usersBox' ? PainelDoca.colorFor(value) : '#1a82cd';
 
         const text = document.createElement('span');
-        text.textContent = value;
+        text.textContent = boxId === 'usersBox' ? PainelDoca.shortUserName(value) : value;
+        text.title = value;
 
         label.appendChild(input);
         label.appendChild(dot);
@@ -1268,9 +1308,19 @@
       const tdId = document.createElement('td');
       tdId.innerHTML = `
         <a class="idLink" href="https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a>
-        ${item.reservaDataTexto ? '<div class="muted">Reservado: ' + PainelDoca.escapeHTML(item.reservaDataTexto) + '</div>' : ''}
-        ${item.aberturaTexto ? '<div class="muted">Aberto: ' + PainelDoca.escapeHTML(item.aberturaTexto) + '</div>' : ''}
       `;
+
+      const tdReservado = document.createElement('td');
+      tdReservado.className = 'dateCell';
+      tdReservado.innerHTML = item.reservaDataTexto
+        ? PainelDoca.escapeHTML(item.reservaDataTexto).replace(' ', '<br>')
+        : '<span class="muted">—</span>';
+
+      const tdAberto = document.createElement('td');
+      tdAberto.className = 'dateCell';
+      tdAberto.innerHTML = item.aberturaTexto
+        ? PainelDoca.escapeHTML(item.aberturaTexto).replace(' ', '<br>')
+        : '<span class="muted">—</span>';
 
       const tdLoja = document.createElement('td');
       tdLoja.innerHTML = `
@@ -1302,10 +1352,12 @@
 
       const tdUser = document.createElement('td');
       tdUser.innerHTML = `
-        <span class="userPill" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(item.usuario || '—')}</span>
+        <span class="userPill" title="${PainelDoca.escapeHTML(item.usuario || '—')}" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.usuario) || '—')}</span>
       `;
 
       tr.appendChild(tdId);
+      tr.appendChild(tdReservado);
+      tr.appendChild(tdAberto);
       tr.appendChild(tdLoja);
       tr.appendChild(tdFornecedor);
       tr.appendChild(tdSub);
@@ -1325,7 +1377,7 @@
       const visible = PainelDoca.getVisibleItems().length;
 
       if (!visible) {
-        body.innerHTML = '<tr data-empty-row="1"><td colspan="6" class="empty">Nenhum chamado encontrado.</td></tr>';
+        body.innerHTML = '<tr data-empty-row="1"><td colspan="8" class="empty">Nenhum chamado encontrado.</td></tr>';
         return;
       }
 
@@ -1394,7 +1446,7 @@
       PainelDoca.updateTableHint();
 
       if (!rows.length) {
-        body.innerHTML = '<tr data-empty-row="1"><td colspan="6" class="empty">Nenhum chamado encontrado.</td></tr>';
+        body.innerHTML = '<tr data-empty-row="1"><td colspan="8" class="empty">Nenhum chamado encontrado.</td></tr>';
         return;
       }
 
@@ -1470,7 +1522,8 @@
         dot.style.background = PainelDoca.colorFor(user);
 
         const text = document.createElement('span');
-        text.textContent = user;
+        text.textContent = PainelDoca.shortUserName(user);
+        text.title = user;
 
         name.appendChild(dot);
         name.appendChild(text);
@@ -1585,6 +1638,7 @@
         const data = await res.json();
 
         PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+        PainelDoca.state.hasInitialLoad = true;
         PainelDoca.setStatus(true, 'Online');
         PainelDoca.scheduleRender();
       } catch (error) {
@@ -1604,39 +1658,11 @@
       PainelDoca.state.byId[normalized.id] = normalized;
     };
 
-    PainelDoca.handleFirebaseEvent = function (raw) {
-      let payload;
-
-      try {
-        payload = JSON.parse(raw || '{}');
-      } catch (_) {
-        return;
-      }
-
-      const path = String(payload.path || '/');
-      const data = payload.data;
-
-      if (path === '/' || path === '') {
-        const beforeFingerprint = PainelDoca.visibleFingerprint();
-
-        PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
-
-        const afterFingerprint = PainelDoca.visibleFingerprint();
-
-        if (beforeFingerprint !== afterFingerprint) {
-          PainelDoca.setStatus(true, 'Online');
-          PainelDoca.scheduleDataRender();
-        }
-
-        return;
-      }
-
-      const cleanPath = path.replace(/^\/+/, '');
-      const parts = cleanPath.split('/').filter(Boolean);
-      const id = PainelDoca.clean(parts[0]);
+    PainelDoca.applyChangedChild = function (id, data, eventType) {
+      id = PainelDoca.clean(id);
 
       if (!id) {
-        return;
+        return false;
       }
 
       const beforeItem = PainelDoca.state.byId[id]
@@ -1649,19 +1675,20 @@
         delete PainelDoca.state.byId[id];
 
         if (beforeVisible) {
-          PainelDoca.setStatus(true, 'Online');
-          PainelDoca.scheduleDataRender();
+          PainelDoca.removeVisibleRow(id);
+          PainelDoca.renderRanking();
+          return true;
         }
 
-        return;
+        return false;
       }
 
-      if (parts.length === 1) {
-        PainelDoca.applyRemoteItem(id, data);
-      } else {
+      if (eventType === 'patch') {
         const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
-        current[parts[1]] = data;
+        Object.assign(current, data || {});
         PainelDoca.applyRemoteItem(id, current);
+      } else {
+        PainelDoca.applyRemoteItem(id, data);
       }
 
       const afterItem = PainelDoca.state.byId[id]
@@ -1670,9 +1697,92 @@
 
       const afterVisible = afterItem ? PainelDoca.matchesFilters(afterItem) : false;
 
-      // Comportamento tipo AJAX real:
-      // se o item novo/alterado não pertence ao filtro atual, não mexe na tabela nem na contagem.
-      // se pertence, apenas insere/substitui aquela linha e recalcula o resumo lateral.
+      if (!beforeVisible && !afterVisible) {
+        return false;
+      }
+
+      PainelDoca.applyVisibleItemChange(id, beforeVisible, afterVisible);
+      return true;
+    };
+
+    PainelDoca.handleFirebaseEvent = function (raw, eventType) {
+      let payload;
+
+      try {
+        payload = JSON.parse(raw || '{}');
+      } catch (_) {
+        return;
+      }
+
+      eventType = eventType || 'put';
+
+      const path = String(payload.path || '/');
+      const data = payload.data;
+      const cleanPath = path.replace(/^\/+/, '');
+      const parts = cleanPath.split('/').filter(Boolean);
+
+      // Primeiro PUT do EventSource costuma ser o snapshot inteiro.
+      // Como já carregamos pelo fetch inicial, ignoramos para não redesenhar tudo de novo.
+      if ((path === '/' || path === '') && eventType === 'put') {
+        if (!PainelDoca.state.hasInitialLoad) {
+          PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+          PainelDoca.state.hasInitialLoad = true;
+          PainelDoca.setStatus(true, 'Online');
+          PainelDoca.scheduleRender();
+        }
+
+        return;
+      }
+
+      // PATCH na raiz não é snapshot completo. Normalmente vem só com o(s) filho(s) alterado(s).
+      // Aqui fica o comportamento tipo AJAX: aplica apenas a linha nova/alterada.
+      if ((path === '/' || path === '') && eventType === 'patch') {
+        let changedVisible = false;
+
+        for (const [childId, childData] of Object.entries(data || {})) {
+          if (PainelDoca.applyChangedChild(childId, childData, 'patch')) {
+            changedVisible = true;
+          }
+        }
+
+        if (changedVisible) {
+          PainelDoca.setStatus(true, 'Online');
+        }
+
+        return;
+      }
+
+      const id = PainelDoca.clean(parts[0]);
+
+      if (!id) {
+        return;
+      }
+
+      if (parts.length === 1) {
+        const changedVisible = PainelDoca.applyChangedChild(id, data, eventType);
+
+        if (changedVisible) {
+          PainelDoca.setStatus(true, 'Online');
+        }
+
+        return;
+      }
+
+      const beforeItem = PainelDoca.state.byId[id]
+        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
+        : null;
+
+      const beforeVisible = beforeItem ? PainelDoca.matchesFilters(beforeItem) : false;
+      const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
+      current[parts[1]] = data;
+      PainelDoca.applyRemoteItem(id, current);
+
+      const afterItem = PainelDoca.state.byId[id]
+        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
+        : null;
+
+      const afterVisible = afterItem ? PainelDoca.matchesFilters(afterItem) : false;
+
       if (beforeVisible || afterVisible) {
         PainelDoca.setStatus(true, 'Online');
         PainelDoca.applyVisibleItemChange(id, beforeVisible, afterVisible);
@@ -1688,11 +1798,11 @@
         const es = new EventSource(PainelDoca.firebaseUrl());
 
         es.addEventListener('put', function (event) {
-          PainelDoca.handleFirebaseEvent(event.data);
+          PainelDoca.handleFirebaseEvent(event.data, 'put');
         });
 
         es.addEventListener('patch', function (event) {
-          PainelDoca.handleFirebaseEvent(event.data);
+          PainelDoca.handleFirebaseEvent(event.data, 'patch');
         });
 
         es.onerror = function () {
