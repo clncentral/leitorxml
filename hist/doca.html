@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfraDesk Doca • Painel de Capturas v3</title>
+
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --soft: #f8fafc;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #f59e0b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.075);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 32%),
+        radial-gradient(circle at top right, rgba(22, 163, 74, 0.09), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button,
+    input,
+    select {
+      font-family: inherit;
+    }
+
+    .app {
+      width: min(1880px, calc(100% - 18px));
+      margin: 0 auto;
+      padding: 10px 0 24px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .titleBox {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .titleBox h1 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: -0.04em;
+    }
+
+    .titleBox p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .statusBox {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      display: grid;
+      gap: 4px;
+      min-width: 210px;
+    }
+
+    .statusLine {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 950;
+      color: #374151;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      background: #94a3b8;
+      box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
+    }
+
+    .dot.ok {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16);
+    }
+
+    .dot.err {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
+    }
+
+    .lastUpdate {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.5fr .8fr .9fr .9fr .8fr .8fr 1fr auto;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      margin-bottom: 10px;
+      backdrop-filter: blur(12px);
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .field label {
+      color: #374151;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      min-width: 0;
+      min-height: 39px;
+      border-radius: 13px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    .clearBtn,
+    .reloadBtn,
+    .exportBtn {
+      min-height: 39px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: #fff;
+      color: #334155;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: .15s ease;
+      white-space: nowrap;
+      align-self: end;
+    }
+
+    .clearBtn:hover,
+    .reloadBtn:hover,
+    .exportBtn:hover,
+    .copyBtn:hover {
+      background: #f8fafc;
+      border-color: #bfdbfe;
+      transform: translateY(-1px);
+    }
+
+    .filtersRow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .chipsPanel {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .chipsHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .chipsHead h3 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+
+    .chipsHead button {
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 950;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+
+    .chipsBox {
+      min-height: 42px;
+      max-height: 88px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 6px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 900;
+      color: #374151;
+      max-width: 100%;
+    }
+
+    .chip input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .chip span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chip.active {
+      border-color: #bfdbfe;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .panelHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .panelTitle {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+      font-weight: 700;
+    }
+
+    .summaryBig {
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border: 1px solid #dbeafe;
+      border-radius: 17px;
+      padding: 12px;
+      margin-bottom: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .summaryBig span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .summaryBig strong {
+      color: var(--text);
+      font-size: 30px;
+      line-height: 1;
+      letter-spacing: -0.06em;
+    }
+
+    .rankList {
+      display: grid;
+      gap: 8px;
+    }
+
+    .rankItem {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      border: 1px solid var(--border);
+      background: var(--soft);
+      border-radius: 15px;
+      padding: 8px;
+    }
+
+    .rankName {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      font-weight: 950;
+      font-size: 12px;
+    }
+
+    .rankName span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rankValue {
+      font-weight: 950;
+      color: var(--blue);
+    }
+
+    .progressTrack {
+      grid-column: 1 / -1;
+      height: 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .progressFill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+    }
+
+    .colorDot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .tableTools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tableBox {
+      max-height: calc(100vh - 300px);
+      min-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      min-width: 1180px;
+    }
+
+    th,
+    td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 12px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f9fafb;
+      color: #4b5563;
+      font-weight: 950;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td {
+      background: #f9fbff;
+    }
+
+    .idLink {
+      color: var(--blue);
+      font-weight: 950;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .idLink:hover {
+      text-decoration: underline;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .supplier {
+      font-weight: 900;
+      color: #1f2937;
+      max-width: 300px;
+    }
+
+    .subcat {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .userPill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 950;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .keyWrap {
+      display: grid;
+      gap: 6px;
+      min-width: 430px;
+    }
+
+    .keyText {
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+      user-select: text;
+    }
+
+    .keyCnpj {
+      background: #fef3c7;
+      color: #92400e;
+      border-radius: 5px;
+      padding: 1px 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .keyNum {
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 5px;
+      padding: 1px 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .keyActions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .miniLegend {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .legendMark {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .copyBtn {
+      min-height: 25px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #fff;
+      color: #334155;
+      padding: 4px 7px;
+      font-size: 11px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 34px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #111827;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: .18s ease;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, .25);
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+
+    .rowNew td {
+      animation: rowFlash 1.35s ease;
+    }
+
+    @keyframes rowFlash {
+      0% { background: #dcfce7; }
+      55% { background: #ecfdf5; }
+      100% { background: transparent; }
+    }
+
+    @media (max-width: 1180px) {
+      .topbar,
+      .main,
+      .filtersRow {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .tableBox {
+        max-height: 560px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100% - 12px, 1880px);
+        padding-top: 7px;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .titleBox h1 {
+        font-size: 18px;
+      }
+
+      .panelHead {
+        flex-direction: column;
+      }
+
+      .tableTools {
+        width: 100%;
+      }
+
+      .reloadBtn,
+      .exportBtn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="titleBox">
+        <h1>InfraDesk Doca • Capturas</h1>
+        <p>Consulta dos chamados capturados no Firebase, com filtros por data de reserva, usuário, loja, CNPJ, NF e chamado.</p>
+      </div>
+
+      <div class="statusBox">
+        <div class="statusLine">
+          <span><span id="statusDot" class="dot"></span> Firebase</span>
+          <span id="statusText">Conectando...</span>
+        </div>
+        <div id="lastUpdate" class="lastUpdate">—</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="field">
+        <label>Busca geral</label>
+        <input id="searchGeneral" type="text" placeholder="Fornecedor, loja, chave, usuário..." />
+      </div>
+
+      <div class="field">
+        <label>Chamado</label>
+        <input id="searchChamado" type="text" placeholder="Ex.: 536621" />
+      </div>
+
+      <div class="field">
+        <label>Número da NF</label>
+        <input id="searchNf" type="text" placeholder="Com ou sem zeros/pontos" />
+      </div>
+
+      <div class="field">
+        <label>CNPJ</label>
+        <input id="searchCnpj" type="text" placeholder="Com ou sem máscara" />
+      </div>
+
+      <div class="field">
+        <label>Data inicial</label>
+        <input id="dateFrom" type="date" />
+      </div>
+
+      <div class="field">
+        <label>Data final</label>
+        <input id="dateTo" type="date" />
+      </div>
+
+      <div class="field">
+        <label>Subcategoria</label>
+        <select id="filterSubcategoria">
+          <option value="">Todas</option>
+        </select>
+      </div>
+
+      <button id="clearBtn" class="clearBtn" type="button">Limpar</button>
+    </div>
+
+    <div class="filtersRow">
+      <div class="chipsPanel">
+        <div class="chipsHead">
+          <h3>Usuários</h3>
+          <button id="toggleUsersBtn" type="button">Todos/Nenhum</button>
+        </div>
+        <div id="usersBox" class="chipsBox"></div>
+      </div>
+
+      <div class="chipsPanel">
+        <div class="chipsHead">
+          <h3>Lojas</h3>
+          <button id="toggleStoresBtn" type="button">Todas/Nenhuma</button>
+        </div>
+        <div id="storesBox" class="chipsBox"></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 class="panelTitle">Tabela de chamados</h2>
+            <div id="tableHint" class="hint">0 chamado(s).</div>
+          </div>
+
+          <div class="tableTools">
+            <button id="reloadBtn" class="reloadBtn" type="button">Atualizar</button>
+            <button id="exportBtn" class="exportBtn" type="button">Exportar CSV</button>
+          </div>
+        </div>
+
+        <div class="tableBox">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 105px;">ID</th>
+                <th style="width: 180px;">Loja</th>
+                <th>Fornecedor</th>
+                <th style="width: 130px;">Subcategoria</th>
+                <th>Chave de acesso</th>
+                <th style="width: 160px;">Usuário</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 class="panelTitle">Contagem por usuário</h2>
+            <div id="summaryMeta" class="hint">0 usuário(s)</div>
+          </div>
+        </div>
+
+        <div class="summaryBig">
+          <span>Total filtrado</span>
+          <strong id="summaryTotal">0</strong>
+        </div>
+
+        <div id="ranking" class="rankList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Copiado</div>
+
+  <script>
+    const PainelDoca = {};
+
+    PainelDoca.FIREBASE_DB_URL = 'https://infra-doca-default-rtdb.firebaseio.com';
+    PainelDoca.PATH = '/doca_capturas/by_id.json';
+
+    PainelDoca.state = {
+      byId: {},
+      eventSource: null,
+      renderFrame: null,
+      selectedUsers: new Set(),
+      selectedStores: new Set(),
+      touchedUsers: false,
+      touchedStores: false,
+      filterSignature: ''
+    };
+
+    PainelDoca.clean = function (value) {
+      return String(value ?? '').replace(/\s+/g, ' ').trim();
+    };
+
+    PainelDoca.onlyDigits = function (value) {
+      return String(value ?? '').replace(/\D+/g, '');
+    };
+
+    PainelDoca.norm = function (value) {
+      return PainelDoca.clean(value)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    PainelDoca.escapeHTML = function (value) {
+      return PainelDoca.clean(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    PainelDoca.formatCnpj = function (cnpj) {
+      cnpj = PainelDoca.onlyDigits(cnpj);
+
+      if (cnpj.length !== 14) {
+        return cnpj;
+      }
+
+      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    };
+
+    PainelDoca.firebaseUrl = function () {
+      return PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelDoca.PATH;
+    };
+
+    PainelDoca.hashHue = function (str) {
+      let h = 0;
+      str = PainelDoca.norm(str || 'usuario');
+
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 31 + str.charCodeAt(i)) | 0;
+      }
+
+      return Math.abs(h) % 360;
+    };
+
+    PainelDoca.CORES_FIXAS_POR_USUARIO = {
+      'Elias Araujo': '#0324ff',
+      'Camily Assis': '#e6cff2',
+      'Elia Maria': '#962bcc',
+      'Patricia': '#ff8e03',
+      'Marcia': '#6a0e9c',
+      'Helena': '#8c1223'
+    };
+
+    PainelDoca.fixedColorFor = function (name) {
+      const key = PainelDoca.norm(name);
+
+      for (const [fixedName, color] of Object.entries(PainelDoca.CORES_FIXAS_POR_USUARIO)) {
+        const fixedKey = PainelDoca.norm(fixedName);
+
+        if (key === fixedKey || key.includes(fixedKey) || fixedKey.includes(key)) {
+          return color;
+        }
+      }
+
+      return '';
+    };
+
+    PainelDoca.colorFor = function (name) {
+      return PainelDoca.fixedColorFor(name) || `hsl(${PainelDoca.hashHue(name)} 72% 46%)`;
+    };
+
+    PainelDoca.textColorFor = function (name) {
+      const color = PainelDoca.colorFor(name);
+      const match = String(color || '').match(/^#([0-9a-f]{6})$/i);
+
+      if (!match) {
+        return '#ffffff';
+      }
+
+      const hex = match[1];
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+      return luminance > 0.62 ? '#111827' : '#ffffff';
+    };
+
+    PainelDoca.toMillis = function (item) {
+      const values = [
+        item.capturadoEm,
+        item.atualizadoEm
+      ];
+
+      for (const value of values) {
+        const n = Number(value || 0);
+
+        if (Number.isFinite(n) && n > 0) {
+          return n;
+        }
+      }
+
+      if (item.aberturaISO) {
+        const n = new Date(item.aberturaISO).getTime();
+
+        if (Number.isFinite(n)) {
+          return n;
+        }
+      }
+
+      return 0;
+    };
+
+    PainelDoca.pad = function (n) {
+      return String(n).padStart(2, '0');
+    };
+
+    PainelDoca.dateKeyFromTs = function (ts) {
+      const n = Number(ts || 0);
+
+      if (!Number.isFinite(n) || n <= 0) {
+        return '';
+      }
+
+      const d = new Date(n);
+
+      if (String(d) === 'Invalid Date') {
+        return '';
+      }
+
+      return `${d.getFullYear()}-${PainelDoca.pad(d.getMonth() + 1)}-${PainelDoca.pad(d.getDate())}`;
+    };
+
+    PainelDoca.formatDateTimeFromTs = function (ts) {
+      const n = Number(ts || 0);
+
+      if (!Number.isFinite(n) || n <= 0) {
+        return '';
+      }
+
+      const d = new Date(n);
+
+      if (String(d) === 'Invalid Date') {
+        return '';
+      }
+
+      return `${PainelDoca.pad(d.getDate())}/${PainelDoca.pad(d.getMonth() + 1)}/${d.getFullYear()} ${PainelDoca.pad(d.getHours())}:${PainelDoca.pad(d.getMinutes())}`;
+    };
+
+    PainelDoca.normalizeItem = function (key, item) {
+      const raw = item && typeof item === 'object' ? item : {};
+      const id = PainelDoca.clean(raw.chamadoId || raw.id || key);
+      const usuario = PainelDoca.clean(raw.usuario || raw.operador || raw.nome || '');
+      const lojaTexto = PainelDoca.clean(raw.lojaTexto || '');
+      const lojaCodigo = PainelDoca.clean(raw.lojaCodigo || '');
+      const lojaNome = PainelDoca.clean(raw.lojaNome || '');
+      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || '');
+      const subcategoria = PainelDoca.clean(raw.subcategoria || '');
+      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || raw.nfe?.chaveAcesso || '');
+      const cnpjEmitente = PainelDoca.onlyDigits(raw.cnpjEmitente || raw.nfe?.cnpjEmitente || (chaveAcesso.length === 44 ? chaveAcesso.slice(6, 20) : ''));
+      const nfNumero = PainelDoca.onlyDigits(raw.nfNumero || raw.numeroNfChave || raw.nfe?.numero || (chaveAcesso.length === 44 ? chaveAcesso.slice(25, 34) : ''));
+      const nfNumeroLimpo = String(Number(nfNumero || 0) || '');
+      const ts = PainelDoca.toMillis(raw);
+
+      if (!id) {
+        return null;
+      }
+
+      return {
+        ...raw,
+        id,
+        usuario,
+        lojaTexto,
+        lojaCodigo,
+        lojaNome,
+        fornecedorNome,
+        subcategoria,
+        chaveAcesso,
+        cnpjEmitente,
+        cnpjEmitenteFormatado: raw.cnpjEmitenteFormatado || raw.nfe?.cnpjEmitenteFormatado || PainelDoca.formatCnpj(cnpjEmitente),
+        nfNumero,
+        nfNumeroLimpo,
+        ts,
+        reservaDataKey: PainelDoca.dateKeyFromTs(ts),
+        reservaDataTexto: PainelDoca.formatDateTimeFromTs(ts)
+      };
+    };
+
+    PainelDoca.normalizeSnapshot = function (data) {
+      const out = {};
+
+      for (const [key, item] of Object.entries(data || {})) {
+        const normalized = PainelDoca.normalizeItem(key, item);
+
+        if (normalized) {
+          out[normalized.id] = normalized;
+        }
+      }
+
+      return out;
+    };
+
+    PainelDoca.getItems = function () {
+      return Object.entries(PainelDoca.state.byId || {})
+        .map(([key, item]) => PainelDoca.normalizeItem(key, item))
+        .filter(Boolean);
+    };
+
+    PainelDoca.unique = function (arr) {
+      return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    };
+
+    PainelDoca.getAllUsers = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.usuario));
+    };
+
+    PainelDoca.getAllStores = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.lojaTexto || item.lojaNome || item.lojaCodigo));
+    };
+
+    PainelDoca.getAllSubcategories = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.subcategoria));
+    };
+
+    PainelDoca.getSelectedUsers = function () {
+      const all = PainelDoca.getAllUsers();
+
+      if (!PainelDoca.state.touchedUsers) {
+        return all;
+      }
+
+      return all.filter(user => PainelDoca.state.selectedUsers.has(user));
+    };
+
+    PainelDoca.getSelectedStores = function () {
+      const all = PainelDoca.getAllStores();
+
+      if (!PainelDoca.state.touchedStores) {
+        return all;
+      }
+
+      return all.filter(store => PainelDoca.state.selectedStores.has(store));
+    };
+
+    PainelDoca.matchesFilters = function (item) {
+      const selectedUsers = new Set(PainelDoca.getSelectedUsers());
+      const selectedStores = new Set(PainelDoca.getSelectedStores());
+
+      if (item.usuario && !selectedUsers.has(item.usuario)) {
+        return false;
+      }
+
+      const storeKey = item.lojaTexto || item.lojaNome || item.lojaCodigo;
+
+      if (storeKey && !selectedStores.has(storeKey)) {
+        return false;
+      }
+
+      const subcategoria = document.getElementById('filterSubcategoria').value;
+
+      if (subcategoria && item.subcategoria !== subcategoria) {
+        return false;
+      }
+
+      const dateFrom = document.getElementById('dateFrom').value;
+      const dateTo = document.getElementById('dateTo').value;
+      const itemDateKey = item.reservaDataKey || PainelDoca.dateKeyFromTs(item.ts);
+
+      if (dateFrom && (!itemDateKey || itemDateKey < dateFrom)) {
+        return false;
+      }
+
+      if (dateTo && (!itemDateKey || itemDateKey > dateTo)) {
+        return false;
+      }
+
+      const chamado = PainelDoca.onlyDigits(document.getElementById('searchChamado').value);
+
+      if (chamado && !PainelDoca.onlyDigits(item.id).includes(chamado)) {
+        return false;
+      }
+
+      const nf = PainelDoca.onlyDigits(document.getElementById('searchNf').value);
+
+      if (nf) {
+        const itemNf = PainelDoca.onlyDigits(item.nfNumero);
+        const itemNfLimpo = String(Number(itemNf || 0) || '');
+        const nfLimpo = String(Number(nf || 0) || '');
+
+        if (!itemNf.includes(nf) && itemNfLimpo !== nfLimpo && !itemNfLimpo.includes(nfLimpo)) {
+          return false;
+        }
+      }
+
+      const cnpj = PainelDoca.onlyDigits(document.getElementById('searchCnpj').value);
+
+      if (cnpj) {
+        const itemCnpj = PainelDoca.onlyDigits(item.cnpjEmitente);
+        const chave = PainelDoca.onlyDigits(item.chaveAcesso);
+
+        if (!itemCnpj.includes(cnpj) && !chave.includes(cnpj)) {
+          return false;
+        }
+      }
+
+      const general = PainelDoca.norm(document.getElementById('searchGeneral').value);
+
+      if (general) {
+        const text = PainelDoca.norm([
+          item.id,
+          item.usuario,
+          item.lojaTexto,
+          item.lojaNome,
+          item.lojaCodigo,
+          item.fornecedorNome,
+          item.subcategoria,
+          item.chaveAcesso,
+          item.cnpjEmitente,
+          item.nfNumero,
+          item.descricaoResumo
+        ].join(' '));
+
+        if (!text.includes(general)) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    PainelDoca.getVisibleItems = function () {
+      return PainelDoca.getItems()
+        .filter(PainelDoca.matchesFilters)
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0) || b.id.localeCompare(a.id, 'pt-BR'));
+    };
+
+    PainelDoca.renderChips = function (boxId, values, selectedSet, touchedFlagName, onChange) {
+      const box = document.getElementById(boxId);
+
+      if (!PainelDoca.state[touchedFlagName]) {
+        selectedSet.clear();
+        values.forEach(v => selectedSet.add(v));
+      }
+
+      for (const value of [...selectedSet]) {
+        if (!values.includes(value)) {
+          selectedSet.delete(value);
+        }
+      }
+
+      box.innerHTML = '';
+
+      if (!values.length) {
+        box.innerHTML = '<span class="hint">Sem dados ainda</span>';
+        return;
+      }
+
+      for (const value of values) {
+        const checked = selectedSet.has(value);
+        const label = document.createElement('label');
+        label.className = 'chip' + (checked ? ' active' : '');
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+
+        input.addEventListener('change', function () {
+          PainelDoca.state[touchedFlagName] = true;
+
+          if (input.checked) {
+            selectedSet.add(value);
+          } else {
+            selectedSet.delete(value);
+          }
+
+          onChange();
+        });
+
+        const dot = document.createElement('span');
+        dot.className = 'colorDot';
+        dot.style.background = boxId === 'usersBox' ? PainelDoca.colorFor(value) : '#1a82cd';
+
+        const text = document.createElement('span');
+        text.textContent = value;
+
+        label.appendChild(input);
+        label.appendChild(dot);
+        label.appendChild(text);
+        box.appendChild(label);
+      }
+    };
+
+    PainelDoca.renderFilterOptions = function () {
+      PainelDoca.renderChips(
+        'usersBox',
+        PainelDoca.getAllUsers(),
+        PainelDoca.state.selectedUsers,
+        'touchedUsers',
+        PainelDoca.scheduleRender
+      );
+
+      PainelDoca.renderChips(
+        'storesBox',
+        PainelDoca.getAllStores(),
+        PainelDoca.state.selectedStores,
+        'touchedStores',
+        PainelDoca.scheduleRender
+      );
+
+      const select = document.getElementById('filterSubcategoria');
+      const current = select.value;
+      const values = PainelDoca.getAllSubcategories();
+
+      select.innerHTML = '<option value="">Todas</option>';
+
+      for (const value of values) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      }
+
+      if (values.includes(current)) {
+        select.value = current;
+      }
+    };
+
+    PainelDoca.highlightAccessKey = function (key) {
+      key = PainelDoca.onlyDigits(key);
+
+      if (key.length !== 44) {
+        return PainelDoca.escapeHTML(key || '—');
+      }
+
+      const p1 = key.slice(0, 6);
+      const cnpj = key.slice(6, 20);
+      const p2 = key.slice(20, 25);
+      const numero = key.slice(25, 34);
+      const p3 = key.slice(34);
+
+      return [
+        PainelDoca.escapeHTML(p1),
+        '<span class="keyCnpj" title="CNPJ emitente">' + PainelDoca.escapeHTML(cnpj) + '</span>',
+        PainelDoca.escapeHTML(p2),
+        '<span class="keyNum" title="Número da NF">' + PainelDoca.escapeHTML(numero) + '</span>',
+        PainelDoca.escapeHTML(p3)
+      ].join('');
+    };
+
+    PainelDoca.buildTableRow = function (item, isNew) {
+      const tr = document.createElement('tr');
+
+      tr.dataset.rowId = item.id;
+      tr.dataset.ts = String(item.ts || 0);
+      tr.dataset.sortId = item.id || '';
+
+      if (isNew) {
+        tr.classList.add('rowNew');
+        setTimeout(function () {
+          tr.classList.remove('rowNew');
+        }, 1500);
+      }
+
+      const tdId = document.createElement('td');
+      tdId.innerHTML = `
+        <a class="idLink" href="https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a>
+        ${item.reservaDataTexto ? '<div class="muted">Reservado: ' + PainelDoca.escapeHTML(item.reservaDataTexto) + '</div>' : ''}
+        ${item.aberturaTexto ? '<div class="muted">Aberto: ' + PainelDoca.escapeHTML(item.aberturaTexto) + '</div>' : ''}
+      `;
+
+      const tdLoja = document.createElement('td');
+      tdLoja.innerHTML = `
+        <strong>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</strong>
+        ${item.lojaCodigo ? '<div class="muted">Loja ' + PainelDoca.escapeHTML(item.lojaCodigo) + '</div>' : ''}
+      `;
+
+      const tdFornecedor = document.createElement('td');
+      tdFornecedor.innerHTML = `
+        <div class="supplier">${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</div>
+        ${item.cnpjEmitente ? '<div class="muted">CNPJ: ' + PainelDoca.escapeHTML(item.cnpjEmitenteFormatado || PainelDoca.formatCnpj(item.cnpjEmitente)) + '</div>' : ''}
+        ${item.nfNumero ? '<div class="muted">NF: ' + PainelDoca.escapeHTML(item.nfNumero) + '</div>' : ''}
+      `;
+
+      const tdSub = document.createElement('td');
+      tdSub.innerHTML = `<span class="subcat">${PainelDoca.escapeHTML(item.subcategoria || '—')}</span>`;
+
+      const tdKey = document.createElement('td');
+      tdKey.innerHTML = `
+        <div class="keyWrap">
+          <div class="keyText">${PainelDoca.highlightAccessKey(item.chaveAcesso)}</div>
+          <div class="keyActions">
+            <button class="copyBtn" type="button" data-copy="${PainelDoca.escapeHTML(item.chaveAcesso || '')}">Copiar chave</button>
+            <span class="miniLegend"><span class="legendMark" style="background:#fef3c7;"></span> CNPJ</span>
+            <span class="miniLegend"><span class="legendMark" style="background:#dcfce7;"></span> Nº NF</span>
+          </div>
+        </div>
+      `;
+
+      const tdUser = document.createElement('td');
+      tdUser.innerHTML = `
+        <span class="userPill" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(item.usuario || '—')}</span>
+      `;
+
+      tr.appendChild(tdId);
+      tr.appendChild(tdLoja);
+      tr.appendChild(tdFornecedor);
+      tr.appendChild(tdSub);
+      tr.appendChild(tdKey);
+      tr.appendChild(tdUser);
+
+      return tr;
+    };
+
+    PainelDoca.updateTableHint = function () {
+      const visible = PainelDoca.getVisibleItems().length;
+      document.getElementById('tableHint').textContent = `${visible} chamado(s) filtrado(s) de ${PainelDoca.getItems().length}.`;
+    };
+
+    PainelDoca.ensureEmptyTableState = function () {
+      const body = document.getElementById('tableBody');
+      const visible = PainelDoca.getVisibleItems().length;
+
+      if (!visible) {
+        body.innerHTML = '<tr data-empty-row="1"><td colspan="6" class="empty">Nenhum chamado encontrado.</td></tr>';
+        return;
+      }
+
+      const empty = body.querySelector('[data-empty-row]');
+
+      if (empty) {
+        empty.remove();
+      }
+    };
+
+    PainelDoca.sortTableDom = function () {
+      const body = document.getElementById('tableBody');
+      const rows = Array.from(body.querySelectorAll('tr[data-row-id]'));
+
+      rows.sort(function (a, b) {
+        const tsA = Number(a.dataset.ts || 0);
+        const tsB = Number(b.dataset.ts || 0);
+
+        if (tsA !== tsB) {
+          return tsB - tsA;
+        }
+
+        return String(b.dataset.sortId || '').localeCompare(String(a.dataset.sortId || ''), 'pt-BR');
+      });
+
+      rows.forEach(row => body.appendChild(row));
+    };
+
+    PainelDoca.upsertVisibleRow = function (item, isNew) {
+      const body = document.getElementById('tableBody');
+      const old = body.querySelector(`tr[data-row-id="${CSS.escape(item.id)}"]`);
+      const row = PainelDoca.buildTableRow(item, isNew);
+
+      const empty = body.querySelector('[data-empty-row]');
+
+      if (empty) {
+        empty.remove();
+      }
+
+      if (old) {
+        old.replaceWith(row);
+      } else {
+        body.appendChild(row);
+      }
+
+      PainelDoca.sortTableDom();
+      PainelDoca.updateTableHint();
+    };
+
+    PainelDoca.removeVisibleRow = function (id) {
+      const body = document.getElementById('tableBody');
+      const row = body.querySelector(`tr[data-row-id="${CSS.escape(String(id))}"]`);
+
+      if (row) {
+        row.remove();
+      }
+
+      PainelDoca.ensureEmptyTableState();
+      PainelDoca.updateTableHint();
+    };
+
+    PainelDoca.renderTable = function () {
+      const body = document.getElementById('tableBody');
+      const rows = PainelDoca.getVisibleItems();
+
+      PainelDoca.updateTableHint();
+
+      if (!rows.length) {
+        body.innerHTML = '<tr data-empty-row="1"><td colspan="6" class="empty">Nenhum chamado encontrado.</td></tr>';
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+
+      for (const item of rows) {
+        frag.appendChild(PainelDoca.buildTableRow(item, false));
+      }
+
+      body.innerHTML = '';
+      body.appendChild(frag);
+    };
+
+    PainelDoca.applyVisibleItemChange = function (id, beforeVisible, afterVisible) {
+      if (!beforeVisible && !afterVisible) {
+        return;
+      }
+
+      if (!afterVisible) {
+        PainelDoca.removeVisibleRow(id);
+        PainelDoca.renderRanking();
+        return;
+      }
+
+      const item = PainelDoca.normalizeItem(id, PainelDoca.state.byId[id]);
+
+      if (!item) {
+        return;
+      }
+
+      PainelDoca.upsertVisibleRow(item, !beforeVisible);
+      PainelDoca.renderRanking();
+    };
+
+    PainelDoca.groupByUser = function (items) {
+      const totals = {};
+
+      for (const item of items) {
+        const user = item.usuario || 'Sem usuário';
+        totals[user] = (totals[user] || 0) + 1;
+      }
+
+      return Object.entries(totals)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    };
+
+    PainelDoca.renderRanking = function () {
+      const items = PainelDoca.getVisibleItems();
+      const totals = PainelDoca.groupByUser(items);
+      const totalCount = totals.reduce((sum, [, count]) => sum + count, 0);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const box = document.getElementById('ranking');
+
+      document.getElementById('summaryTotal').textContent = totalCount;
+      document.getElementById('summaryMeta').textContent = `${totals.length} usuário(s)`;
+
+      if (!totals.length) {
+        box.innerHTML = '<div class="empty">Sem dados.</div>';
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+
+      for (const [user, count] of totals) {
+        const item = document.createElement('div');
+        item.className = 'rankItem';
+
+        const name = document.createElement('div');
+        name.className = 'rankName';
+
+        const dot = document.createElement('span');
+        dot.className = 'colorDot';
+        dot.style.background = PainelDoca.colorFor(user);
+
+        const text = document.createElement('span');
+        text.textContent = user;
+
+        name.appendChild(dot);
+        name.appendChild(text);
+
+        const value = document.createElement('div');
+        value.className = 'rankValue';
+        value.textContent = count;
+
+        const track = document.createElement('div');
+        track.className = 'progressTrack';
+
+        const fill = document.createElement('div');
+        fill.className = 'progressFill';
+        fill.style.background = PainelDoca.colorFor(user);
+        fill.style.width = `${(count / max) * 100}%`;
+
+        track.appendChild(fill);
+
+        item.appendChild(name);
+        item.appendChild(value);
+        item.appendChild(track);
+
+        frag.appendChild(item);
+      }
+
+      box.innerHTML = '';
+      box.appendChild(frag);
+    };
+
+    PainelDoca.filterSignature = function () {
+      return JSON.stringify({
+        users: PainelDoca.getAllUsers(),
+        stores: PainelDoca.getAllStores(),
+        subcategories: PainelDoca.getAllSubcategories()
+      });
+    };
+
+    PainelDoca.renderData = function () {
+      PainelDoca.renderTable();
+      PainelDoca.renderRanking();
+    };
+
+    PainelDoca.render = function () {
+      PainelDoca.renderFilterOptions();
+      PainelDoca.state.filterSignature = PainelDoca.filterSignature();
+      PainelDoca.renderData();
+    };
+
+    PainelDoca.refreshFiltersIfNeeded = function () {
+      const nextSignature = PainelDoca.filterSignature();
+
+      if (nextSignature !== PainelDoca.state.filterSignature) {
+        PainelDoca.renderFilterOptions();
+        PainelDoca.state.filterSignature = nextSignature;
+      }
+    };
+
+    PainelDoca.scheduleRender = function () {
+      if (PainelDoca.state.renderFrame) {
+        cancelAnimationFrame(PainelDoca.state.renderFrame);
+      }
+
+      PainelDoca.state.renderFrame = requestAnimationFrame(function () {
+        PainelDoca.state.renderFrame = null;
+        PainelDoca.render();
+      });
+    };
+
+    PainelDoca.scheduleDataRender = function () {
+      if (PainelDoca.state.renderFrame) {
+        cancelAnimationFrame(PainelDoca.state.renderFrame);
+      }
+
+      PainelDoca.state.renderFrame = requestAnimationFrame(function () {
+        PainelDoca.state.renderFrame = null;
+        PainelDoca.renderData();
+      });
+    };
+
+    PainelDoca.visibleFingerprint = function () {
+      return PainelDoca.getVisibleItems()
+        .map(item => [
+          item.id,
+          item.ts || 0,
+          item.usuario || '',
+          item.statusId || '',
+          item.chaveAcesso || '',
+          item.fornecedorNome || ''
+        ].join(':'))
+        .join('|');
+    };
+
+    PainelDoca.setStatus = function (ok, text) {
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+
+      dot.className = 'dot ' + (ok ? 'ok' : 'err');
+      statusText.textContent = text;
+
+      const now = new Date();
+      document.getElementById('lastUpdate').textContent = `Atualizado às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    };
+
+    PainelDoca.loadInitial = async function () {
+      try {
+        PainelDoca.setStatus(false, 'Carregando...');
+
+        const res = await fetch(PainelDoca.firebaseUrl() + '?_=' + Date.now(), {
+          cache: 'no-store'
+        });
+
+        const data = await res.json();
+
+        PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+        PainelDoca.setStatus(true, 'Online');
+        PainelDoca.scheduleRender();
+      } catch (error) {
+        console.error('Erro ao carregar Firebase:', error);
+        PainelDoca.setStatus(false, 'Erro');
+      }
+    };
+
+    PainelDoca.applyRemoteItem = function (id, item) {
+      const normalized = PainelDoca.normalizeItem(id, item);
+
+      if (!normalized) {
+        delete PainelDoca.state.byId[id];
+        return;
+      }
+
+      PainelDoca.state.byId[normalized.id] = normalized;
+    };
+
+    PainelDoca.handleFirebaseEvent = function (raw) {
+      let payload;
+
+      try {
+        payload = JSON.parse(raw || '{}');
+      } catch (_) {
+        return;
+      }
+
+      const path = String(payload.path || '/');
+      const data = payload.data;
+
+      if (path === '/' || path === '') {
+        const beforeFingerprint = PainelDoca.visibleFingerprint();
+
+        PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+
+        const afterFingerprint = PainelDoca.visibleFingerprint();
+
+        if (beforeFingerprint !== afterFingerprint) {
+          PainelDoca.setStatus(true, 'Online');
+          PainelDoca.scheduleDataRender();
+        }
+
+        return;
+      }
+
+      const cleanPath = path.replace(/^\/+/, '');
+      const parts = cleanPath.split('/').filter(Boolean);
+      const id = PainelDoca.clean(parts[0]);
+
+      if (!id) {
+        return;
+      }
+
+      const beforeItem = PainelDoca.state.byId[id]
+        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
+        : null;
+
+      const beforeVisible = beforeItem ? PainelDoca.matchesFilters(beforeItem) : false;
+
+      if (data === null) {
+        delete PainelDoca.state.byId[id];
+
+        if (beforeVisible) {
+          PainelDoca.setStatus(true, 'Online');
+          PainelDoca.scheduleDataRender();
+        }
+
+        return;
+      }
+
+      if (parts.length === 1) {
+        PainelDoca.applyRemoteItem(id, data);
+      } else {
+        const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
+        current[parts[1]] = data;
+        PainelDoca.applyRemoteItem(id, current);
+      }
+
+      const afterItem = PainelDoca.state.byId[id]
+        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
+        : null;
+
+      const afterVisible = afterItem ? PainelDoca.matchesFilters(afterItem) : false;
+
+      // Comportamento tipo AJAX real:
+      // se o item novo/alterado não pertence ao filtro atual, não mexe na tabela nem na contagem.
+      // se pertence, apenas insere/substitui aquela linha e recalcula o resumo lateral.
+      if (beforeVisible || afterVisible) {
+        PainelDoca.setStatus(true, 'Online');
+        PainelDoca.applyVisibleItemChange(id, beforeVisible, afterVisible);
+      }
+    };
+
+    PainelDoca.connectRealtime = function () {
+      if (PainelDoca.state.eventSource) {
+        PainelDoca.state.eventSource.close();
+      }
+
+      try {
+        const es = new EventSource(PainelDoca.firebaseUrl());
+
+        es.addEventListener('put', function (event) {
+          PainelDoca.handleFirebaseEvent(event.data);
+        });
+
+        es.addEventListener('patch', function (event) {
+          PainelDoca.handleFirebaseEvent(event.data);
+        });
+
+        es.onerror = function () {
+          PainelDoca.setStatus(false, 'Reconectando...');
+        };
+
+        PainelDoca.state.eventSource = es;
+      } catch (error) {
+        console.error('Erro no realtime:', error);
+        PainelDoca.setStatus(false, 'Erro');
+      }
+    };
+
+    PainelDoca.copyText = async function (text) {
+      text = PainelDoca.clean(text);
+
+      if (!text) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_) {
+        const input = document.createElement('textarea');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+      }
+
+      PainelDoca.toast('Chave copiada');
+    };
+
+    PainelDoca.toast = function (message) {
+      const el = document.getElementById('toast');
+
+      el.textContent = message;
+      el.classList.add('show');
+
+      clearTimeout(PainelDoca.toastTimer);
+      PainelDoca.toastTimer = setTimeout(function () {
+        el.classList.remove('show');
+      }, 1500);
+    };
+
+    PainelDoca.clearFilters = function () {
+      document.getElementById('searchGeneral').value = '';
+      document.getElementById('searchChamado').value = '';
+      document.getElementById('searchNf').value = '';
+      document.getElementById('searchCnpj').value = '';
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      document.getElementById('filterSubcategoria').value = '';
+
+      PainelDoca.state.touchedUsers = false;
+      PainelDoca.state.touchedStores = false;
+      PainelDoca.state.selectedUsers.clear();
+      PainelDoca.state.selectedStores.clear();
+
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.toggleAll = function (type) {
+      const isUsers = type === 'users';
+      const values = isUsers ? PainelDoca.getAllUsers() : PainelDoca.getAllStores();
+      const set = isUsers ? PainelDoca.state.selectedUsers : PainelDoca.state.selectedStores;
+      const flag = isUsers ? 'touchedUsers' : 'touchedStores';
+
+      PainelDoca.state[flag] = true;
+
+      if (set.size === values.length) {
+        set.clear();
+      } else {
+        set.clear();
+        values.forEach(v => set.add(v));
+      }
+
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.exportCsv = function () {
+      const rows = PainelDoca.getVisibleItems();
+      const header = [
+        'chamadoId',
+        'lojaTexto',
+        'fornecedorNome',
+        'subcategoria',
+        'chaveAcesso',
+        'cnpjEmitente',
+        'nfNumero',
+        'usuario',
+        'capturadoEm',
+        'reservaDataTexto',
+        'aberturaTexto'
+      ];
+
+      const lines = [header.join(';')];
+
+      for (const item of rows) {
+        const values = header.map(key => {
+          const raw = PainelDoca.clean(item[key] || '');
+          return '"' + raw.replace(/"/g, '""') + '"';
+        });
+
+        lines.push(values.join(';'));
+      }
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+
+      a.href = url;
+      a.download = 'infra-doca-capturas.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+    };
+
+    PainelDoca.bind = function () {
+      const filterIds = [
+        'searchGeneral',
+        'searchChamado',
+        'searchNf',
+        'searchCnpj',
+        'dateFrom',
+        'dateTo',
+        'filterSubcategoria'
+      ];
+
+      filterIds.forEach(id => {
+        document.getElementById(id).addEventListener('input', PainelDoca.scheduleRender);
+        document.getElementById(id).addEventListener('change', PainelDoca.scheduleRender);
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', PainelDoca.clearFilters);
+      document.getElementById('reloadBtn').addEventListener('click', PainelDoca.loadInitial);
+      document.getElementById('exportBtn').addEventListener('click', PainelDoca.exportCsv);
+
+      document.getElementById('toggleUsersBtn').addEventListener('click', function () {
+        PainelDoca.toggleAll('users');
+      });
+
+      document.getElementById('toggleStoresBtn').addEventListener('click', function () {
+        PainelDoca.toggleAll('stores');
+      });
+
+      document.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-copy]');
+
+        if (!btn) {
+          return;
+        }
+
+        PainelDoca.copyText(btn.getAttribute('data-copy') || '');
+      });
+
+      window.addEventListener('beforeunload', function () {
+        if (PainelDoca.state.eventSource) {
+          PainelDoca.state.eventSource.close();
+        }
+      });
+    };
+
+    PainelDoca.start = function () {
+      PainelDoca.bind();
+      PainelDoca.render();
+      PainelDoca.loadInitial();
+      PainelDoca.connectRealtime();
+    };
+
+    PainelDoca.start();
+  </script>
+</body>
+</html>
