@@ -2,7 +2,7 @@
 // @name         InfraDesk Doca • Captura + Status Real + Firebase
 // @namespace    clncentral/infradesk-doca
 // @version      1.2.1
-// @description  Captura chamados da doca, muda status real para Em liberação, registra usuário e dados limpos no Firebase.
+// @description  Captura chamados da doca, valida reserva no Firebase antes do clique, muda status real para Em liberação e registra dados limpos.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -37,10 +37,12 @@
   InfraDeskDoca.state = {
     started: false,
     observer: null,
+    eventSource: null,
     debounceTimer: null,
     firebaseCache: {},
     savingIds: {},
     movingIds: {},
+    clickingIds: {},
     user: {
       nome: '',
       id: ''
@@ -820,6 +822,9 @@
       '}',
       '.tm-doca-capturado {',
       '  box-shadow: 1px 1px 6px #00000029, inset 4px 0 0 #1ab394 !important;',
+      '}',
+      '.tm-doca-hidden-reserved {',
+      '  display: none !important;',
       '}'
     ].join('\n');
 
@@ -875,6 +880,51 @@
     card.dataset.tmDocaUsuario = usuario;
   };
 
+  InfraDeskDoca.removeCaptureButton = function (card) {
+    if (!card) {
+      return;
+    }
+
+    var buttons = Array.prototype.slice.call(card.querySelectorAll('.capturar-btn, a[onclick*="capturarChamadoNew"], a[data-tm-doca-native-onclick*="capturarChamadoNew"]'));
+
+    buttons.forEach(function (btn) {
+      btn.remove();
+    });
+  };
+
+  InfraDeskDoca.hideReservedOpenCard = function (card, item) {
+    if (!card || !item) {
+      return;
+    }
+
+    var statusId = InfraDeskDoca.getCardStatusId(card);
+    var usuario = InfraDeskDoca.clean(item.usuario || item.operador || item.nome || 'outro usuário');
+
+    InfraDeskDoca.ensureBadgeOnCard(card, usuario);
+    InfraDeskDoca.removeCaptureButton(card);
+
+    if (statusId === InfraDeskDoca.STATUS_ABERTO) {
+      card.classList.add('tm-doca-hidden-reserved');
+      card.dataset.tmDocaHiddenReason = 'reserved';
+      InfraDeskDoca.updateKanbanCounters();
+    }
+  };
+
+  InfraDeskDoca.isDifferentReservation = function (reserva, usuarioAtual) {
+    if (!reserva) {
+      return false;
+    }
+
+    var currentKey = InfraDeskDoca.keyUser(usuarioAtual);
+    var reservedKey = InfraDeskDoca.clean(reserva.usuarioNorm || '');
+
+    if (!reservedKey && reserva.usuario) {
+      reservedKey = InfraDeskDoca.keyUser(reserva.usuario);
+    }
+
+    return !!reservedKey && reservedKey !== currentKey;
+  };
+
   InfraDeskDoca.applyFirebaseItem = function (id, item) {
     id = InfraDeskDoca.clean(id);
 
@@ -882,22 +932,27 @@
       return;
     }
 
-    var usuario = InfraDeskDoca.clean(item.usuario || item.operador || item.nome || '');
+    InfraDeskDoca.state.firebaseCache[id] = item;
 
-    if (!usuario) {
+    var usuario = InfraDeskDoca.clean(item.usuario || item.operador || item.nome || '');
+    var card = InfraDeskDoca.findCardById(id);
+
+    if (!card) {
       return;
     }
 
-    InfraDeskDoca.state.firebaseCache[id] = item;
-
-    var card = InfraDeskDoca.findCardById(id);
-
-    if (card) {
+    if (usuario) {
       InfraDeskDoca.ensureBadgeOnCard(card, usuario);
+    }
+
+    if (InfraDeskDoca.getCardStatusId(card) === InfraDeskDoca.STATUS_ABERTO) {
+      InfraDeskDoca.hideReservedOpenCard(card, item);
     }
   };
 
   InfraDeskDoca.injectAllCards = function () {
+    InfraDeskDoca.prepareCaptureButtons();
+
     var cards = InfraDeskDoca.getCards();
 
     for (var i = 0; i < cards.length; i++) {
@@ -932,8 +987,105 @@
       Object.keys(data).forEach(function (id) {
         InfraDeskDoca.applyFirebaseItem(id, data[id]);
       });
+
+      InfraDeskDoca.injectAllCards();
     } catch (err) {
       console.warn('[InfraDeskDoca] erro ao carregar Firebase', err);
+    }
+  };
+
+  InfraDeskDoca.handleFirebaseEvent = function (raw) {
+    var payload;
+
+    try {
+      payload = JSON.parse(raw || '{}');
+    } catch (_) {
+      return;
+    }
+
+    var path = String(payload.path || '/');
+    var data = payload.data;
+
+    if (path === '/' || path === '') {
+      InfraDeskDoca.state.firebaseCache = data || {};
+      Object.keys(InfraDeskDoca.state.firebaseCache).forEach(function (id) {
+        InfraDeskDoca.applyFirebaseItem(id, InfraDeskDoca.state.firebaseCache[id]);
+      });
+      return;
+    }
+
+    var cleanPath = path.replace(/^\/+/, '');
+    var parts = cleanPath.split('/').filter(Boolean);
+    var id = InfraDeskDoca.clean(parts[0]);
+
+    if (!id) {
+      return;
+    }
+
+    if (data === null) {
+      delete InfraDeskDoca.state.firebaseCache[id];
+      return;
+    }
+
+    if (parts.length === 1) {
+      InfraDeskDoca.state.firebaseCache[id] = data;
+      InfraDeskDoca.applyFirebaseItem(id, data);
+      return;
+    }
+
+    var current = InfraDeskDoca.state.firebaseCache[id] || {};
+    current[parts[1]] = data;
+    InfraDeskDoca.state.firebaseCache[id] = current;
+    InfraDeskDoca.applyFirebaseItem(id, current);
+  };
+
+  InfraDeskDoca.connectRealtime = function () {
+    if (InfraDeskDoca.state.eventSource) {
+      InfraDeskDoca.state.eventSource.close();
+    }
+
+    try {
+      var es = new EventSource(InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT + '/by_id'));
+
+      es.addEventListener('put', function (event) {
+        InfraDeskDoca.handleFirebaseEvent(event.data);
+      });
+
+      es.addEventListener('patch', function (event) {
+        InfraDeskDoca.handleFirebaseEvent(event.data);
+      });
+
+      es.onerror = function () {
+        console.warn('[InfraDeskDoca] realtime Firebase reconectando...');
+      };
+
+      InfraDeskDoca.state.eventSource = es;
+    } catch (err) {
+      console.warn('[InfraDeskDoca] erro ao iniciar realtime', err);
+    }
+  };
+
+  InfraDeskDoca.getRemoteCapture = async function (id) {
+    id = InfraDeskDoca.clean(id);
+
+    if (!id) {
+      return null;
+    }
+
+    try {
+      var res = await InfraDeskDoca.requestFirebase({
+        method: 'GET',
+        url: InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT + '/by_id/' + id) + '?_=' + Date.now()
+      });
+
+      if (!InfraDeskDoca.isOkResponse(res)) {
+        return null;
+      }
+
+      return InfraDeskDoca.parseJson(res.responseText || 'null', null);
+    } catch (err) {
+      console.warn('[InfraDeskDoca] erro ao consultar reserva antes do clique', err);
+      return null;
     }
   };
 
@@ -1018,21 +1170,15 @@
   };
 
   InfraDeskDoca.updateKanbanCounters = function () {
-    var root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-
-    if (root && typeof root.contadorChamadosStatus === 'function') {
-      try {
-        root.contadorChamadosStatus();
-        return;
-      } catch (_) {}
-    }
-
     var lists = Array.prototype.slice.call(document.querySelectorAll('ul.list-status-chamados[data-status-id]'));
 
     for (var i = 0; i < lists.length; i++) {
       var ul = lists[i];
       var statusId = ul.getAttribute('data-status-id');
-      var count = ul.querySelectorAll('.chamado-item[data-chamado-id], li.chamado-item').length;
+      var cards = Array.prototype.slice.call(ul.querySelectorAll('.chamado-item[data-chamado-id], li.chamado-item'));
+      var count = cards.filter(function (card) {
+        return !card.classList.contains('tm-doca-hidden-reserved');
+      }).length;
       var h3 = document.querySelector('h3[data-status-id="' + statusId + '"] span');
 
       if (h3) {
@@ -1051,15 +1197,11 @@
 
     InfraDeskDoca.ensureBadgeOnCard(card, usuario);
 
+    card.classList.remove('tm-doca-hidden-reserved');
     card.classList.add('tm-doca-moving');
     card.dataset.isCapturado = '1';
 
-    var captureBtn = card.querySelector('.capturar-btn');
-
-    if (captureBtn) {
-      captureBtn.remove();
-    }
-
+    InfraDeskDoca.removeCaptureButton(card);
     targetUl.prepend(card);
 
     setTimeout(function () {
@@ -1167,7 +1309,74 @@
     }
   };
 
-  InfraDeskDoca.captureNow = async function (btn) {
+  InfraDeskDoca.getNativeOnclick = function (btn) {
+    return InfraDeskDoca.clean(
+      btn.getAttribute('data-tm-doca-native-onclick') ||
+      btn.getAttribute('onclick') ||
+      btn.getAttribute('_onclick') ||
+      ''
+    );
+  };
+
+  InfraDeskDoca.runNativeCapture = function (btn, id) {
+    var root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    var onclick = InfraDeskDoca.getNativeOnclick(btn);
+
+    var match = onclick.match(/capturarChamadoNew\s*\(\s*(\d+)\s*,\s*([^,\)]+)/i);
+    var grupoId = match && match[2] ? match[2].replace(/\D+/g, '') : '';
+
+    if (root && typeof root.capturarChamadoNew === 'function') {
+      root.capturarChamadoNew(Number(id), grupoId ? Number(grupoId) : undefined, btn, undefined);
+      return true;
+    }
+
+    return false;
+  };
+
+  InfraDeskDoca.prepareCaptureButton = function (btn) {
+    if (!btn || btn.dataset.tmDocaPrepared === '1') {
+      return;
+    }
+
+    var nativeOnclick = InfraDeskDoca.getNativeOnclick(btn);
+
+    if (nativeOnclick) {
+      btn.setAttribute('data-tm-doca-native-onclick', nativeOnclick);
+    }
+
+    btn.removeAttribute('onclick');
+    btn.onclick = null;
+    btn.href = 'javascript:void(0);';
+    btn.dataset.tmDocaPrepared = '1';
+
+    btn.addEventListener('click', InfraDeskDoca.onSafeCaptureClick, true);
+  };
+
+  InfraDeskDoca.prepareCaptureButtons = function () {
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('.capturar-btn, a[onclick*="capturarChamadoNew"], a[data-tm-doca-native-onclick*="capturarChamadoNew"]'));
+
+    buttons.forEach(function (btn) {
+      InfraDeskDoca.prepareCaptureButton(btn);
+    });
+  };
+
+  InfraDeskDoca.abortAlreadyReserved = function (card, reserva, usuarioAtual) {
+    var nomeReserva = InfraDeskDoca.clean(reserva && (reserva.usuario || reserva.operador || reserva.nome) || 'outro usuário');
+
+    if (InfraDeskDoca.isDifferentReservation(reserva, usuarioAtual)) {
+      InfraDeskDoca.notify('warning', 'Este chamado já foi reservado por ' + nomeReserva + '.');
+    } else {
+      InfraDeskDoca.notify('info', 'Este chamado já está reservado por você.');
+    }
+
+    if (card) {
+      InfraDeskDoca.hideReservedOpenCard(card, reserva || {
+        usuario: nomeReserva
+      });
+    }
+  };
+
+  InfraDeskDoca.captureAllowed = async function (btn) {
     var card = btn && btn.closest ? btn.closest('.chamado-item[data-chamado-id], li.chamado-item') : null;
 
     if (!card) {
@@ -1180,159 +1389,105 @@
       return;
     }
 
-    InfraDeskDoca.refreshLoggedUser();
-
-    var usuario = InfraDeskDoca.clean(InfraDeskDoca.state.user.nome);
-
-    if (!usuario) {
-      InfraDeskDoca.notify('error', 'Não consegui identificar o usuário logado.');
+    if (InfraDeskDoca.state.clickingIds[id]) {
       return;
     }
 
-    var cardInfo = InfraDeskDoca.extractCardInfo(card);
-    cardInfo.statusAntes = InfraDeskDoca.getCardStatusId(card);
+    InfraDeskDoca.state.clickingIds[id] = true;
 
-    InfraDeskDoca.moveCardToLiberacaoLocal(id, usuario);
+    try {
+      InfraDeskDoca.refreshLoggedUser();
 
-    // Dá tempo para o capturarChamadoNew original do Infradesk terminar.
-    setTimeout(async function () {
-      var persisted = await InfraDeskDoca.persistStatusInInfradesk(id);
+      var usuario = InfraDeskDoca.clean(InfraDeskDoca.state.user.nome);
 
-      if (!persisted) {
-        InfraDeskDoca.notify('warning', 'Capturei e movi na tela, mas talvez o status não tenha sido salvo no Infradesk.');
+      if (!usuario) {
+        InfraDeskDoca.notify('error', 'Não consegui identificar o usuário logado.');
+        return;
       }
 
-      await InfraDeskDoca.saveCaptureToFirebase(id, usuario, cardInfo);
+      var reservaLocal = InfraDeskDoca.state.firebaseCache[id] || null;
+      var reservaRemota = await InfraDeskDoca.getRemoteCapture(id);
+      var reserva = reservaRemota || reservaLocal;
 
+      if (reserva && (reserva.usuario || reserva.usuarioNorm || reserva.operador || reserva.nome)) {
+        InfraDeskDoca.abortAlreadyReserved(card, reserva, usuario);
+        return;
+      }
+
+      var cardInfo = InfraDeskDoca.extractCardInfo(card);
+      cardInfo.statusAntes = InfraDeskDoca.getCardStatusId(card);
+
+      var nativeOk = InfraDeskDoca.runNativeCapture(btn, id);
+
+      if (!nativeOk) {
+        InfraDeskDoca.notify('error', 'Não consegui executar a captura original do Infradesk.');
+        return;
+      }
+
+      // Espera a captura original terminar. Só depois persiste status, grava Firebase e move visualmente.
+      setTimeout(async function () {
+        var segundaChecagem = await InfraDeskDoca.getRemoteCapture(id);
+
+        if (segundaChecagem && (segundaChecagem.usuario || segundaChecagem.usuarioNorm) && InfraDeskDoca.isDifferentReservation(segundaChecagem, usuario)) {
+          InfraDeskDoca.abortAlreadyReserved(card, segundaChecagem, usuario);
+          return;
+        }
+
+        var persisted = await InfraDeskDoca.persistStatusInInfradesk(id);
+
+        if (!persisted) {
+          InfraDeskDoca.notify('warning', 'A captura não confirmou a mudança de status. Não movi o card.');
+          return;
+        }
+
+        await InfraDeskDoca.saveCaptureToFirebase(id, usuario, cardInfo);
+        InfraDeskDoca.moveCardToLiberacaoLocal(id, usuario);
+
+        setTimeout(function () {
+          InfraDeskDoca.refreshCardFromSystem(id, usuario, InfraDeskDoca.STATUS_EM_LIBERACAO);
+        }, 450);
+      }, 900);
+    } finally {
       setTimeout(function () {
-        InfraDeskDoca.refreshCardFromSystem(id, usuario, InfraDeskDoca.STATUS_EM_LIBERACAO);
-      }, 400);
-    }, 900);
+        delete InfraDeskDoca.state.clickingIds[id];
+      }, 1800);
+    }
   };
 
-  InfraDeskDoca.getRemoteCapture = async function (id) {
-  id = InfraDeskDoca.clean(id);
+  InfraDeskDoca.onSafeCaptureClick = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
 
-  if (!id) {
-    return null;
-  }
+    var btn = event.currentTarget || (event.target && event.target.closest ? event.target.closest('.capturar-btn, a[data-tm-doca-native-onclick*="capturarChamadoNew"]') : null);
 
-  try {
-    var res = await InfraDeskDoca.requestFirebase({
-      method: 'GET',
-      url: InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT + '/by_id/' + id) + '?_=' + Date.now()
-    });
-
-    if (!InfraDeskDoca.isOkResponse(res)) {
-      return null;
-    }
-
-    return InfraDeskDoca.parseJson(res.responseText || 'null', null);
-  } catch (err) {
-    console.warn('[InfraDeskDoca] erro ao consultar reserva antes do clique', err);
-    return null;
-  }
-};
-
-InfraDeskDoca.runNativeCapture = function (btn, id) {
-  var root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-  var onclick = InfraDeskDoca.clean(btn.getAttribute('onclick') || '');
-
-  var match = onclick.match(/capturarChamadoNew\s*\(\s*(\d+)\s*,\s*([^,\)]+)/i);
-  var grupoId = match && match[2] ? match[2].replace(/\D+/g, '') : '';
-
-  if (root && typeof root.capturarChamadoNew === 'function') {
-    root.capturarChamadoNew(Number(id), grupoId ? Number(grupoId) : undefined, btn, undefined);
-    return true;
-  }
-
-  return false;
-};
-
-InfraDeskDoca.onDocumentClickCapture = function (event) {
-  var target = event.target;
-
-  if (!target || !target.closest) {
-    return;
-  }
-
-  var btn = target.closest('.capturar-btn, a[onclick*="capturarChamadoNew"]');
-
-  if (!btn) {
-    return;
-  }
-
-  // Agora bloqueia o clique original primeiro.
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-
-  if (btn.dataset.tmDocaProcessando === '1') {
-    return;
-  }
-
-  btn.dataset.tmDocaProcessando = '1';
-
-  (async function () {
-    var card = btn.closest('.chamado-item[data-chamado-id], li.chamado-item');
-
-    if (!card) {
+    if (!btn) {
       return;
     }
 
-    var id = InfraDeskDoca.getCardId(card);
+    InfraDeskDoca.captureAllowed(btn);
+  };
 
-    if (!id) {
+  InfraDeskDoca.onDocumentClickCapture = function (event) {
+    var target = event.target;
+
+    if (!target || !target.closest) {
       return;
     }
 
-    InfraDeskDoca.refreshLoggedUser();
+    var btn = target.closest('.capturar-btn, a[onclick*="capturarChamadoNew"], a[data-tm-doca-native-onclick*="capturarChamadoNew"]');
 
-    var usuarioAtual = InfraDeskDoca.clean(InfraDeskDoca.state.user.nome);
-    var usuarioAtualKey = InfraDeskDoca.keyUser(usuarioAtual);
-
-    if (!usuarioAtual) {
-      InfraDeskDoca.notify('error', 'Não consegui identificar o usuário logado.');
+    if (!btn) {
       return;
     }
 
-    var reservaFirebase = await InfraDeskDoca.getRemoteCapture(id);
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
 
-    if (reservaFirebase && reservaFirebase.usuarioNorm) {
-      var usuarioReservaKey = InfraDeskDoca.clean(reservaFirebase.usuarioNorm);
-      var usuarioReservaNome = InfraDeskDoca.clean(reservaFirebase.usuario || 'outro usuário');
-
-      if (usuarioReservaKey && usuarioReservaKey !== usuarioAtualKey) {
-        InfraDeskDoca.notify('warning', 'Este chamado já foi reservado por ' + usuarioReservaNome + '.');
-        return;
-      }
-    }
-
-    if (reservaFirebase && reservaFirebase.usuario && !reservaFirebase.usuarioNorm) {
-      var nomeReserva = InfraDeskDoca.clean(reservaFirebase.usuario);
-
-      if (InfraDeskDoca.keyUser(nomeReserva) !== usuarioAtualKey) {
-        InfraDeskDoca.notify('warning', 'Este chamado já foi reservado por ' + nomeReserva + '.');
-        return;
-      }
-    }
-
-    var nativeOk = InfraDeskDoca.runNativeCapture(btn, id);
-
-    if (!nativeOk) {
-      InfraDeskDoca.notify('error', 'Não consegui executar a captura original do Infradesk.');
-      return;
-    }
-
-    setTimeout(function () {
-      InfraDeskDoca.captureNow(btn);
-    }, 350);
-  })().finally(function () {
-    setTimeout(function () {
-      delete btn.dataset.tmDocaProcessando;
-    }, 1800);
-  });
-};
+    InfraDeskDoca.prepareCaptureButton(btn);
+    InfraDeskDoca.captureAllowed(btn);
+  };
 
   InfraDeskDoca.observeBody = function () {
     if (InfraDeskDoca.state.observer) {
@@ -1363,6 +1518,10 @@ InfraDeskDoca.onDocumentClickCapture = function (event) {
     return InfraDeskDoca.extractCardInfo(card);
   };
 
+  InfraDeskDoca.testRemote = function (id) {
+    return InfraDeskDoca.getRemoteCapture(id);
+  };
+
   InfraDeskDoca.start = function () {
     if (InfraDeskDoca.state.started) {
       return;
@@ -1377,10 +1536,18 @@ InfraDeskDoca.onDocumentClickCapture = function (event) {
     document.addEventListener('click', InfraDeskDoca.onDocumentClickCapture, true);
 
     setTimeout(function () {
+      InfraDeskDoca.prepareCaptureButtons();
       InfraDeskDoca.loadFirebaseState();
+      InfraDeskDoca.connectRealtime();
       InfraDeskDoca.injectAllCards();
       InfraDeskDoca.observeBody();
     }, 600);
+
+    window.addEventListener('beforeunload', function () {
+      if (InfraDeskDoca.state.eventSource) {
+        InfraDeskDoca.state.eventSource.close();
+      }
+    });
   };
 
   window.InfraDeskDoca = InfraDeskDoca;
