@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraDesk Doca • Painel de Capturas v4</title>
+  <title>InfraDesk Doca • Painel de Capturas v5 Turbo</title>
 
   <style>
     :root {
@@ -627,6 +627,276 @@
       100% { background: transparent; }
     }
 
+
+
+    /* v8: filtros compactos, tabela livre e painel de contagem recolhível */
+    .selectPanel {
+      padding: 10px;
+    }
+
+    .selectMeta {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .multiSelectHost {
+      position: relative;
+      min-width: 0;
+    }
+
+    .multiSelect {
+      position: relative;
+      width: 100%;
+    }
+
+    .multiSelectSummary {
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      color: #334155;
+      padding: 9px 11px;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 950;
+      user-select: none;
+    }
+
+    .multiSelectSummary::-webkit-details-marker {
+      display: none;
+    }
+
+    .multiSelect[open] .multiSelectSummary {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    .multiSelectSummaryText {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .multiSelectArrow {
+      color: var(--blue);
+      flex: 0 0 auto;
+      transition: transform .15s ease;
+    }
+
+    .multiSelect[open] .multiSelectArrow {
+      transform: rotate(180deg);
+    }
+
+    .multiSelectMenu {
+      position: absolute;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .multiSelectActions {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .miniSelectBtn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #334155;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .miniSelectBtn:hover {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .multiSelectSearch {
+      width: 100%;
+      min-height: 34px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      padding: 7px 9px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .multiSelectList {
+      max-height: 260px;
+      overflow: auto;
+      display: grid;
+      gap: 5px;
+      padding-right: 2px;
+    }
+
+    .multiOption {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 33px;
+      padding: 7px 8px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .multiOption:hover {
+      background: #f8fafc;
+    }
+
+    .multiOption.active {
+      border-color: #bfdbfe;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .multiOption input {
+      width: 15px;
+      height: 15px;
+      margin: 0;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .multiOptionText {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tableBox {
+      max-height: none;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    table {
+      min-width: 0;
+    }
+
+    .keyWrap {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .supplier {
+      max-width: none;
+    }
+
+    .summaryPanelHead {
+      align-items: center;
+    }
+
+    .panelMiniBtn {
+      min-height: 33px;
+      align-self: start;
+      padding: 6px 10px;
+    }
+
+    body.summaryHidden .main {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.summaryHidden #summaryPanel {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .filtersRow.compactFilters {
+        grid-template-columns: 1fr;
+      }
+
+      .tableBox {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+
+      table,
+      thead,
+      tbody,
+      th,
+      td,
+      tr {
+        display: block;
+        width: 100%;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: grid;
+        gap: 10px;
+      }
+
+      tbody tr[data-row-id] {
+        border: 1px solid var(--border);
+        border-radius: 17px;
+        background: #fff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+      }
+
+      tbody tr[data-row-id] td {
+        display: grid;
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        border-bottom: 1px solid #eef2f7;
+        padding: 9px 10px;
+      }
+
+      tbody tr[data-row-id] td:last-child {
+        border-bottom: 0;
+      }
+
+      tbody tr[data-row-id] td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+      }
+
+      tbody tr[data-empty-row] td {
+        display: block;
+        width: 100%;
+      }
+
+      .keyText {
+        font-size: 11px;
+      }
+    }
+
     @media (max-width: 1180px) {
       .topbar,
       .main,
@@ -670,6 +940,18 @@
         width: 100%;
       }
     }
+
+
+    /* v8 fix final: nada de barra interna na tabela, mesmo nas regras responsivas antigas */
+    .tableBox {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    table {
+      min-width: 0 !important;
+    }
+
   </style>
 </head>
 
@@ -677,8 +959,8 @@
   <div class="app">
     <div class="topbar">
       <div class="titleBox">
-        <h1>InfraDesk Doca • Capturas</h1>
-        <p>Consulta dos chamados capturados no Firebase, com filtros por data de reserva, usuário, loja, CNPJ, NF e chamado.</p>
+        <h1>InfraDesk Doca • Capturas v6 Turbo</h1>
+        <p>Consulta dos chamados capturados no Firebase, com filtro padrão na semana atual e carregamento otimizado por período.</p>
       </div>
 
       <div class="statusBox">
@@ -731,21 +1013,21 @@
       <button id="clearBtn" class="clearBtn" type="button">Limpar</button>
     </div>
 
-    <div class="filtersRow">
-      <div class="chipsPanel">
+    <div class="filtersRow compactFilters">
+      <div class="chipsPanel selectPanel">
         <div class="chipsHead">
           <h3>Usuários</h3>
-          <button id="toggleUsersBtn" type="button">Todos/Nenhum</button>
+          <span id="usersSelectMeta" class="selectMeta">Todos</span>
         </div>
-        <div id="usersBox" class="chipsBox"></div>
+        <div id="usersBox" class="multiSelectHost"></div>
       </div>
 
-      <div class="chipsPanel">
+      <div class="chipsPanel selectPanel">
         <div class="chipsHead">
           <h3>Lojas</h3>
-          <button id="toggleStoresBtn" type="button">Todas/Nenhuma</button>
+          <span id="storesSelectMeta" class="selectMeta">Todas</span>
         </div>
-        <div id="storesBox" class="chipsBox"></div>
+        <div id="storesBox" class="multiSelectHost"></div>
       </div>
     </div>
 
@@ -758,6 +1040,7 @@
           </div>
 
           <div class="tableTools">
+            <button id="showSummaryBtn" class="reloadBtn" type="button">Ocultar contagem</button>
             <button id="reloadBtn" class="reloadBtn" type="button">Atualizar</button>
             <button id="exportBtn" class="exportBtn" type="button">Exportar CSV</button>
           </div>
@@ -782,12 +1065,13 @@
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panelHead">
+      <div id="summaryPanel" class="panel summaryPanel">
+        <div class="panelHead summaryPanelHead">
           <div>
             <h2 class="panelTitle">Contagem por usuário</h2>
             <div id="summaryMeta" class="hint">0 usuário(s)</div>
           </div>
+          <button id="hideSummaryBtn" class="reloadBtn panelMiniBtn" type="button">Ocultar</button>
         </div>
 
         <div class="summaryBig">
@@ -817,7 +1101,9 @@
       touchedUsers: false,
       touchedStores: false,
       filterSignature: '',
-      hasInitialLoad: false
+      hasInitialLoad: false,
+      dateRangeReloadTimer: null,
+      queryMode: 'turbo'
     };
 
     PainelDoca.clean = function (value) {
@@ -870,8 +1156,81 @@
       return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
     };
 
-    PainelDoca.firebaseUrl = function () {
+    PainelDoca.firebaseBaseUrl = function () {
       return PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelDoca.PATH;
+    };
+
+    PainelDoca.inputDateToMs = function (value, endOfDay) {
+      value = PainelDoca.clean(value);
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return 0;
+      }
+
+      const parts = value.split('-').map(Number);
+      const d = endOfDay
+        ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999)
+        : new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+
+      const n = d.getTime();
+
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelDoca.firebaseQueryString = function (useServerDateFilter) {
+      if (useServerDateFilter === false) {
+        return '';
+      }
+
+      const params = new URLSearchParams();
+
+      // Modo turbo: o Firebase filtra por data no servidor.
+      // Para isso ficar rápido e não dar erro, coloque .indexOn: ["capturadoEm"] nas regras.
+      params.set('orderBy', JSON.stringify('capturadoEm'));
+
+      const dateFrom = document.getElementById('dateFrom')?.value || '';
+      const dateTo = document.getElementById('dateTo')?.value || '';
+      const startMs = PainelDoca.inputDateToMs(dateFrom, false);
+      const endMs = PainelDoca.inputDateToMs(dateTo, true);
+
+      if (startMs) {
+        params.set('startAt', String(startMs));
+      }
+
+      if (endMs) {
+        params.set('endAt', String(endMs));
+      }
+
+      const query = params.toString();
+      return query ? '?' + query : '';
+    };
+
+    PainelDoca.firebaseUrl = function (useServerDateFilter) {
+      return PainelDoca.firebaseBaseUrl() + PainelDoca.firebaseQueryString(useServerDateFilter !== false);
+    };
+
+    PainelDoca.formatInputDate = function (date) {
+      return `${date.getFullYear()}-${PainelDoca.pad(date.getMonth() + 1)}-${PainelDoca.pad(date.getDate())}`;
+    };
+
+    PainelDoca.setCurrentWeekDates = function () {
+      const from = document.getElementById('dateFrom');
+      const to = document.getElementById('dateTo');
+
+      if (!from || !to) {
+        return;
+      }
+
+      const today = new Date();
+      const day = today.getDay(); // domingo = 0, segunda = 1, ..., sábado = 6
+
+      // Semana no padrão do calendário brasileiro exibido pelo navegador:
+      // domingo até sábado.
+      const sunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day);
+      const saturday = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 6);
+
+      from.value = PainelDoca.formatInputDate(sunday);
+      to.value = PainelDoca.formatInputDate(saturday);
     };
 
     PainelDoca.hashHue = function (str) {
@@ -1044,9 +1403,8 @@
     };
 
     PainelDoca.getItems = function () {
-      return Object.entries(PainelDoca.state.byId || {})
-        .map(([key, item]) => PainelDoca.normalizeItem(key, item))
-        .filter(Boolean);
+      return Object.values(PainelDoca.state.byId || {})
+        .filter(item => item && item.id);
     };
 
     PainelDoca.unique = function (arr) {
@@ -1085,70 +1443,74 @@
       return all.filter(store => PainelDoca.state.selectedStores.has(store));
     };
 
-    PainelDoca.matchesFilters = function (item) {
-      const selectedUsers = new Set(PainelDoca.getSelectedUsers());
-      const selectedStores = new Set(PainelDoca.getSelectedStores());
+    PainelDoca.buildFilterContext = function () {
+      const nf = PainelDoca.onlyDigits(document.getElementById('searchNf').value);
+      const itemNfLimpoBusca = String(Number(nf || 0) || '');
 
-      if (item.usuario && !selectedUsers.has(item.usuario)) {
+      return {
+        selectedUsers: new Set(PainelDoca.getSelectedUsers()),
+        selectedStores: new Set(PainelDoca.getSelectedStores()),
+        subcategoria: document.getElementById('filterSubcategoria').value,
+        dateFrom: document.getElementById('dateFrom').value,
+        dateTo: document.getElementById('dateTo').value,
+        chamado: PainelDoca.onlyDigits(document.getElementById('searchChamado').value),
+        nf,
+        nfLimpo: itemNfLimpoBusca,
+        cnpj: PainelDoca.onlyDigits(document.getElementById('searchCnpj').value),
+        general: PainelDoca.norm(document.getElementById('searchGeneral').value)
+      };
+    };
+
+    PainelDoca.matchesFilters = function (item, ctx) {
+      ctx = ctx || PainelDoca.buildFilterContext();
+
+      if (item.usuario && !ctx.selectedUsers.has(item.usuario)) {
         return false;
       }
 
       const storeKey = item.lojaTexto || item.lojaNome || item.lojaCodigo;
 
-      if (storeKey && !selectedStores.has(storeKey)) {
+      if (storeKey && !ctx.selectedStores.has(storeKey)) {
         return false;
       }
 
-      const subcategoria = document.getElementById('filterSubcategoria').value;
-
-      if (subcategoria && item.subcategoria !== subcategoria) {
+      if (ctx.subcategoria && item.subcategoria !== ctx.subcategoria) {
         return false;
       }
 
-      const dateFrom = document.getElementById('dateFrom').value;
-      const dateTo = document.getElementById('dateTo').value;
       const itemDateKey = item.reservaDataKey || PainelDoca.dateKeyFromTs(item.ts);
 
-      if (dateFrom && (!itemDateKey || itemDateKey < dateFrom)) {
+      if (ctx.dateFrom && (!itemDateKey || itemDateKey < ctx.dateFrom)) {
         return false;
       }
 
-      if (dateTo && (!itemDateKey || itemDateKey > dateTo)) {
+      if (ctx.dateTo && (!itemDateKey || itemDateKey > ctx.dateTo)) {
         return false;
       }
 
-      const chamado = PainelDoca.onlyDigits(document.getElementById('searchChamado').value);
-
-      if (chamado && !PainelDoca.onlyDigits(item.id).includes(chamado)) {
+      if (ctx.chamado && !PainelDoca.onlyDigits(item.id).includes(ctx.chamado)) {
         return false;
       }
 
-      const nf = PainelDoca.onlyDigits(document.getElementById('searchNf').value);
-
-      if (nf) {
+      if (ctx.nf) {
         const itemNf = PainelDoca.onlyDigits(item.nfNumero);
         const itemNfLimpo = String(Number(itemNf || 0) || '');
-        const nfLimpo = String(Number(nf || 0) || '');
 
-        if (!itemNf.includes(nf) && itemNfLimpo !== nfLimpo && !itemNfLimpo.includes(nfLimpo)) {
+        if (!itemNf.includes(ctx.nf) && itemNfLimpo !== ctx.nfLimpo && !itemNfLimpo.includes(ctx.nfLimpo)) {
           return false;
         }
       }
 
-      const cnpj = PainelDoca.onlyDigits(document.getElementById('searchCnpj').value);
-
-      if (cnpj) {
+      if (ctx.cnpj) {
         const itemCnpj = PainelDoca.onlyDigits(item.cnpjEmitente);
         const chave = PainelDoca.onlyDigits(item.chaveAcesso);
 
-        if (!itemCnpj.includes(cnpj) && !chave.includes(cnpj)) {
+        if (!itemCnpj.includes(ctx.cnpj) && !chave.includes(ctx.cnpj)) {
           return false;
         }
       }
 
-      const general = PainelDoca.norm(document.getElementById('searchGeneral').value);
-
-      if (general) {
+      if (ctx.general) {
         const text = PainelDoca.norm([
           item.id,
           item.usuario,
@@ -1163,7 +1525,7 @@
           item.descricaoResumo
         ].join(' '));
 
-        if (!text.includes(general)) {
+        if (!text.includes(ctx.general)) {
           return false;
         }
       }
@@ -1172,13 +1534,61 @@
     };
 
     PainelDoca.getVisibleItems = function () {
+      const ctx = PainelDoca.buildFilterContext();
+
       return PainelDoca.getItems()
-        .filter(PainelDoca.matchesFilters)
+        .filter(item => PainelDoca.matchesFilters(item, ctx))
         .sort((a, b) => (b.ts || 0) - (a.ts || 0) || b.id.localeCompare(a.id, 'pt-BR'));
+    };
+
+    PainelDoca.getSelectionSummaryText = function (boxId, values, selectedSet, touchedFlagName) {
+      const isUsers = boxId === 'usersBox';
+      const singular = isUsers ? 'usuário' : 'loja';
+      const plural = isUsers ? 'usuários' : 'lojas';
+
+      if (!values.length) {
+        return isUsers ? 'Sem usuários' : 'Sem lojas';
+      }
+
+      const count = PainelDoca.state[touchedFlagName]
+        ? values.filter(value => selectedSet.has(value)).length
+        : values.length;
+
+      if (count === values.length) {
+        return `Todos os ${plural} (${values.length})`;
+      }
+
+      if (count === 0) {
+        return `Nenhum ${singular}`;
+      }
+
+      return `${count} de ${values.length} ${plural}`;
+    };
+
+    PainelDoca.updateMultiSelectCaption = function (boxId, values, selectedSet, touchedFlagName) {
+      const box = document.getElementById(boxId);
+      const text = PainelDoca.getSelectionSummaryText(boxId, values, selectedSet, touchedFlagName);
+      const caption = box ? box.querySelector('.multiSelectSummaryText') : null;
+      const metaId = boxId === 'usersBox' ? 'usersSelectMeta' : 'storesSelectMeta';
+      const meta = document.getElementById(metaId);
+
+      if (caption) {
+        caption.textContent = text;
+        caption.title = text;
+      }
+
+      if (meta) {
+        meta.textContent = text;
+      }
     };
 
     PainelDoca.renderChips = function (boxId, values, selectedSet, touchedFlagName, onChange) {
       const box = document.getElementById(boxId);
+      const isUsers = boxId === 'usersBox';
+
+      if (!box) {
+        return;
+      }
 
       if (!PainelDoca.state[touchedFlagName]) {
         selectedSet.clear();
@@ -1194,14 +1604,78 @@
       box.innerHTML = '';
 
       if (!values.length) {
-        box.innerHTML = '<span class="hint">Sem dados ainda</span>';
+        box.innerHTML = '<div class="multiSelectSummary"><span class="multiSelectSummaryText">Sem dados ainda</span></div>';
+        PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
         return;
+      }
+
+      const details = document.createElement('details');
+      details.className = 'multiSelect';
+
+      const summary = document.createElement('summary');
+      summary.className = 'multiSelectSummary';
+
+      const summaryText = document.createElement('span');
+      summaryText.className = 'multiSelectSummaryText';
+
+      const arrow = document.createElement('span');
+      arrow.className = 'multiSelectArrow';
+      arrow.textContent = '⌄';
+
+      summary.appendChild(summaryText);
+      summary.appendChild(arrow);
+
+      const menu = document.createElement('div');
+      menu.className = 'multiSelectMenu';
+
+      const actions = document.createElement('div');
+      actions.className = 'multiSelectActions';
+
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'miniSelectBtn';
+      allBtn.textContent = 'Selecionar todos';
+
+      const noneBtn = document.createElement('button');
+      noneBtn.type = 'button';
+      noneBtn.className = 'miniSelectBtn';
+      noneBtn.textContent = 'Limpar seleção';
+
+      actions.appendChild(allBtn);
+      actions.appendChild(noneBtn);
+
+      const search = document.createElement('input');
+      search.type = 'text';
+      search.className = 'multiSelectSearch';
+      search.placeholder = isUsers ? 'Buscar usuário...' : 'Buscar loja...';
+
+      const list = document.createElement('div');
+      list.className = 'multiSelectList';
+
+      function refreshSelectionUi() {
+        const labels = list.querySelectorAll('.multiOption');
+
+        labels.forEach(label => {
+          const input = label.querySelector('input');
+          label.classList.toggle('active', !!input.checked);
+        });
+
+        PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
+      }
+
+      function applyDataFilter() {
+        if (typeof PainelDoca.scheduleDataRender === 'function') {
+          PainelDoca.scheduleDataRender();
+        } else if (typeof onChange === 'function') {
+          onChange();
+        }
       }
 
       for (const value of values) {
         const checked = selectedSet.has(value);
         const label = document.createElement('label');
-        label.className = 'chip' + (checked ? ' active' : '');
+        label.className = 'multiOption' + (checked ? ' active' : '');
+        label.dataset.searchText = PainelDoca.norm(value);
 
         const input = document.createElement('input');
         input.type = 'checkbox';
@@ -1216,22 +1690,58 @@
             selectedSet.delete(value);
           }
 
-          onChange();
+          refreshSelectionUi();
+          applyDataFilter();
         });
 
         const dot = document.createElement('span');
         dot.className = 'colorDot';
-        dot.style.background = boxId === 'usersBox' ? PainelDoca.colorFor(value) : '#1a82cd';
+        dot.style.background = isUsers ? PainelDoca.colorFor(value) : '#1a82cd';
 
         const text = document.createElement('span');
-        text.textContent = boxId === 'usersBox' ? PainelDoca.shortUserName(value) : value;
+        text.className = 'multiOptionText';
+        text.textContent = isUsers ? PainelDoca.shortUserName(value) : value;
         text.title = value;
 
         label.appendChild(input);
         label.appendChild(dot);
         label.appendChild(text);
-        box.appendChild(label);
+        list.appendChild(label);
       }
+
+      allBtn.addEventListener('click', function () {
+        PainelDoca.state[touchedFlagName] = true;
+        selectedSet.clear();
+        values.forEach(v => selectedSet.add(v));
+        list.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = true; });
+        refreshSelectionUi();
+        applyDataFilter();
+      });
+
+      noneBtn.addEventListener('click', function () {
+        PainelDoca.state[touchedFlagName] = true;
+        selectedSet.clear();
+        list.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+        refreshSelectionUi();
+        applyDataFilter();
+      });
+
+      search.addEventListener('input', function () {
+        const q = PainelDoca.norm(search.value);
+
+        list.querySelectorAll('.multiOption').forEach(label => {
+          label.style.display = !q || label.dataset.searchText.includes(q) ? '' : 'none';
+        });
+      });
+
+      menu.appendChild(actions);
+      menu.appendChild(search);
+      menu.appendChild(list);
+      details.appendChild(summary);
+      details.appendChild(menu);
+      box.appendChild(details);
+
+      PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
     };
 
     PainelDoca.renderFilterOptions = function () {
@@ -1354,6 +1864,19 @@
       tdUser.innerHTML = `
         <span class="userPill" title="${PainelDoca.escapeHTML(item.usuario || '—')}" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.usuario) || '—')}</span>
       `;
+
+      [
+        [tdId, 'ID'],
+        [tdReservado, 'Reservado'],
+        [tdAberto, 'Aberto'],
+        [tdLoja, 'Loja'],
+        [tdFornecedor, 'Fornecedor'],
+        [tdSub, 'Subcategoria'],
+        [tdKey, 'Chave'],
+        [tdUser, 'Usuário']
+      ].forEach(function ([td, label]) {
+        td.setAttribute('data-label', label);
+      });
 
       tr.appendChild(tdId);
       tr.appendChild(tdReservado);
@@ -1627,23 +2150,86 @@
       document.getElementById('lastUpdate').textContent = `Atualizado às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     };
 
-    PainelDoca.loadInitial = async function () {
+    PainelDoca.fetchSnapshot = async function (useServerDateFilter) {
+      const res = await fetch(PainelDoca.firebaseUrl(useServerDateFilter), {
+        cache: 'no-store'
+      });
+
+      let data = null;
+
       try {
-        PainelDoca.setStatus(false, 'Carregando...');
+        data = await res.json();
+      } catch (_) {
+        throw new Error(`Resposta inválida do Firebase. HTTP ${res.status}`);
+      }
 
-        const res = await fetch(PainelDoca.firebaseUrl() + '?_=' + Date.now(), {
-          cache: 'no-store'
-        });
+      if (!res.ok || (data && data.error)) {
+        const message = (data && data.error) || `HTTP ${res.status}`;
+        const error = new Error(message);
+        error.status = res.status;
+        error.firebasePayload = data;
+        throw error;
+      }
 
-        const data = await res.json();
+      return data || {};
+    };
 
+    PainelDoca.showLoadErrorInTable = function (error) {
+      const body = document.getElementById('tableBody');
+      const message = PainelDoca.escapeHTML(error && error.message ? error.message : 'Erro desconhecido');
+
+      body.innerHTML = `
+        <tr data-empty-row="1">
+          <td colspan="8" class="empty">
+            Não consegui carregar o Firebase.<br>
+            <span class="muted">Detalhe: ${message}</span>
+          </td>
+        </tr>
+      `;
+    };
+
+    PainelDoca.loadInitial = async function () {
+      if (PainelDoca.state.eventSource) {
+        PainelDoca.state.eventSource.close();
+        PainelDoca.state.eventSource = null;
+      }
+
+      PainelDoca.state.hasInitialLoad = false;
+
+      try {
+        PainelDoca.setStatus(false, 'Carregando turbo...');
+
+        const data = await PainelDoca.fetchSnapshot(true);
+
+        PainelDoca.state.queryMode = 'turbo';
         PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
         PainelDoca.state.hasInitialLoad = true;
-        PainelDoca.setStatus(true, 'Online');
+        PainelDoca.setStatus(true, 'Online turbo');
         PainelDoca.scheduleRender();
-      } catch (error) {
-        console.error('Erro ao carregar Firebase:', error);
-        PainelDoca.setStatus(false, 'Erro');
+        PainelDoca.connectRealtime(true);
+      } catch (turboError) {
+        console.warn('Modo turbo do Firebase falhou. Tentando modo seguro sem query indexada:', turboError);
+
+        try {
+          PainelDoca.setStatus(false, 'Modo seguro...');
+
+          const data = await PainelDoca.fetchSnapshot(false);
+
+          PainelDoca.state.queryMode = 'seguro';
+          PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+          PainelDoca.state.hasInitialLoad = true;
+          PainelDoca.setStatus(true, 'Online seguro');
+          PainelDoca.scheduleRender();
+          PainelDoca.toast('Modo seguro: falta indexar capturadoEm');
+          PainelDoca.connectRealtime(false);
+        } catch (safeError) {
+          console.error('Erro ao carregar Firebase:', safeError);
+          PainelDoca.state.byId = {};
+          PainelDoca.state.hasInitialLoad = false;
+          PainelDoca.setStatus(false, 'Erro');
+          PainelDoca.showLoadErrorInTable(safeError);
+          PainelDoca.renderRanking();
+        }
       }
     };
 
@@ -1789,13 +2375,13 @@
       }
     };
 
-    PainelDoca.connectRealtime = function () {
+    PainelDoca.connectRealtime = function (useServerDateFilter) {
       if (PainelDoca.state.eventSource) {
         PainelDoca.state.eventSource.close();
       }
 
       try {
-        const es = new EventSource(PainelDoca.firebaseUrl());
+        const es = new EventSource(PainelDoca.firebaseUrl(useServerDateFilter !== false));
 
         es.addEventListener('put', function (event) {
           PainelDoca.handleFirebaseEvent(event.data, 'put');
@@ -1854,8 +2440,7 @@
       document.getElementById('searchChamado').value = '';
       document.getElementById('searchNf').value = '';
       document.getElementById('searchCnpj').value = '';
-      document.getElementById('dateFrom').value = '';
-      document.getElementById('dateTo').value = '';
+      PainelDoca.setCurrentWeekDates();
       document.getElementById('filterSubcategoria').value = '';
 
       PainelDoca.state.touchedUsers = false;
@@ -1882,6 +2467,35 @@
       }
 
       PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.setSummaryVisible = function (visible) {
+      document.body.classList.toggle('summaryHidden', !visible);
+
+      const toggleBtn = document.getElementById('showSummaryBtn');
+
+      if (toggleBtn) {
+        toggleBtn.textContent = visible ? 'Ocultar contagem' : 'Mostrar contagem';
+      }
+
+      try {
+        localStorage.setItem('PainelDoca.summaryHidden', visible ? '0' : '1');
+      } catch (_) {}
+    };
+
+    PainelDoca.toggleSummaryPanel = function () {
+      const hidden = document.body.classList.contains('summaryHidden');
+      PainelDoca.setSummaryVisible(hidden);
+    };
+
+    PainelDoca.applySavedSummaryState = function () {
+      let hidden = false;
+
+      try {
+        hidden = localStorage.getItem('PainelDoca.summaryHidden') === '1';
+      } catch (_) {}
+
+      PainelDoca.setSummaryVisible(!hidden);
     };
 
     PainelDoca.exportCsv = function () {
@@ -1924,33 +2538,73 @@
       URL.revokeObjectURL(url);
     };
 
+    PainelDoca.reloadFirebaseView = function () {
+      PainelDoca.loadInitial();
+    };
+
+    PainelDoca.reloadForDateRange = function () {
+      clearTimeout(PainelDoca.state.dateRangeReloadTimer);
+
+      PainelDoca.state.dateRangeReloadTimer = setTimeout(function () {
+        PainelDoca.reloadFirebaseView();
+      }, 250);
+
+      PainelDoca.scheduleRender();
+    };
+
     PainelDoca.bind = function () {
-      const filterIds = [
+      const clientFilterIds = [
         'searchGeneral',
         'searchChamado',
         'searchNf',
         'searchCnpj',
-        'dateFrom',
-        'dateTo',
         'filterSubcategoria'
       ];
 
-      filterIds.forEach(id => {
+      clientFilterIds.forEach(id => {
         document.getElementById(id).addEventListener('input', PainelDoca.scheduleRender);
         document.getElementById(id).addEventListener('change', PainelDoca.scheduleRender);
       });
 
-      document.getElementById('clearBtn').addEventListener('click', PainelDoca.clearFilters);
-      document.getElementById('reloadBtn').addEventListener('click', PainelDoca.loadInitial);
+      ['dateFrom', 'dateTo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', PainelDoca.reloadForDateRange);
+        document.getElementById(id).addEventListener('change', PainelDoca.reloadForDateRange);
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', function () {
+        PainelDoca.clearFilters();
+        PainelDoca.reloadFirebaseView();
+      });
+      document.getElementById('reloadBtn').addEventListener('click', PainelDoca.reloadFirebaseView);
       document.getElementById('exportBtn').addEventListener('click', PainelDoca.exportCsv);
 
-      document.getElementById('toggleUsersBtn').addEventListener('click', function () {
-        PainelDoca.toggleAll('users');
-      });
+      const showSummaryBtn = document.getElementById('showSummaryBtn');
+      const hideSummaryBtn = document.getElementById('hideSummaryBtn');
 
-      document.getElementById('toggleStoresBtn').addEventListener('click', function () {
-        PainelDoca.toggleAll('stores');
-      });
+      if (showSummaryBtn) {
+        showSummaryBtn.addEventListener('click', PainelDoca.toggleSummaryPanel);
+      }
+
+      if (hideSummaryBtn) {
+        hideSummaryBtn.addEventListener('click', function () {
+          PainelDoca.setSummaryVisible(false);
+        });
+      }
+
+      const toggleUsersBtn = document.getElementById('toggleUsersBtn');
+      const toggleStoresBtn = document.getElementById('toggleStoresBtn');
+
+      if (toggleUsersBtn) {
+        toggleUsersBtn.addEventListener('click', function () {
+          PainelDoca.toggleAll('users');
+        });
+      }
+
+      if (toggleStoresBtn) {
+        toggleStoresBtn.addEventListener('click', function () {
+          PainelDoca.toggleAll('stores');
+        });
+      }
 
       document.addEventListener('click', function (event) {
         const btn = event.target.closest('[data-copy]');
@@ -1970,10 +2624,11 @@
     };
 
     PainelDoca.start = function () {
+      PainelDoca.setCurrentWeekDates();
       PainelDoca.bind();
+      PainelDoca.applySavedSummaryState();
       PainelDoca.render();
-      PainelDoca.loadInitial();
-      PainelDoca.connectRealtime();
+      PainelDoca.reloadFirebaseView();
     };
 
     PainelDoca.start();
