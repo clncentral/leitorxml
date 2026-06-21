@@ -56,6 +56,11 @@
       margin-bottom: 10px;
     }
 
+    /* v9: topo oculto, mas mantido no DOM para o JavaScript continuar atualizando status sem quebrar. */
+    .topbar {
+      display: none !important;
+    }
+
     .titleBox {
       background: rgba(255, 255, 255, 0.94);
       border: 1px solid var(--border);
@@ -940,18 +945,6 @@
         width: 100%;
       }
     }
-
-
-    /* v8 fix final: nada de barra interna na tabela, mesmo nas regras responsivas antigas */
-    .tableBox {
-      max-height: none !important;
-      overflow: visible !important;
-    }
-
-    table {
-      min-width: 0 !important;
-    }
-
   </style>
 </head>
 
@@ -959,8 +952,8 @@
   <div class="app">
     <div class="topbar">
       <div class="titleBox">
-        <h1>InfraDesk Doca • Capturas v6 Turbo</h1>
-        <p>Consulta dos chamados capturados no Firebase, com filtro padrão na semana atual e carregamento otimizado por período.</p>
+        <h1>InfraDesk Doca • Capturas v9</h1>
+        <p>Painel otimizado com filtro semanal padrão, layout livre e seletores compactos.</p>
       </div>
 
       <div class="statusBox">
