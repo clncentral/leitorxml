@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      1.3.0
+// @version      1.4.1
 // @description  Captura chamados da doca, valida reserva no Firebase, muda status real para Em liberação, registra dados limpos e organiza Aberto/Em liberação por lojas prioritárias.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
@@ -38,9 +38,9 @@
   // Não muda status, não salva nada no sistema; apenas reorganiza os cards carregados na tela.
   InfraDeskDoca.ORDEM_STATUS_IDS = ['2', '3'];
   InfraDeskDoca.ORDEM_EMPRESAS_PRIORIDADE = [
-    'Loja 01 - ASP São Marcos',
-    'Loja 03 - ASP Paraíso',
-    'Loja 05 - ASP Vinhedo'
+     'Loja 03 - ASP Paraíso',
+     'Loja 05 - ASP Vinhedo',
+    'Loja 01 - ASP São Marcos'
   ];
 
   InfraDeskDoca.state = {
