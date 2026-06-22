@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         InfraDesk Doca • Captura + Status Real + Firebase
+// @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      1.2.2
-// @description  Captura chamados da doca, valida reserva no Firebase antes do clique, muda status real para Em liberação e registra dados limpos.
+// @version      1.3.0
+// @description  Captura chamados da doca, valida reserva no Firebase, muda status real para Em liberação, registra dados limpos e organiza Aberto/Em liberação por lojas prioritárias.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -34,11 +34,22 @@
   InfraDeskDoca.STATUS_EM_LIBERACAO = '3';
   InfraDeskDoca.STATUS_EM_LIBERACAO_NOME = 'Em liberação';
 
+  // Ordem visual dos chamados dentro das colunas Aberto e Em liberação.
+  // Não muda status, não salva nada no sistema; apenas reorganiza os cards carregados na tela.
+  InfraDeskDoca.ORDEM_STATUS_IDS = ['2', '3'];
+  InfraDeskDoca.ORDEM_EMPRESAS_PRIORIDADE = [
+    'Loja 01 - ASP São Marcos',
+    'Loja 03 - ASP Paraíso',
+    'Loja 05 - ASP Vinhedo'
+  ];
+
   InfraDeskDoca.state = {
     started: false,
     observer: null,
     eventSource: null,
     debounceTimer: null,
+    orderTimer: null,
+    orderRunning: false,
     firebaseCache: {},
     savingIds: {},
     movingIds: {},
@@ -542,6 +553,206 @@
     return ul ? InfraDeskDoca.clean(ul.getAttribute('data-status-descricao')) : '';
   };
 
+  InfraDeskDoca.getOrderPriorityNorms = function () {
+    if (!InfraDeskDoca._orderPriorityNorms) {
+      InfraDeskDoca._orderPriorityNorms = InfraDeskDoca.ORDEM_EMPRESAS_PRIORIDADE.map(function (empresa) {
+        return InfraDeskDoca.norm(empresa);
+      });
+    }
+
+    return InfraDeskDoca._orderPriorityNorms;
+  };
+
+  InfraDeskDoca.isOrderTargetList = function (ul) {
+    if (!ul) {
+      return false;
+    }
+
+    var statusId = InfraDeskDoca.clean(ul.getAttribute('data-status-id') || '');
+
+    if (InfraDeskDoca.ORDEM_STATUS_IDS.indexOf(statusId) >= 0) {
+      return true;
+    }
+
+    var desc = InfraDeskDoca.norm(ul.getAttribute('data-status-descricao') || '');
+
+    if (desc.indexOf('aberto') >= 0 || desc.indexOf('em liberacao') >= 0) {
+      return true;
+    }
+
+    var wrap = ul.closest ? ul.closest('.wrap-status') : null;
+    var h3 = wrap ? wrap.querySelector('h3[data-status-id], h3') : null;
+    var title = InfraDeskDoca.norm(h3 ? h3.textContent || h3.innerText || '' : '');
+
+    return title.indexOf('aberto') >= 0 || title.indexOf('em liberacao') >= 0;
+  };
+
+  InfraDeskDoca.getOrderTargetLists = function () {
+    var lists = Array.prototype.slice.call(document.querySelectorAll('ul.list-status-chamados[data-status-id]'));
+
+    return lists.filter(function (ul) {
+      return InfraDeskDoca.isOrderTargetList(ul);
+    });
+  };
+
+  InfraDeskDoca.getCardEmpresaTexto = function (card) {
+    return InfraDeskDoca.textOf(card, '.item-data-empresa');
+  };
+
+  InfraDeskDoca.getCardEmpresaNorm = function (card) {
+    return InfraDeskDoca.norm(InfraDeskDoca.getCardEmpresaTexto(card));
+  };
+
+  InfraDeskDoca.getCardOrderPriority = function (card) {
+    var empresa = InfraDeskDoca.getCardEmpresaNorm(card);
+    var prioridades = InfraDeskDoca.getOrderPriorityNorms();
+
+    for (var i = 0; i < prioridades.length; i++) {
+      if (empresa.indexOf(prioridades[i]) >= 0) {
+        return i;
+      }
+    }
+
+    return 999;
+  };
+
+  InfraDeskDoca.getCardLojaNumero = function (card) {
+    var empresa = InfraDeskDoca.getCardEmpresaNorm(card);
+    var match = empresa.match(/loja\s+0?(\d+)/i);
+
+    return match && match[1] ? Number(match[1]) : 9999;
+  };
+
+  InfraDeskDoca.getCardAberturaMs = function (card) {
+    var aberturaTexto = InfraDeskDoca.textOf(card, '.item-data-abertura');
+    var match = aberturaTexto.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+
+    if (!match) {
+      return 0;
+    }
+
+    return new Date(
+      Number(match[3]),
+      Number(match[2]) - 1,
+      Number(match[1]),
+      Number(match[4]),
+      Number(match[5]),
+      Number(match[6] || 0)
+    ).getTime();
+  };
+
+  InfraDeskDoca.compareCardsByStorePriority = function (a, b) {
+    var priorityA = InfraDeskDoca.getCardOrderPriority(a);
+    var priorityB = InfraDeskDoca.getCardOrderPriority(b);
+
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+
+    var lojaA = InfraDeskDoca.getCardLojaNumero(a);
+    var lojaB = InfraDeskDoca.getCardLojaNumero(b);
+
+    if (lojaA !== lojaB) {
+      return lojaA - lojaB;
+    }
+
+    var empresaA = InfraDeskDoca.getCardEmpresaNorm(a);
+    var empresaB = InfraDeskDoca.getCardEmpresaNorm(b);
+
+    if (empresaA !== empresaB) {
+      return empresaA.localeCompare(empresaB, 'pt-BR', {
+        numeric: true
+      });
+    }
+
+    // Dentro da mesma loja, deixa os chamados mais novos primeiro.
+    return InfraDeskDoca.getCardAberturaMs(b) - InfraDeskDoca.getCardAberturaMs(a);
+  };
+
+  InfraDeskDoca.orderListByStorePriority = function (ul) {
+    if (!ul) {
+      return false;
+    }
+
+    var cards = Array.prototype.slice.call(ul.children).filter(function (el) {
+      return el && el.matches && el.matches('li.chamado-item, .chamado-item[data-chamado-id]');
+    });
+
+    if (cards.length <= 1) {
+      return false;
+    }
+
+    var oldOrder = cards.map(function (card) {
+      return InfraDeskDoca.getCardId(card);
+    }).join('|');
+
+    var sorted = cards.slice().sort(InfraDeskDoca.compareCardsByStorePriority);
+
+    var newOrder = sorted.map(function (card) {
+      return InfraDeskDoca.getCardId(card);
+    }).join('|');
+
+    if (oldOrder === newOrder) {
+      return false;
+    }
+
+    var frag = document.createDocumentFragment();
+
+    sorted.forEach(function (card) {
+      frag.appendChild(card);
+    });
+
+    ul.appendChild(frag);
+
+    try {
+      var root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+      var jq = root.jQuery || root.$ || window.jQuery || window.$;
+
+      if (jq && jq.fn && jq.fn.sortable) {
+        jq(ul).sortable('refresh');
+      }
+    } catch (_) {}
+
+    return true;
+  };
+
+  InfraDeskDoca.orderPriorityTabs = function () {
+    if (InfraDeskDoca.state.orderRunning) {
+      return;
+    }
+
+    InfraDeskDoca.state.orderRunning = true;
+
+    try {
+      var lists = InfraDeskDoca.getOrderTargetLists();
+      var changed = false;
+
+      lists.forEach(function (ul) {
+        if (InfraDeskDoca.orderListByStorePriority(ul)) {
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        InfraDeskDoca.updateKanbanCounters();
+      }
+    } catch (err) {
+      console.warn('[InfraDeskDoca] erro ao ordenar chamados por loja', err);
+    } finally {
+      setTimeout(function () {
+        InfraDeskDoca.state.orderRunning = false;
+      }, 100);
+    }
+  };
+
+  InfraDeskDoca.scheduleOrderPriorityTabs = function (delay) {
+    clearTimeout(InfraDeskDoca.state.orderTimer);
+
+    InfraDeskDoca.state.orderTimer = setTimeout(function () {
+      InfraDeskDoca.orderPriorityTabs();
+    }, typeof delay === 'number' ? delay : 250);
+  };
+
   InfraDeskDoca.extractTagsFromCard = function (card) {
     var tags = {};
     var tagsLista = [];
@@ -907,6 +1118,7 @@
       card.classList.add('tm-doca-hidden-reserved');
       card.dataset.tmDocaHiddenReason = 'reserved';
       InfraDeskDoca.updateKanbanCounters();
+      InfraDeskDoca.scheduleOrderPriorityTabs(300);
     }
   };
 
@@ -968,6 +1180,8 @@
         InfraDeskDoca.applyFirebaseItem(id, item);
       }
     }
+
+    InfraDeskDoca.scheduleOrderPriorityTabs(250);
   };
 
   InfraDeskDoca.loadFirebaseState = async function () {
@@ -1011,6 +1225,7 @@
       Object.keys(InfraDeskDoca.state.firebaseCache).forEach(function (id) {
         InfraDeskDoca.applyFirebaseItem(id, InfraDeskDoca.state.firebaseCache[id]);
       });
+      InfraDeskDoca.scheduleOrderPriorityTabs(300);
       return;
     }
 
@@ -1030,6 +1245,7 @@
     if (parts.length === 1) {
       InfraDeskDoca.state.firebaseCache[id] = data;
       InfraDeskDoca.applyFirebaseItem(id, data);
+      InfraDeskDoca.scheduleOrderPriorityTabs(300);
       return;
     }
 
@@ -1037,6 +1253,7 @@
     current[parts[1]] = data;
     InfraDeskDoca.state.firebaseCache[id] = current;
     InfraDeskDoca.applyFirebaseItem(id, current);
+    InfraDeskDoca.scheduleOrderPriorityTabs(300);
   };
 
   InfraDeskDoca.connectRealtime = function () {
@@ -1209,6 +1426,7 @@
     }, 450);
 
     InfraDeskDoca.updateKanbanCounters();
+    InfraDeskDoca.scheduleOrderPriorityTabs(250);
 
     return true;
   };
@@ -1231,6 +1449,7 @@
           }
 
           InfraDeskDoca.updateKanbanCounters();
+          InfraDeskDoca.scheduleOrderPriorityTabs(250);
         });
 
         return;
@@ -1495,9 +1714,17 @@
     }
 
     InfraDeskDoca.state.observer = new MutationObserver(function () {
+      if (InfraDeskDoca.state.orderRunning) {
+        return;
+      }
+
       clearTimeout(InfraDeskDoca.state.debounceTimer);
 
       InfraDeskDoca.state.debounceTimer = setTimeout(function () {
+        if (InfraDeskDoca.state.orderRunning) {
+          return;
+        }
+
         InfraDeskDoca.refreshLoggedUser();
         InfraDeskDoca.injectAllCards();
       }, 300);
@@ -1540,6 +1767,15 @@
       InfraDeskDoca.loadFirebaseState();
       InfraDeskDoca.connectRealtime();
       InfraDeskDoca.injectAllCards();
+      setTimeout(function () {
+        InfraDeskDoca.orderPriorityTabs();
+      }, 800);
+      setTimeout(function () {
+        InfraDeskDoca.orderPriorityTabs();
+      }, 1800);
+      setTimeout(function () {
+        InfraDeskDoca.orderPriorityTabs();
+      }, 3500);
       InfraDeskDoca.observeBody();
     }, 600);
 
