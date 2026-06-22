@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      1.4.1
+// @version      1.3.1
 // @description  Captura chamados da doca, valida reserva no Firebase, muda status real para Em liberação, registra dados limpos e organiza Aberto/Em liberação por lojas prioritárias.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
