@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      2.0.0
+// @version      2.0.1
 // @description  Captura chamados da doca com Firebase somente no clique: trava leve e gravação completa da captura sem carregar o banco inteiro.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
