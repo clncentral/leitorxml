@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      1.3.1
-// @description  Captura chamados da doca, valida reserva no Firebase, muda status real para Em liberação, registra dados limpos e organiza Aberto/Em liberação por lojas prioritárias.
+// @version      2.0.0
+// @description  Captura chamados da doca com Firebase somente no clique: trava leve e gravação completa da captura sem carregar o banco inteiro.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -1130,8 +1130,12 @@
     var currentKey = InfraDeskDoca.keyUser(usuarioAtual);
     var reservedKey = InfraDeskDoca.clean(reserva.usuarioNorm || '');
 
-    if (!reservedKey && reserva.usuario) {
-      reservedKey = InfraDeskDoca.keyUser(reserva.usuario);
+    if (!reservedKey) {
+      var reservedName = InfraDeskDoca.clean(reserva.usuario || reserva.operador || reserva.nome || '');
+
+      if (reservedName) {
+        reservedKey = InfraDeskDoca.keyUser(reservedName);
+      }
     }
 
     return !!reservedKey && reservedKey !== currentKey;
@@ -1306,6 +1310,119 @@
     }
   };
 
+  InfraDeskDoca.buildMinimalReservation = function (id, usuario) {
+    return {
+      operador: InfraDeskDoca.clean(usuario),
+      ts: Date.now()
+    };
+  };
+
+  // Modo ultra leve:
+  // - Não baixa o banco inteiro.
+  // - Não abre realtime/EventSource.
+  // - No clique, tenta criar somente /by_id/{chamadoId}.
+  // - If-Match:null_etag impede sobrescrever se outro usuário já reservou antes.
+  // Modo ultra leve e compatível:
+  // - Não baixa o banco inteiro.
+  // - Não abre realtime/EventSource.
+  // - No clique, consulta somente /by_id/{chamadoId}.
+  // - Se estiver vazio, grava somente /by_id/{chamadoId} com payload mínimo.
+  // Observação: este modo evita o problema de compatibilidade do If-Match/null_etag em alguns Tampermonkey/navegadores.
+  InfraDeskDoca.tryReserveOnFirebase = async function (id, usuario) {
+    id = InfraDeskDoca.clean(id);
+    usuario = InfraDeskDoca.clean(usuario);
+
+    if (!id || !usuario) {
+      return {
+        ok: false,
+        exists: false,
+        reserva: null
+      };
+    }
+
+    var path = InfraDeskDoca.FIREBASE_ROOT + '/by_id/' + encodeURIComponent(id);
+    var payload = InfraDeskDoca.buildMinimalReservation(id, usuario);
+
+    try {
+      // 1) Consulta apenas o chamado clicado. Não baixa o banco completo.
+      var readRes = await InfraDeskDoca.requestFirebase({
+        method: 'GET',
+        url: InfraDeskDoca.firebaseUrl(path) + '?_=' + Date.now(),
+        timeout: 12000
+      });
+
+      if (!InfraDeskDoca.isOkResponse(readRes)) {
+        throw new Error('Firebase GET status ' + (readRes ? readRes.status : 0) + ' - ' + (readRes && readRes.responseText || ''));
+      }
+
+      var existing = InfraDeskDoca.parseJson(readRes.responseText || 'null', null);
+
+      if (existing && typeof existing === 'object') {
+        return {
+          ok: false,
+          exists: true,
+          reserva: existing
+        };
+      }
+
+      // 2) Se não existe, grava somente o chamado clicado. print=silent evita resposta grande.
+      var writeRes = await InfraDeskDoca.requestFirebase({
+        method: 'PUT',
+        url: InfraDeskDoca.firebaseUrl(path) + '?print=silent&_=' + Date.now(),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify(payload),
+        timeout: 12000
+      });
+
+      if (!InfraDeskDoca.isOkResponse(writeRes)) {
+        throw new Error('Firebase PUT status ' + (writeRes ? writeRes.status : 0) + ' - ' + (writeRes && writeRes.responseText || ''));
+      }
+
+      InfraDeskDoca.state.firebaseCache[id] = payload;
+
+      return {
+        ok: true,
+        exists: false,
+        reserva: payload
+      };
+    } catch (err) {
+      console.warn('[InfraDeskDoca] erro ao consultar/criar reserva no Firebase', err);
+
+      return {
+        ok: false,
+        exists: false,
+        reserva: null,
+        error: err
+      };
+    }
+  };
+
+  InfraDeskDoca.releaseFirebaseReservation = async function (id) {
+    id = InfraDeskDoca.clean(id);
+
+    if (!id) {
+      return false;
+    }
+
+    try {
+      var res = await InfraDeskDoca.requestFirebase({
+        method: 'DELETE',
+        url: InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT + '/by_id/' + id) + '?print=silent&_=' + Date.now()
+      });
+
+      if (InfraDeskDoca.isOkResponse(res)) {
+        delete InfraDeskDoca.state.firebaseCache[id];
+        return true;
+      }
+    } catch (err) {
+      console.warn('[InfraDeskDoca] erro ao liberar reserva no Firebase', err);
+    }
+
+    return false;
+  };
+
   InfraDeskDoca.saveCaptureToFirebase = async function (id, usuario, cardInfo) {
     id = InfraDeskDoca.clean(id);
     usuario = InfraDeskDoca.clean(usuario);
@@ -1357,7 +1474,7 @@
     try {
       var res = await InfraDeskDoca.requestFirebase({
         method: 'PATCH',
-        url: InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT),
+        url: InfraDeskDoca.firebaseUrl(InfraDeskDoca.FIREBASE_ROOT) + '?print=silent&_=' + Date.now(),
         headers: {
           'Content-Type': 'application/json'
         },
@@ -1588,10 +1705,10 @@
       InfraDeskDoca.notify('info', 'Este chamado já está reservado por você.');
     }
 
+    // Modo leve: não aplica dados do Firebase na tela e não pinta cards a partir do banco.
+    // Só remove o botão clicado para evitar repetição na mesma tela.
     if (card) {
-      InfraDeskDoca.hideReservedOpenCard(card, reserva || {
-        usuario: nomeReserva
-      });
+      InfraDeskDoca.removeCaptureButton(card);
     }
   };
 
@@ -1624,42 +1741,47 @@
         return;
       }
 
-      var reservaLocal = InfraDeskDoca.state.firebaseCache[id] || null;
-      var reservaRemota = await InfraDeskDoca.getRemoteCapture(id);
-      var reserva = reservaRemota || reservaLocal;
+      // Modo leve: no clique, consulta/cria somente a reserva mínima desse chamado.
+      // Não baixa o banco inteiro e não abre realtime.
+      var lock = await InfraDeskDoca.tryReserveOnFirebase(id, usuario);
 
-      if (reserva && (reserva.usuario || reserva.usuarioNorm || reserva.operador || reserva.nome)) {
-        InfraDeskDoca.abortAlreadyReserved(card, reserva, usuario);
+      if (!lock.ok) {
+        if (lock.exists) {
+          InfraDeskDoca.abortAlreadyReserved(card, lock.reserva, usuario);
+        } else {
+          InfraDeskDoca.notify('warning', 'Não consegui consultar/criar a reserva no Firebase. Para evitar duplicidade, não capturei este chamado.');
+        }
+
         return;
       }
 
+      // Extrai os dados completos do card somente no clique.
+      // Isso não consome download do Firebase; é leitura do HTML já carregado na tela.
       var cardInfo = InfraDeskDoca.extractCardInfo(card);
       cardInfo.statusAntes = InfraDeskDoca.getCardStatusId(card);
 
       var nativeOk = InfraDeskDoca.runNativeCapture(btn, id);
 
       if (!nativeOk) {
-        InfraDeskDoca.notify('error', 'Não consegui executar a captura original do Infradesk.');
+        await InfraDeskDoca.releaseFirebaseReservation(id);
+        InfraDeskDoca.notify('error', 'Não consegui executar a captura original do Infradesk. Liberei a reserva no Firebase.');
         return;
       }
 
-      // Espera a captura original terminar. Só depois persiste status, grava Firebase e move visualmente.
+      // Espera a captura original terminar. Depois confirma status no Infradesk e move visualmente.
       setTimeout(async function () {
-        var segundaChecagem = await InfraDeskDoca.getRemoteCapture(id);
-
-        if (segundaChecagem && (segundaChecagem.usuario || segundaChecagem.usuarioNorm) && InfraDeskDoca.isDifferentReservation(segundaChecagem, usuario)) {
-          InfraDeskDoca.abortAlreadyReserved(card, segundaChecagem, usuario);
-          return;
-        }
-
         var persisted = await InfraDeskDoca.persistStatusInInfradesk(id);
 
         if (!persisted) {
-          InfraDeskDoca.notify('warning', 'A captura não confirmou a mudança de status. Não movi o card.');
+          await InfraDeskDoca.releaseFirebaseReservation(id);
+          InfraDeskDoca.notify('warning', 'A captura não confirmou a mudança de status. Liberei a reserva no Firebase e não movi o card.');
           return;
         }
 
+        // Agora grava o pacote completo igual ao script original, mas somente deste chamado.
+        // O PATCH usa print=silent para não baixar resposta grande.
         await InfraDeskDoca.saveCaptureToFirebase(id, usuario, cardInfo);
+
         InfraDeskDoca.moveCardToLiberacaoLocal(id, usuario);
 
         setTimeout(function () {
@@ -1763,20 +1885,10 @@
     document.addEventListener('click', InfraDeskDoca.onDocumentClickCapture, true);
 
     setTimeout(function () {
-      InfraDeskDoca.prepareCaptureButtons();
-      InfraDeskDoca.loadFirebaseState();
-      InfraDeskDoca.connectRealtime();
-      InfraDeskDoca.injectAllCards();
-      setTimeout(function () {
-        InfraDeskDoca.orderPriorityTabs();
-      }, 800);
-      setTimeout(function () {
-        InfraDeskDoca.orderPriorityTabs();
-      }, 1800);
-      setTimeout(function () {
-        InfraDeskDoca.orderPriorityTabs();
-      }, 3500);
-      InfraDeskDoca.observeBody();
+      // Modo ultra leve real:
+      // Não varre cards, não ordena colunas, não observa DOM, não pinta nomes e não consulta Firebase.
+      // O clique é interceptado pelo listener global acima e só então o Firebase é usado.
+      console.info('[InfraDeskDoca] modo leve ativo: Firebase somente no clique; gravação completa só após captura.');
     }, 600);
 
     window.addEventListener('beforeunload', function () {
