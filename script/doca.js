@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      2.0.1
+// @version      2.0.3
 // @description  Captura chamados da doca com Firebase somente no clique: trava leve e gravação completa da captura sem carregar o banco inteiro.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
@@ -33,13 +33,16 @@
   InfraDeskDoca.STATUS_ABERTO = '2';
   InfraDeskDoca.STATUS_EM_LIBERACAO = '3';
   InfraDeskDoca.STATUS_EM_LIBERACAO_NOME = 'Em liberação';
+  InfraDeskDoca.STATUS_EM_ANALISE_TERCEIRO = '6';
+  InfraDeskDoca.STATUS_EM_ANALISE_TERCEIRO_NOME = 'Em Análise Terceiro';
 
-  // Ordem visual dos chamados dentro das colunas Aberto e Em liberação.
+  // Ordem visual dos chamados dentro das colunas Aberto, Em liberação e Em Análise Terceiro.
+  // Só prioriza estas lojas no topo, nesta ordem. O restante mantém a ordem original da tela.
   // Não muda status, não salva nada no sistema; apenas reorganiza os cards carregados na tela.
-  InfraDeskDoca.ORDEM_STATUS_IDS = ['2', '3'];
+  InfraDeskDoca.ORDEM_STATUS_IDS = ['2', '3', '6'];
   InfraDeskDoca.ORDEM_EMPRESAS_PRIORIDADE = [
-     'Loja 03 - ASP Paraíso',
-     'Loja 05 - ASP Vinhedo',
+    'Loja 03 - ASP Paraíso',
+    'Loja 05 - ASP Vinhedo',
     'Loja 01 - ASP São Marcos'
   ];
 
@@ -575,16 +578,25 @@
     }
 
     var desc = InfraDeskDoca.norm(ul.getAttribute('data-status-descricao') || '');
+    var nomesAlvo = ['aberto', 'em liberacao', 'em analise terceiro', 'analise terceiro'];
 
-    if (desc.indexOf('aberto') >= 0 || desc.indexOf('em liberacao') >= 0) {
-      return true;
+    for (var i = 0; i < nomesAlvo.length; i++) {
+      if (desc.indexOf(nomesAlvo[i]) >= 0) {
+        return true;
+      }
     }
 
     var wrap = ul.closest ? ul.closest('.wrap-status') : null;
     var h3 = wrap ? wrap.querySelector('h3[data-status-id], h3') : null;
     var title = InfraDeskDoca.norm(h3 ? h3.textContent || h3.innerText || '' : '');
 
-    return title.indexOf('aberto') >= 0 || title.indexOf('em liberacao') >= 0;
+    for (var j = 0; j < nomesAlvo.length; j++) {
+      if (title.indexOf(nomesAlvo[j]) >= 0) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   InfraDeskDoca.getOrderTargetLists = function () {
@@ -603,12 +615,21 @@
     return InfraDeskDoca.norm(InfraDeskDoca.getCardEmpresaTexto(card));
   };
 
+  InfraDeskDoca.stripLojaPrefixNorm = function (value) {
+    value = InfraDeskDoca.norm(value);
+    return value.replace(/^loja\s+/i, '').trim();
+  };
+
   InfraDeskDoca.getCardOrderPriority = function (card) {
     var empresa = InfraDeskDoca.getCardEmpresaNorm(card);
+    var empresaSemLoja = InfraDeskDoca.stripLojaPrefixNorm(empresa);
     var prioridades = InfraDeskDoca.getOrderPriorityNorms();
 
     for (var i = 0; i < prioridades.length; i++) {
-      if (empresa.indexOf(prioridades[i]) >= 0) {
+      var prioridade = prioridades[i];
+      var prioridadeSemLoja = InfraDeskDoca.stripLojaPrefixNorm(prioridade);
+
+      if (empresa.indexOf(prioridade) >= 0 || empresaSemLoja.indexOf(prioridadeSemLoja) >= 0) {
         return i;
       }
     }
@@ -618,7 +639,7 @@
 
   InfraDeskDoca.getCardLojaNumero = function (card) {
     var empresa = InfraDeskDoca.getCardEmpresaNorm(card);
-    var match = empresa.match(/loja\s+0?(\d+)/i);
+    var match = empresa.match(/(?:^|)loja\s+0?(\d{1,3})/i) || empresa.match(/^0?(\d{1,3})\s*-/i);
 
     return match && match[1] ? Number(match[1]) : 9999;
   };
@@ -686,7 +707,36 @@
       return InfraDeskDoca.getCardId(card);
     }).join('|');
 
-    var sorted = cards.slice().sort(InfraDeskDoca.compareCardsByStorePriority);
+    var sorted = cards.map(function (card, index) {
+      return {
+        card: card,
+        index: index
+      };
+    }).sort(function (a, b) {
+      var priorityA = InfraDeskDoca.getCardOrderPriority(a.card);
+      var priorityB = InfraDeskDoca.getCardOrderPriority(b.card);
+
+      // Só mexe nas lojas prioritárias: 03, 05 e 01.
+      // Quem não é prioridade continua na mesma ordem em que o Infradesk carregou.
+      if (priorityA === 999 && priorityB === 999) {
+        return a.index - b.index;
+      }
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Dentro da mesma loja prioritária, deixa os chamados mais novos primeiro.
+      var aberturaDiff = InfraDeskDoca.getCardAberturaMs(b.card) - InfraDeskDoca.getCardAberturaMs(a.card);
+
+      if (aberturaDiff) {
+        return aberturaDiff;
+      }
+
+      return a.index - b.index;
+    }).map(function (item) {
+      return item.card;
+    });
 
     var newOrder = sorted.map(function (card) {
       return InfraDeskDoca.getCardId(card);
@@ -1705,10 +1755,17 @@
       InfraDeskDoca.notify('info', 'Este chamado já está reservado por você.');
     }
 
-    // Modo leve: não aplica dados do Firebase na tela e não pinta cards a partir do banco.
-    // Só remove o botão clicado para evitar repetição na mesma tela.
     if (card) {
-      InfraDeskDoca.removeCaptureButton(card);
+      if (InfraDeskDoca.isDifferentReservation(reserva, usuarioAtual)) {
+        // No modo leve, a checagem acontece no clique. Se descobriu que outro usuário já reservou,
+        // some com o card da coluna Aberto para ninguém tentar pegar o mesmo chamado de novo.
+        InfraDeskDoca.hideReservedOpenCard(card, reserva || {});
+      } else {
+        InfraDeskDoca.ensureBadgeOnCard(card, nomeReserva);
+        InfraDeskDoca.removeCaptureButton(card);
+        InfraDeskDoca.updateKanbanCounters();
+        InfraDeskDoca.scheduleOrderPriorityTabs(250);
+      }
     }
   };
 
@@ -1884,11 +1941,14 @@
     document.removeEventListener('click', InfraDeskDoca.onDocumentClickCapture, true);
     document.addEventListener('click', InfraDeskDoca.onDocumentClickCapture, true);
 
+    // Mantém o modo leve no Firebase, mas religa a parte visual:
+    // prepara botões, organiza as três colunas e observa novos cards carregados pelo Infradesk.
+    InfraDeskDoca.injectAllCards();
+    InfraDeskDoca.observeBody();
+    InfraDeskDoca.scheduleOrderPriorityTabs(350);
+
     setTimeout(function () {
-      // Modo ultra leve real:
-      // Não varre cards, não ordena colunas, não observa DOM, não pinta nomes e não consulta Firebase.
-      // O clique é interceptado pelo listener global acima e só então o Firebase é usado.
-      console.info('[InfraDeskDoca] modo leve ativo: Firebase somente no clique; gravação completa só após captura.');
+      console.info('[InfraDeskDoca] v2.0.3 ativo: ordenando Aberto, Em liberação e Em Análise Terceiro; Firebase somente no clique.');
     }, 600);
 
     window.addEventListener('beforeunload', function () {
