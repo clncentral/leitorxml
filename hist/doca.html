@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraDesk Doca • Painel de Capturas v5 Turbo</title>
-
+  <title>InfraDesk Doca • Gráficos e IDs v10.1</title>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -17,14 +16,11 @@
       --blue-soft: #dbeafe;
       --green: #16a34a;
       --red: #dc2626;
-      --amber: #f59e0b;
       --shadow: 0 12px 30px rgba(15, 23, 42, 0.075);
       --radius: 22px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -36,11 +32,7 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    button,
-    input,
-    select {
-      font-family: inherit;
-    }
+    button, input, select { font-family: inherit; }
 
     .app {
       width: min(1880px, calc(100% - 18px));
@@ -48,91 +40,10 @@
       padding: 10px 0 24px;
     }
 
-    .topbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    /* v9: topo oculto, mas mantido no DOM para o JavaScript continuar atualizando status sem quebrar. */
-    .topbar {
-      display: none !important;
-    }
-
-    .titleBox {
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px 16px;
-      backdrop-filter: blur(12px);
-    }
-
-    .titleBox h1 {
-      margin: 0;
-      font-size: 21px;
-      letter-spacing: -0.04em;
-    }
-
-    .titleBox p {
-      margin: 5px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .statusBox {
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 12px 14px;
-      display: grid;
-      gap: 4px;
-      min-width: 210px;
-    }
-
-    .statusLine {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 950;
-      color: #374151;
-    }
-
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      display: inline-block;
-      background: #94a3b8;
-      box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
-    }
-
-    .dot.ok {
-      background: var(--green);
-      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16);
-    }
-
-    .dot.err {
-      background: var(--red);
-      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
-    }
-
-    .lastUpdate {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-      text-align: right;
-    }
-
     .toolbar {
-      display: grid;
-      grid-template-columns: 1.5fr .8fr .9fr .9fr .8fr .8fr 1fr auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
       gap: 9px;
       background: rgba(255, 255, 255, 0.94);
       border: 1px solid var(--border);
@@ -143,66 +54,151 @@
       backdrop-filter: blur(12px);
     }
 
-    .field {
-      display: grid;
-      gap: 5px;
+    .segmented {
+      flex: 0 0 auto;
+      display: inline-flex;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 4px;
+      gap: 4px;
       min-width: 0;
     }
 
-    .field label {
-      color: #374151;
-      font-size: 11px;
-      font-weight: 950;
-      line-height: 1;
-    }
-
-    .field input,
-    .field select {
-      width: 100%;
-      min-width: 0;
-      min-height: 39px;
-      border-radius: 13px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      padding: 8px 10px;
-      font-size: 13px;
-      outline: none;
-    }
-
-    .field input:focus,
-    .field select:focus {
-      border-color: #93c5fd;
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
-    }
-
-    .clearBtn,
-    .reloadBtn,
-    .exportBtn {
-      min-height: 39px;
-      border: 1px solid var(--border);
-      border-radius: 13px;
-      background: #fff;
+    .segmented button,
+    .navBtn,
+    .actionBtn,
+    .idsBtn {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
       color: #334155;
       padding: 8px 11px;
       font-size: 12px;
       font-weight: 950;
       cursor: pointer;
-      transition: .15s ease;
+      transition: 0.15s ease;
       white-space: nowrap;
-      align-self: end;
     }
 
-    .clearBtn:hover,
-    .reloadBtn:hover,
-    .exportBtn:hover,
-    .copyBtn:hover {
-      background: #f8fafc;
-      border-color: #bfdbfe;
+    .segmented button.active {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+    }
+
+    .segmented button:not(.active):hover,
+    .navBtn:hover:not(:disabled),
+    .actionBtn:hover,
+    .idsBtn:hover {
+      background: #fff;
+      border-color: var(--border);
       transform: translateY(-1px);
     }
 
-    .filtersRow {
+    .periodNav {
+      flex: 0 0 280px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) 38px;
+      gap: 6px;
+      align-items: center;
+      min-width: 240px;
+    }
+
+    .navBtn {
+      background: #fff;
+      border-color: var(--border);
+      padding: 8px;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .navBtn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .periodLabel {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 950;
+      color: #1f2937;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .customRange {
+      flex: 0 1 270px;
+      min-width: 250px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 7px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      flex: 1 1 180px;
+    }
+
+    .field.small { flex: 0 1 150px; }
+    .field.medium { flex: 1 1 220px; }
+
+    .field label,
+    .customRange label {
+      color: #374151;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+      display: grid;
+      gap: 4px;
+    }
+
+    .field input,
+    .field select,
+    .customRange input,
+    .detailsSearch {
+      width: 100%;
+      min-width: 0;
+      min-height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 8px 9px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .customRange input:focus,
+    .detailsSearch:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    .actionBtn,
+    .idsBtn {
+      background: #fff;
+      border-color: var(--border);
+      align-self: end;
+    }
+
+    .chipsGrid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 10px;
@@ -232,19 +228,16 @@
       letter-spacing: -0.02em;
     }
 
-    .chipsHead button {
-      border: 0;
-      background: transparent;
-      color: var(--blue);
+    .selectMeta {
+      color: var(--muted);
       font-size: 11px;
       font-weight: 950;
-      cursor: pointer;
-      padding: 2px 4px;
+      white-space: nowrap;
     }
 
     .chipsBox {
       min-height: 42px;
-      max-height: 88px;
+      max-height: 78px;
       overflow: auto;
       background: #fff;
       border: 1px solid var(--border);
@@ -284,6 +277,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      max-width: 210px;
     }
 
     .chip.active {
@@ -298,6 +292,8 @@
       gap: 10px;
       align-items: start;
     }
+
+    .main.noSummary { grid-template-columns: minmax(0, 1fr); }
 
     .panel {
       background: var(--card);
@@ -327,6 +323,88 @@
       font-size: 12px;
       margin-top: 3px;
       font-weight: 700;
+    }
+
+    .statusHint {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      background: #94a3b8;
+      box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
+    }
+
+    .dot.ok {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16);
+    }
+
+    .dot.err {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
+    }
+
+    .legend {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .legendItem {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      color: #374151;
+    }
+
+    .legendDot,
+    .colorDot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .chartWrap {
+      width: 100%;
+      overflow-x: auto;
+      padding: 4px 2px 7px;
+      border-radius: 18px;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(22, 163, 74, 0.14)) border-box;
+      border: 1px solid transparent;
+    }
+
+    .chart {
+      min-width: 720px;
+      height: clamp(430px, calc(100vh - 250px), 760px);
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      display: block;
     }
 
     .summaryBig {
@@ -404,23 +482,20 @@
       width: 0%;
     }
 
-    .colorDot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      flex: 0 0 auto;
+    .detailsPanel { margin-top: 10px; }
+
+    .detailsTop {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 9px;
     }
 
-    .tableTools {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .detailsSearch { width: min(420px, 100%); font-size: 13px; }
 
     .tableBox {
-      max-height: calc(100vh - 300px);
-      min-height: 360px;
+      max-height: 520px;
       overflow: auto;
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -431,11 +506,10 @@
       width: 100%;
       border-collapse: collapse;
       background: #fff;
-      min-width: 1320px;
+      min-width: 1260px;
     }
 
-    th,
-    td {
+    th, td {
       padding: 10px 11px;
       border-bottom: 1px solid var(--border);
       text-align: left;
@@ -453,9 +527,7 @@
       white-space: nowrap;
     }
 
-    tbody tr:hover td {
-      background: #f9fbff;
-    }
+    tbody tr:hover td { background: #f9fbff; }
 
     .idLink {
       color: var(--blue);
@@ -464,9 +536,7 @@
       white-space: nowrap;
     }
 
-    .idLink:hover {
-      text-decoration: underline;
-    }
+    .idLink:hover { text-decoration: underline; }
 
     .muted {
       color: var(--muted);
@@ -480,17 +550,8 @@
       max-width: 300px;
     }
 
-    .subcat {
-      display: inline-flex;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #f1f5f9;
-      color: #334155;
-      font-size: 11px;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
+    .subcat,
+    .statusPill,
     .userPill {
       display: inline-flex;
       align-items: center;
@@ -498,15 +559,14 @@
       padding: 5px 9px;
       font-size: 11px;
       font-weight: 950;
-      color: #fff;
       white-space: nowrap;
     }
 
-    .keyWrap {
-      display: grid;
-      gap: 6px;
-      min-width: 430px;
-    }
+    .subcat { background: #f1f5f9; color: #334155; }
+    .statusPill { background: #ecfdf5; color: #166534; }
+    .userPill { color: #fff; }
+
+    .keyWrap { display: grid; gap: 6px; min-width: 360px; }
 
     .keyText {
       font-family: Consolas, Monaco, 'Courier New', monospace;
@@ -534,29 +594,6 @@
       -webkit-box-decoration-break: clone;
     }
 
-    .keyActions {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      flex-wrap: wrap;
-    }
-
-    .miniLegend {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .legendMark {
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
-      display: inline-block;
-    }
-
     .copyBtn {
       min-height: 25px;
       border: 1px solid var(--border);
@@ -567,16 +604,9 @@
       font-size: 11px;
       font-weight: 950;
       cursor: pointer;
-      transition: .15s ease;
     }
 
-    .empty {
-      text-align: center;
-      padding: 34px 14px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-    }
+    .copyBtn:hover { background: #f8fafc; border-color: #bfdbfe; }
 
     .dateCell {
       white-space: nowrap;
@@ -586,17 +616,21 @@
       line-height: 1.35;
     }
 
-    .dateCell .muted {
-      display: block;
-      margin-top: 2px;
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -115%);
+      background: #111827;
+      color: #fff;
+      padding: 9px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+      z-index: 40;
+      transition: opacity 0.12s ease;
+      white-space: nowrap;
     }
-
-    .userPill,
-    .chip span:last-child,
-    .rankName span:last-child {
-      max-width: 190px;
-    }
-
 
     .toast {
       position: fixed;
@@ -613,458 +647,169 @@
       pointer-events: none;
       transition: .18s ease;
       box-shadow: 0 14px 32px rgba(15, 23, 42, .25);
-      z-index: 20;
+      z-index: 50;
     }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .toast.show { opacity: 1; transform: translateY(0); }
 
-
-    .rowNew td {
-      animation: rowFlash 1.35s ease;
-    }
-
-    @keyframes rowFlash {
-      0% { background: #dcfce7; }
-      55% { background: #ecfdf5; }
-      100% { background: transparent; }
-    }
-
-
-
-    /* v8: filtros compactos, tabela livre e painel de contagem recolhível */
-    .selectPanel {
-      padding: 10px;
-    }
-
-    .selectMeta {
+    .empty {
+      text-align: center;
+      padding: 34px 14px;
       color: var(--muted);
-      font-size: 11px;
-      font-weight: 950;
-      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 800;
     }
 
-    .multiSelectHost {
-      position: relative;
-      min-width: 0;
+    .hidden { display: none !important; }
+
+    .pulse { animation: pulseValue 0.55s ease; }
+
+    @keyframes pulseValue {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.16); color: #16a34a; }
+      100% { transform: scale(1); }
     }
 
-    .multiSelect {
-      position: relative;
-      width: 100%;
-    }
-
-    .multiSelectSummary {
-      min-height: 40px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: #fff;
-      color: #334155;
-      padding: 9px 11px;
-      cursor: pointer;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12px;
-      font-weight: 950;
-      user-select: none;
-    }
-
-    .multiSelectSummary::-webkit-details-marker {
-      display: none;
-    }
-
-    .multiSelect[open] .multiSelectSummary {
-      border-color: #93c5fd;
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
-    }
-
-    .multiSelectSummaryText {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .multiSelectArrow {
-      color: var(--blue);
-      flex: 0 0 auto;
-      transition: transform .15s ease;
-    }
-
-    .multiSelect[open] .multiSelectArrow {
-      transform: rotate(180deg);
-    }
-
-    .multiSelectMenu {
-      position: absolute;
-      top: calc(100% + 7px);
-      left: 0;
-      right: 0;
-      z-index: 30;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
-      padding: 8px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .multiSelectActions {
-      display: flex;
-      gap: 7px;
-      flex-wrap: wrap;
-    }
-
-    .miniSelectBtn {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: #f8fafc;
-      color: #334155;
-      padding: 6px 8px;
-      font-size: 11px;
-      font-weight: 950;
-      cursor: pointer;
-    }
-
-    .miniSelectBtn:hover {
-      border-color: #bfdbfe;
-      background: #eff6ff;
-    }
-
-    .multiSelectSearch {
-      width: 100%;
-      min-height: 34px;
-      border-radius: 11px;
-      border: 1px solid var(--border);
-      padding: 7px 9px;
-      font-size: 12px;
-      outline: none;
-    }
-
-    .multiSelectList {
-      max-height: 260px;
-      overflow: auto;
-      display: grid;
-      gap: 5px;
-      padding-right: 2px;
-    }
-
-    .multiOption {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 33px;
-      padding: 7px 8px;
-      border: 1px solid transparent;
-      border-radius: 12px;
-      color: #374151;
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .multiOption:hover {
-      background: #f8fafc;
-    }
-
-    .multiOption.active {
-      border-color: #bfdbfe;
-      background: var(--blue-soft);
-      color: #1d4ed8;
-    }
-
-    .multiOption input {
-      width: 15px;
-      height: 15px;
-      margin: 0;
-      accent-color: var(--blue);
-      flex: 0 0 auto;
-    }
-
-    .multiOptionText {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .tableBox {
-      max-height: none;
-      min-height: 0;
-      overflow: visible;
-    }
-
-    table {
-      min-width: 0;
-    }
-
-    .keyWrap {
-      min-width: 0;
-      max-width: 100%;
-    }
-
-    .supplier {
-      max-width: none;
-    }
-
-    .summaryPanelHead {
-      align-items: center;
-    }
-
-    .panelMiniBtn {
-      min-height: 33px;
-      align-self: start;
-      padding: 6px 10px;
-    }
-
-    body.summaryHidden .main {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    body.summaryHidden #summaryPanel {
-      display: none;
+    @media (max-width: 1320px) {
+      .main { grid-template-columns: 1fr; }
+      .chipsGrid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 900px) {
-      .filtersRow.compactFilters {
-        grid-template-columns: 1fr;
-      }
-
-      .tableBox {
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-      }
-
-      table,
-      thead,
-      tbody,
-      th,
-      td,
-      tr {
-        display: block;
-        width: 100%;
-      }
-
-      thead {
-        display: none;
-      }
-
-      tbody {
-        display: grid;
-        gap: 10px;
-      }
-
-      tbody tr[data-row-id] {
-        border: 1px solid var(--border);
-        border-radius: 17px;
-        background: #fff;
-        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
-        overflow: hidden;
-      }
-
-      tbody tr[data-row-id] td {
-        display: grid;
-        grid-template-columns: 108px minmax(0, 1fr);
-        gap: 8px;
-        align-items: start;
-        border-bottom: 1px solid #eef2f7;
-        padding: 9px 10px;
-      }
-
-      tbody tr[data-row-id] td:last-child {
-        border-bottom: 0;
-      }
-
-      tbody tr[data-row-id] td::before {
-        content: attr(data-label);
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 950;
-        text-transform: uppercase;
-        letter-spacing: .02em;
-      }
-
-      tbody tr[data-empty-row] td {
-        display: block;
-        width: 100%;
-      }
-
-      .keyText {
-        font-size: 11px;
-      }
-    }
-
-    @media (max-width: 1180px) {
-      .topbar,
-      .main,
-      .filtersRow {
-        grid-template-columns: 1fr;
-      }
-
-      .toolbar {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .tableBox {
-        max-height: 560px;
-      }
+      .segmented { width: 100%; overflow-x: auto; }
+      .segmented button { flex: 1; }
+      .periodNav, .customRange, .field { flex: 1 1 100%; min-width: 0; }
+      .chart { min-width: 650px; height: 450px; }
+      .detailsTop { align-items: stretch; flex-direction: column; }
     }
 
     @media (max-width: 760px) {
-      .app {
-        width: min(100% - 12px, 1880px);
-        padding-top: 7px;
-      }
-
-      .toolbar {
-        grid-template-columns: 1fr;
-      }
-
-      .titleBox h1 {
-        font-size: 18px;
-      }
-
-      .panelHead {
-        flex-direction: column;
-      }
-
-      .tableTools {
-        width: 100%;
-      }
-
-      .reloadBtn,
-      .exportBtn {
-        width: 100%;
-      }
+      .app { width: min(100% - 12px, 1880px); padding-top: 7px; }
+      .panelHead { flex-direction: column; }
+      .actionBtn, .idsBtn { width: 100%; }
+      .chipsBox { max-height: 120px; }
     }
   </style>
 </head>
 
 <body>
   <div class="app">
-    <div class="topbar">
-      <div class="titleBox">
-        <h1>InfraDesk Doca • Capturas v9</h1>
-        <p>Painel otimizado com filtro semanal padrão, layout livre e seletores compactos.</p>
-      </div>
-
-      <div class="statusBox">
-        <div class="statusLine">
-          <span><span id="statusDot" class="dot"></span> Firebase</span>
-          <span id="statusText">Conectando...</span>
-        </div>
-        <div id="lastUpdate" class="lastUpdate">—</div>
-      </div>
-    </div>
-
     <div class="toolbar">
-      <div class="field">
+      <div class="segmented" aria-label="Período">
+        <button id="modeWeek" type="button" data-mode="week" class="active">Semana</button>
+        <button id="modeMonth" type="button" data-mode="month">Mês</button>
+        <button id="modeCustom" type="button" data-mode="custom">Personalizado</button>
+        <button id="modeAll" type="button" data-mode="all">Tudo</button>
+      </div>
+
+      <div class="periodNav">
+        <button id="prevPeriodBtn" class="navBtn" type="button" aria-label="Período anterior">‹</button>
+        <div id="periodLabel" class="periodLabel">—</div>
+        <button id="nextPeriodBtn" class="navBtn" type="button" aria-label="Próximo período">›</button>
+      </div>
+
+      <div id="customRange" class="customRange hidden">
+        <label>Inicial <input id="dateFrom" type="date" /></label>
+        <label>Final <input id="dateTo" type="date" /></label>
+      </div>
+
+      <div class="field medium">
         <label>Busca geral</label>
         <input id="searchGeneral" type="text" placeholder="Fornecedor, loja, chave, usuário..." />
       </div>
 
-      <div class="field">
+      <div class="field small">
         <label>Chamado</label>
         <input id="searchChamado" type="text" placeholder="Ex.: 536621" />
       </div>
 
-      <div class="field">
-        <label>Número da NF</label>
-        <input id="searchNf" type="text" placeholder="Com ou sem zeros/pontos" />
+      <div class="field small">
+        <label>Nº NF</label>
+        <input id="searchNf" type="text" placeholder="Com ou sem zeros" />
       </div>
 
-      <div class="field">
+      <div class="field small">
         <label>CNPJ</label>
         <input id="searchCnpj" type="text" placeholder="Com ou sem máscara" />
       </div>
 
-      <div class="field">
-        <label>Data inicial</label>
-        <input id="dateFrom" type="date" />
-      </div>
-
-      <div class="field">
-        <label>Data final</label>
-        <input id="dateTo" type="date" />
-      </div>
-
-      <div class="field">
+      <div class="field small">
         <label>Subcategoria</label>
-        <select id="filterSubcategoria">
-          <option value="">Todas</option>
+        <select id="filterSubcategoria"><option value="">Todas</option></select>
+      </div>
+
+      <div class="field small">
+        <label>Agrupar por</label>
+        <select id="groupBy">
+          <option value="usuario" selected>Usuário</option>
+          <option value="lojaTexto">Loja</option>
+          <option value="subcategoria">Subcategoria</option>
+          <option value="statusNome">Status</option>
+          <option value="fornecedorNome">Fornecedor</option>
         </select>
       </div>
 
-      <button id="clearBtn" class="clearBtn" type="button">Limpar</button>
+      <div class="field small">
+        <label>Gráfico</label>
+        <select id="chartMode">
+          <option value="auto" selected>Automático</option>
+          <option value="bar">Barras por dia</option>
+          <option value="line">Linha por dia</option>
+          <option value="total">Resumo total</option>
+        </select>
+      </div>
+
+      <button id="clearBtn" class="actionBtn" type="button">Limpar</button>
+      <button id="reloadBtn" class="actionBtn" type="button">Atualizar</button>
+      <button id="summaryToggleBtn" class="actionBtn" type="button">Ocultar resumo</button>
     </div>
 
-    <div class="filtersRow compactFilters">
-      <div class="chipsPanel selectPanel">
+    <div class="chipsGrid">
+      <div class="chipsPanel">
         <div class="chipsHead">
           <h3>Usuários</h3>
-          <span id="usersSelectMeta" class="selectMeta">Todos</span>
+          <span id="usersMeta" class="selectMeta">Todos</span>
         </div>
-        <div id="usersBox" class="multiSelectHost"></div>
+        <div id="usersBox" class="chipsBox"></div>
       </div>
 
-      <div class="chipsPanel selectPanel">
+      <div class="chipsPanel">
         <div class="chipsHead">
           <h3>Lojas</h3>
-          <span id="storesSelectMeta" class="selectMeta">Todas</span>
+          <span id="storesMeta" class="selectMeta">Todas</span>
         </div>
-        <div id="storesBox" class="multiSelectHost"></div>
+        <div id="storesBox" class="chipsBox"></div>
       </div>
     </div>
 
-    <div class="main">
+    <div id="mainGrid" class="main">
       <div class="panel">
         <div class="panelHead">
           <div>
-            <h2 class="panelTitle">Tabela de chamados</h2>
-            <div id="tableHint" class="hint">0 chamado(s).</div>
+            <h2 id="chartTitle" class="panelTitle">Doca</h2>
+            <div id="chartHint" class="hint">Capturas por usuário.</div>
           </div>
 
-          <div class="tableTools">
-            <button id="showSummaryBtn" class="reloadBtn" type="button">Ocultar contagem</button>
-            <button id="reloadBtn" class="reloadBtn" type="button">Atualizar</button>
-            <button id="exportBtn" class="exportBtn" type="button">Exportar CSV</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+            <span class="statusHint"><span id="statusDot" class="dot"></span><span id="statusText">Conectando...</span></span>
+            <button id="toggleDetailsBtn" class="idsBtn" type="button">Ver IDs</button>
+            <button id="exportBtn" class="idsBtn" type="button">Exportar CSV</button>
           </div>
         </div>
 
-        <div class="tableBox">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 95px;">ID</th>
-                <th style="width: 110px;">Reservado</th>
-                <th style="width: 110px;">Aberto</th>
-                <th style="width: 180px;">Loja</th>
-                <th>Fornecedor</th>
-                <th style="width: 130px;">Subcategoria</th>
-                <th>Chave de acesso</th>
-                <th style="width: 150px;">Usuário</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
+        <div id="legend" class="legend"></div>
+
+        <div class="chartWrap">
+          <div id="chart" class="chart"></div>
         </div>
       </div>
 
       <div id="summaryPanel" class="panel summaryPanel">
-        <div class="panelHead summaryPanelHead">
+        <div class="panelHead">
           <div>
-            <h2 class="panelTitle">Contagem por usuário</h2>
-            <div id="summaryMeta" class="hint">0 usuário(s)</div>
+            <h2 class="panelTitle">Resumo</h2>
+            <div id="summaryMeta" class="hint">0 grupo(s)</div>
           </div>
-          <button id="hideSummaryBtn" class="reloadBtn panelMiniBtn" type="button">Ocultar</button>
         </div>
 
         <div class="summaryBig">
@@ -1075,8 +820,39 @@
         <div id="ranking" class="rankList"></div>
       </div>
     </div>
+
+    <div id="detailsPanel" class="panel detailsPanel hidden">
+      <div class="detailsTop">
+        <div>
+          <h2 class="panelTitle">IDs dos chamados</h2>
+          <div id="detailsHint" class="hint">0 chamado(s).</div>
+        </div>
+
+        <input id="searchInput" class="detailsSearch" type="text" placeholder="Buscar na tabela: ID, usuário, loja, fornecedor, NF..." />
+      </div>
+
+      <div class="tableBox">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:95px;">ID</th>
+              <th style="width:110px;">Reservado</th>
+              <th style="width:110px;">Aberto</th>
+              <th style="width:180px;">Loja</th>
+              <th>Fornecedor</th>
+              <th style="width:130px;">Subcategoria</th>
+              <th style="width:130px;">Status</th>
+              <th>Chave de acesso</th>
+              <th style="width:150px;">Usuário</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
+  <div id="tooltip" class="tooltip"></div>
   <div id="toast" class="toast">Copiado</div>
 
   <script>
@@ -1084,6 +860,14 @@
 
     PainelDoca.FIREBASE_DB_URL = 'https://infra-doca-default-rtdb.firebaseio.com';
     PainelDoca.PATH = '/doca_capturas/by_id.json';
+
+    PainelDoca.GROUP_LABELS = {
+      usuario: 'usuário',
+      lojaTexto: 'loja',
+      subcategoria: 'subcategoria',
+      statusNome: 'status',
+      fornecedorNome: 'fornecedor'
+    };
 
     PainelDoca.state = {
       byId: {},
@@ -1093,10 +877,16 @@
       selectedStores: new Set(),
       touchedUsers: false,
       touchedStores: false,
-      filterSignature: '',
+      mode: 'week',
+      weekStart: null,
+      monthStart: null,
+      lastTotalCount: 0,
+      lastTotals: new Map(),
+      detailsVisible: false,
+      summaryVisible: true,
+      queryMode: 'turbo',
       hasInitialLoad: false,
-      dateRangeReloadTimer: null,
-      queryMode: 'turbo'
+      reloadTimer: null
     };
 
     PainelDoca.clean = function (value) {
@@ -1105,18 +895,9 @@
 
     PainelDoca.shortUserName = function (value) {
       value = PainelDoca.clean(value);
-
-      if (!value) {
-        return '';
-      }
-
+      if (!value) return '';
       const parts = value.split(' ').filter(Boolean);
-
-      if (parts.length <= 2) {
-        return value;
-      }
-
-      return parts[0] + ' ' + parts[1];
+      return parts.length <= 2 ? value : parts[0] + ' ' + parts[1];
     };
 
     PainelDoca.onlyDigits = function (value) {
@@ -1139,61 +920,162 @@
         .replace(/'/g, '&#039;');
     };
 
+    PainelDoca.pad = function (n) {
+      return String(n).padStart(2, '0');
+    };
+
     PainelDoca.formatCnpj = function (cnpj) {
       cnpj = PainelDoca.onlyDigits(cnpj);
-
-      if (cnpj.length !== 14) {
-        return cnpj;
-      }
-
+      if (cnpj.length !== 14) return cnpj;
       return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    };
+
+    PainelDoca.toDateInput = function (date) {
+      return `${date.getFullYear()}-${PainelDoca.pad(date.getMonth() + 1)}-${PainelDoca.pad(date.getDate())}`;
+    };
+
+    PainelDoca.dateFromKey = function (key) {
+      const d = new Date(String(key || '') + 'T00:00:00');
+      return String(d) === 'Invalid Date' ? null : d;
+    };
+
+    PainelDoca.cloneDate = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+
+    PainelDoca.addDays = function (date, days) {
+      const d = PainelDoca.cloneDate(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
+    PainelDoca.addMonths = function (date, months) {
+      return new Date(date.getFullYear(), date.getMonth() + months, 1);
+    };
+
+    PainelDoca.startOfWeek = function (date) {
+      const d = PainelDoca.cloneDate(date);
+      d.setDate(d.getDate() - d.getDay());
+      return d;
+    };
+
+    PainelDoca.startOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    };
+
+    PainelDoca.endOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    };
+
+    PainelDoca.shortDateLabel = function (key) {
+      const p = String(key || '').split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}` : key || '—';
+    };
+
+    PainelDoca.fullDateLabel = function (key) {
+      const p = String(key || '').split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : key || '—';
+    };
+
+    PainelDoca.weekdayLabel = function (key) {
+      const d = PainelDoca.dateFromKey(key);
+      const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      return d ? names[d.getDay()] : '';
+    };
+
+    PainelDoca.monthName = function (date) {
+      return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    };
+
+    PainelDoca.todayKey = function () {
+      return PainelDoca.toDateInput(new Date());
+    };
+
+    PainelDoca.inputDateToMs = function (value, endOfDay) {
+      value = PainelDoca.clean(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 0;
+      const parts = value.split('-').map(Number);
+      const d = endOfDay
+        ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999)
+        : new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+      const n = d.getTime();
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelDoca.toMillis = function (item) {
+      const values = [item.capturadoEm, item.atualizadoEm, item.ts];
+      for (const value of values) {
+        const n = Number(value || 0);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      if (item.aberturaISO) {
+        const n = new Date(item.aberturaISO).getTime();
+        if (Number.isFinite(n)) return n;
+      }
+      return 0;
+    };
+
+    PainelDoca.dateKeyFromTs = function (ts) {
+      const n = Number(ts || 0);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '';
+      return PainelDoca.toDateInput(d);
+    };
+
+    PainelDoca.formatDateTimeFromTs = function (ts) {
+      const n = Number(ts || 0);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '';
+      return `${PainelDoca.pad(d.getDate())}/${PainelDoca.pad(d.getMonth() + 1)}/${d.getFullYear()} ${PainelDoca.pad(d.getHours())}:${PainelDoca.pad(d.getMinutes())}`;
     };
 
     PainelDoca.firebaseBaseUrl = function () {
       return PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelDoca.PATH;
     };
 
-    PainelDoca.inputDateToMs = function (value, endOfDay) {
-      value = PainelDoca.clean(value);
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return 0;
+    PainelDoca.currentRange = function () {
+      if (PainelDoca.state.mode === 'week') {
+        const start = PainelDoca.cloneDate(PainelDoca.state.weekStart);
+        const end = PainelDoca.addDays(start, 6);
+        return { start, end, startKey: PainelDoca.toDateInput(start), endKey: PainelDoca.toDateInput(end) };
       }
 
-      const parts = value.split('-').map(Number);
-      const d = endOfDay
-        ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999)
-        : new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+      if (PainelDoca.state.mode === 'month') {
+        const start = PainelDoca.cloneDate(PainelDoca.state.monthStart);
+        const end = PainelDoca.endOfMonth(start);
+        return { start, end, startKey: PainelDoca.toDateInput(start), endKey: PainelDoca.toDateInput(end) };
+      }
 
-      const n = d.getTime();
+      if (PainelDoca.state.mode === 'custom') {
+        const fromInput = document.getElementById('dateFrom');
+        const toInput = document.getElementById('dateTo');
+        if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
+          const old = fromInput.value;
+          fromInput.value = toInput.value;
+          toInput.value = old;
+        }
+        return {
+          start: fromInput.value ? PainelDoca.dateFromKey(fromInput.value) : null,
+          end: toInput.value ? PainelDoca.dateFromKey(toInput.value) : null,
+          startKey: fromInput.value || '',
+          endKey: toInput.value || ''
+        };
+      }
 
-      return Number.isFinite(n) ? n : 0;
+      return { start: null, end: null, startKey: '', endKey: '' };
     };
 
     PainelDoca.firebaseQueryString = function (useServerDateFilter) {
-      if (useServerDateFilter === false) {
-        return '';
-      }
-
+      if (useServerDateFilter === false || PainelDoca.state.mode === 'all') return '';
+      const range = PainelDoca.currentRange();
       const params = new URLSearchParams();
-
-      // Modo turbo: o Firebase filtra por data no servidor.
-      // Para isso ficar rápido e não dar erro, coloque .indexOn: ["capturadoEm"] nas regras.
       params.set('orderBy', JSON.stringify('capturadoEm'));
-
-      const dateFrom = document.getElementById('dateFrom')?.value || '';
-      const dateTo = document.getElementById('dateTo')?.value || '';
-      const startMs = PainelDoca.inputDateToMs(dateFrom, false);
-      const endMs = PainelDoca.inputDateToMs(dateTo, true);
-
-      if (startMs) {
-        params.set('startAt', String(startMs));
-      }
-
-      if (endMs) {
-        params.set('endAt', String(endMs));
-      }
-
+      const startMs = range.startKey ? PainelDoca.inputDateToMs(range.startKey, false) : 0;
+      const endMs = range.endKey ? PainelDoca.inputDateToMs(range.endKey, true) : 0;
+      if (startMs) params.set('startAt', String(startMs));
+      if (endMs) params.set('endAt', String(endMs));
       const query = params.toString();
       return query ? '?' + query : '';
     };
@@ -1202,38 +1084,10 @@
       return PainelDoca.firebaseBaseUrl() + PainelDoca.firebaseQueryString(useServerDateFilter !== false);
     };
 
-    PainelDoca.formatInputDate = function (date) {
-      return `${date.getFullYear()}-${PainelDoca.pad(date.getMonth() + 1)}-${PainelDoca.pad(date.getDate())}`;
-    };
-
-    PainelDoca.setCurrentWeekDates = function () {
-      const from = document.getElementById('dateFrom');
-      const to = document.getElementById('dateTo');
-
-      if (!from || !to) {
-        return;
-      }
-
-      const today = new Date();
-      const day = today.getDay(); // domingo = 0, segunda = 1, ..., sábado = 6
-
-      // Semana no padrão do calendário brasileiro exibido pelo navegador:
-      // domingo até sábado.
-      const sunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day);
-      const saturday = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 6);
-
-      from.value = PainelDoca.formatInputDate(sunday);
-      to.value = PainelDoca.formatInputDate(saturday);
-    };
-
     PainelDoca.hashHue = function (str) {
       let h = 0;
-      str = PainelDoca.norm(str || 'usuario');
-
-      for (let i = 0; i < str.length; i++) {
-        h = (h * 31 + str.charCodeAt(i)) | 0;
-      }
-
+      str = PainelDoca.norm(str || 'grupo');
+      for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
       return Math.abs(h) % 360;
     };
 
@@ -1241,22 +1095,18 @@
       'Elias Araujo': '#0324ff',
       'Camily Assis': '#e6cff2',
       'Elia Maria': '#962bcc',
-      'Patricia': '#ff8e03',
+      'Elia Oliveira': '#962bcc',
+      'Maria Assis': '#ff8e03',
       'Marcia': '#6a0e9c',
       'Helena': '#8c1223'
     };
 
     PainelDoca.fixedColorFor = function (name) {
       const key = PainelDoca.norm(name);
-
       for (const [fixedName, color] of Object.entries(PainelDoca.CORES_FIXAS_POR_USUARIO)) {
         const fixedKey = PainelDoca.norm(fixedName);
-
-        if (key === fixedKey || key.includes(fixedKey) || fixedKey.includes(key)) {
-          return color;
-        }
+        if (key === fixedKey || key.includes(fixedKey) || fixedKey.includes(key)) return color;
       }
-
       return '';
     };
 
@@ -1267,99 +1117,32 @@
     PainelDoca.textColorFor = function (name) {
       const color = PainelDoca.colorFor(name);
       const match = String(color || '').match(/^#([0-9a-f]{6})$/i);
-
-      if (!match) {
-        return '#ffffff';
-      }
-
+      if (!match) return '#ffffff';
       const hex = match[1];
       const r = parseInt(hex.slice(0, 2), 16);
       const g = parseInt(hex.slice(2, 4), 16);
       const b = parseInt(hex.slice(4, 6), 16);
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
       return luminance > 0.62 ? '#111827' : '#ffffff';
-    };
-
-    PainelDoca.toMillis = function (item) {
-      const values = [
-        item.capturadoEm,
-        item.atualizadoEm
-      ];
-
-      for (const value of values) {
-        const n = Number(value || 0);
-
-        if (Number.isFinite(n) && n > 0) {
-          return n;
-        }
-      }
-
-      if (item.aberturaISO) {
-        const n = new Date(item.aberturaISO).getTime();
-
-        if (Number.isFinite(n)) {
-          return n;
-        }
-      }
-
-      return 0;
-    };
-
-    PainelDoca.pad = function (n) {
-      return String(n).padStart(2, '0');
-    };
-
-    PainelDoca.dateKeyFromTs = function (ts) {
-      const n = Number(ts || 0);
-
-      if (!Number.isFinite(n) || n <= 0) {
-        return '';
-      }
-
-      const d = new Date(n);
-
-      if (String(d) === 'Invalid Date') {
-        return '';
-      }
-
-      return `${d.getFullYear()}-${PainelDoca.pad(d.getMonth() + 1)}-${PainelDoca.pad(d.getDate())}`;
-    };
-
-    PainelDoca.formatDateTimeFromTs = function (ts) {
-      const n = Number(ts || 0);
-
-      if (!Number.isFinite(n) || n <= 0) {
-        return '';
-      }
-
-      const d = new Date(n);
-
-      if (String(d) === 'Invalid Date') {
-        return '';
-      }
-
-      return `${PainelDoca.pad(d.getDate())}/${PainelDoca.pad(d.getMonth() + 1)}/${d.getFullYear()} ${PainelDoca.pad(d.getHours())}:${PainelDoca.pad(d.getMinutes())}`;
     };
 
     PainelDoca.normalizeItem = function (key, item) {
       const raw = item && typeof item === 'object' ? item : {};
       const id = PainelDoca.clean(raw.chamadoId || raw.id || key);
-      const usuario = PainelDoca.clean(raw.usuario || raw.operador || raw.nome || '');
-      const lojaTexto = PainelDoca.clean(raw.lojaTexto || '');
+      const usuario = PainelDoca.clean(raw.usuario || raw.operador || raw.nome || 'Sem usuário');
+      const lojaTexto = PainelDoca.clean(raw.lojaTexto || raw.lojaNome || raw.solicitanteLojaTexto || 'Sem loja');
       const lojaCodigo = PainelDoca.clean(raw.lojaCodigo || '');
       const lojaNome = PainelDoca.clean(raw.lojaNome || '');
-      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || '');
-      const subcategoria = PainelDoca.clean(raw.subcategoria || '');
-      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || raw.nfe?.chaveAcesso || '');
-      const cnpjEmitente = PainelDoca.onlyDigits(raw.cnpjEmitente || raw.nfe?.cnpjEmitente || (chaveAcesso.length === 44 ? chaveAcesso.slice(6, 20) : ''));
-      const nfNumero = PainelDoca.onlyDigits(raw.nfNumero || raw.numeroNfChave || raw.nfe?.numero || (chaveAcesso.length === 44 ? chaveAcesso.slice(25, 34) : ''));
+      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || 'Sem fornecedor');
+      const subcategoria = PainelDoca.clean(raw.subcategoria || 'Sem subcategoria');
+      const statusNome = PainelDoca.clean(raw.statusNome || raw.statusAntesNome || 'Sem status');
+      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || (raw.nfe && raw.nfe.chaveAcesso) || '');
+      const cnpjEmitente = PainelDoca.onlyDigits(raw.cnpjEmitente || (raw.nfe && raw.nfe.cnpjEmitente) || (chaveAcesso.length === 44 ? chaveAcesso.slice(6, 20) : ''));
+      const nfNumero = PainelDoca.onlyDigits(raw.nfNumero || raw.numeroNfChave || (raw.nfe && raw.nfe.numero) || (chaveAcesso.length === 44 ? chaveAcesso.slice(25, 34) : ''));
       const nfNumeroLimpo = String(Number(nfNumero || 0) || '');
       const ts = PainelDoca.toMillis(raw);
 
-      if (!id) {
-        return null;
-      }
+      if (!id) return null;
 
       return {
         ...raw,
@@ -1370,9 +1153,10 @@
         lojaNome,
         fornecedorNome,
         subcategoria,
+        statusNome,
         chaveAcesso,
         cnpjEmitente,
-        cnpjEmitenteFormatado: raw.cnpjEmitenteFormatado || raw.nfe?.cnpjEmitenteFormatado || PainelDoca.formatCnpj(cnpjEmitente),
+        cnpjEmitenteFormatado: raw.cnpjEmitenteFormatado || (raw.nfe && raw.nfe.cnpjEmitenteFormatado) || PainelDoca.formatCnpj(cnpjEmitente),
         nfNumero,
         nfNumeroLimpo,
         ts,
@@ -1383,21 +1167,15 @@
 
     PainelDoca.normalizeSnapshot = function (data) {
       const out = {};
-
       for (const [key, item] of Object.entries(data || {})) {
         const normalized = PainelDoca.normalizeItem(key, item);
-
-        if (normalized) {
-          out[normalized.id] = normalized;
-        }
+        if (normalized) out[normalized.id] = normalized;
       }
-
       return out;
     };
 
     PainelDoca.getItems = function () {
-      return Object.values(PainelDoca.state.byId || {})
-        .filter(item => item && item.id);
+      return Object.values(PainelDoca.state.byId || {}).map((item) => PainelDoca.normalizeItem(item.id || item.chamadoId, item)).filter(Boolean);
     };
 
     PainelDoca.unique = function (arr) {
@@ -1409,7 +1187,7 @@
     };
 
     PainelDoca.getAllStores = function () {
-      return PainelDoca.unique(PainelDoca.getItems().map(item => item.lojaTexto || item.lojaNome || item.lojaCodigo));
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.lojaTexto));
     };
 
     PainelDoca.getAllSubcategories = function () {
@@ -1418,89 +1196,67 @@
 
     PainelDoca.getSelectedUsers = function () {
       const all = PainelDoca.getAllUsers();
-
-      if (!PainelDoca.state.touchedUsers) {
-        return all;
-      }
-
+      if (!PainelDoca.state.touchedUsers) return all;
       return all.filter(user => PainelDoca.state.selectedUsers.has(user));
     };
 
     PainelDoca.getSelectedStores = function () {
       const all = PainelDoca.getAllStores();
-
-      if (!PainelDoca.state.touchedStores) {
-        return all;
-      }
-
+      if (!PainelDoca.state.touchedStores) return all;
       return all.filter(store => PainelDoca.state.selectedStores.has(store));
+    };
+
+    PainelDoca.groupNameFor = function (item) {
+      const key = document.getElementById('groupBy').value || 'usuario';
+      let value = item[key];
+      if (key === 'usuario') value = item.usuario;
+      if (key === 'lojaTexto') value = item.lojaTexto || item.lojaNome || item.lojaCodigo;
+      if (key === 'fornecedorNome') value = item.fornecedorNome;
+      if (key === 'subcategoria') value = item.subcategoria;
+      if (key === 'statusNome') value = item.statusNome;
+      return PainelDoca.clean(value || 'Sem informação');
     };
 
     PainelDoca.buildFilterContext = function () {
       const nf = PainelDoca.onlyDigits(document.getElementById('searchNf').value);
-      const itemNfLimpoBusca = String(Number(nf || 0) || '');
-
       return {
         selectedUsers: new Set(PainelDoca.getSelectedUsers()),
         selectedStores: new Set(PainelDoca.getSelectedStores()),
         subcategoria: document.getElementById('filterSubcategoria').value,
-        dateFrom: document.getElementById('dateFrom').value,
-        dateTo: document.getElementById('dateTo').value,
         chamado: PainelDoca.onlyDigits(document.getElementById('searchChamado').value),
         nf,
-        nfLimpo: itemNfLimpoBusca,
+        nfLimpo: String(Number(nf || 0) || ''),
         cnpj: PainelDoca.onlyDigits(document.getElementById('searchCnpj').value),
-        general: PainelDoca.norm(document.getElementById('searchGeneral').value)
+        general: PainelDoca.norm(document.getElementById('searchGeneral').value),
+        range: PainelDoca.currentRange()
       };
     };
 
     PainelDoca.matchesFilters = function (item, ctx) {
       ctx = ctx || PainelDoca.buildFilterContext();
 
-      if (item.usuario && !ctx.selectedUsers.has(item.usuario)) {
-        return false;
-      }
-
-      const storeKey = item.lojaTexto || item.lojaNome || item.lojaCodigo;
-
-      if (storeKey && !ctx.selectedStores.has(storeKey)) {
-        return false;
-      }
-
-      if (ctx.subcategoria && item.subcategoria !== ctx.subcategoria) {
-        return false;
-      }
+      if (item.usuario && !ctx.selectedUsers.has(item.usuario)) return false;
+      if (item.lojaTexto && !ctx.selectedStores.has(item.lojaTexto)) return false;
+      if (ctx.subcategoria && item.subcategoria !== ctx.subcategoria) return false;
 
       const itemDateKey = item.reservaDataKey || PainelDoca.dateKeyFromTs(item.ts);
-
-      if (ctx.dateFrom && (!itemDateKey || itemDateKey < ctx.dateFrom)) {
-        return false;
+      if (PainelDoca.state.mode !== 'all') {
+        if (ctx.range.startKey && (!itemDateKey || itemDateKey < ctx.range.startKey)) return false;
+        if (ctx.range.endKey && (!itemDateKey || itemDateKey > ctx.range.endKey)) return false;
       }
 
-      if (ctx.dateTo && (!itemDateKey || itemDateKey > ctx.dateTo)) {
-        return false;
-      }
-
-      if (ctx.chamado && !PainelDoca.onlyDigits(item.id).includes(ctx.chamado)) {
-        return false;
-      }
+      if (ctx.chamado && !PainelDoca.onlyDigits(item.id).includes(ctx.chamado)) return false;
 
       if (ctx.nf) {
         const itemNf = PainelDoca.onlyDigits(item.nfNumero);
         const itemNfLimpo = String(Number(itemNf || 0) || '');
-
-        if (!itemNf.includes(ctx.nf) && itemNfLimpo !== ctx.nfLimpo && !itemNfLimpo.includes(ctx.nfLimpo)) {
-          return false;
-        }
+        if (!itemNf.includes(ctx.nf) && itemNfLimpo !== ctx.nfLimpo && !itemNfLimpo.includes(ctx.nfLimpo)) return false;
       }
 
       if (ctx.cnpj) {
         const itemCnpj = PainelDoca.onlyDigits(item.cnpjEmitente);
         const chave = PainelDoca.onlyDigits(item.chaveAcesso);
-
-        if (!itemCnpj.includes(ctx.cnpj) && !chave.includes(ctx.cnpj)) {
-          return false;
-        }
+        if (!itemCnpj.includes(ctx.cnpj) && !chave.includes(ctx.cnpj)) return false;
       }
 
       if (ctx.general) {
@@ -1512,15 +1268,13 @@
           item.lojaCodigo,
           item.fornecedorNome,
           item.subcategoria,
+          item.statusNome,
           item.chaveAcesso,
           item.cnpjEmitente,
           item.nfNumero,
           item.descricaoResumo
         ].join(' '));
-
-        if (!text.includes(ctx.general)) {
-          return false;
-        }
+        if (!text.includes(ctx.general)) return false;
       }
 
       return true;
@@ -1528,263 +1282,468 @@
 
     PainelDoca.getVisibleItems = function () {
       const ctx = PainelDoca.buildFilterContext();
-
       return PainelDoca.getItems()
         .filter(item => PainelDoca.matchesFilters(item, ctx))
-        .sort((a, b) => (b.ts || 0) - (a.ts || 0) || b.id.localeCompare(a.id, 'pt-BR'));
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id), 'pt-BR'));
     };
 
-    PainelDoca.getSelectionSummaryText = function (boxId, values, selectedSet, touchedFlagName) {
-      const isUsers = boxId === 'usersBox';
-      const singular = isUsers ? 'usuário' : 'loja';
-      const plural = isUsers ? 'usuários' : 'lojas';
-
-      if (!values.length) {
-        return isUsers ? 'Sem usuários' : 'Sem lojas';
+    PainelDoca.daysInRange = function (start, end) {
+      const days = [];
+      if (!start || !end || end < start) return days;
+      const current = PainelDoca.cloneDate(start);
+      while (current <= end) {
+        days.push(PainelDoca.toDateInput(current));
+        current.setDate(current.getDate() + 1);
       }
-
-      const count = PainelDoca.state[touchedFlagName]
-        ? values.filter(value => selectedSet.has(value)).length
-        : values.length;
-
-      if (count === values.length) {
-        return `Todos os ${plural} (${values.length})`;
-      }
-
-      if (count === 0) {
-        return `Nenhum ${singular}`;
-      }
-
-      return `${count} de ${values.length} ${plural}`;
+      return days;
     };
 
-    PainelDoca.updateMultiSelectCaption = function (boxId, values, selectedSet, touchedFlagName) {
-      const box = document.getElementById(boxId);
-      const text = PainelDoca.getSelectionSummaryText(boxId, values, selectedSet, touchedFlagName);
-      const caption = box ? box.querySelector('.multiSelectSummaryText') : null;
-      const metaId = boxId === 'usersBox' ? 'usersSelectMeta' : 'storesSelectMeta';
-      const meta = document.getElementById(metaId);
+    PainelDoca.getDayKeysFromItems = function (items) {
+      return [...new Set(items.map(item => PainelDoca.dateKeyFromTs(item.ts)).filter(Boolean))].sort();
+    };
 
-      if (caption) {
-        caption.textContent = text;
-        caption.title = text;
+    PainelDoca.getChartDays = function (items) {
+      const mode = PainelDoca.state.mode;
+      const range = PainelDoca.currentRange();
+      if (mode === 'week' || mode === 'month') return PainelDoca.daysInRange(range.start, range.end);
+      const itemDays = PainelDoca.getDayKeysFromItems(items);
+      if (mode === 'custom') {
+        let startKey = range.startKey;
+        let endKey = range.endKey;
+        if (!startKey && itemDays.length) startKey = itemDays[0];
+        if (!endKey && itemDays.length) endKey = itemDays[itemDays.length - 1];
+        if (startKey && endKey) return PainelDoca.daysInRange(PainelDoca.dateFromKey(startKey), PainelDoca.dateFromKey(endKey));
       }
+      return itemDays;
+    };
 
-      if (meta) {
-        meta.textContent = text;
+    PainelDoca.groupDaily = function (items) {
+      const days = PainelDoca.getChartDays(items);
+      const groups = PainelDoca.unique(items.map(item => PainelDoca.groupNameFor(item)));
+      const data = {};
+      for (const day of days) {
+        data[day] = {};
+        for (const group of groups) data[day][group] = 0;
+      }
+      for (const item of items) {
+        const day = PainelDoca.dateKeyFromTs(item.ts);
+        const group = PainelDoca.groupNameFor(item);
+        if (!day || !data[day]) continue;
+        data[day][group] = (data[day][group] || 0) + 1;
+      }
+      return { days, groups, data };
+    };
+
+    PainelDoca.groupTotal = function (items) {
+      const totals = {};
+      for (const item of items) {
+        const group = PainelDoca.groupNameFor(item);
+        totals[group] = (totals[group] || 0) + 1;
+      }
+      return Object.entries(totals).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    };
+
+    PainelDoca.svg = function (tag, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+      return el;
+    };
+
+    PainelDoca.showTooltip = function (event, html) {
+      const t = document.getElementById('tooltip');
+      t.innerHTML = html;
+      t.style.left = event.clientX + 'px';
+      t.style.top = event.clientY + 'px';
+      t.style.opacity = '1';
+    };
+
+    PainelDoca.hideTooltip = function () {
+      document.getElementById('tooltip').style.opacity = '0';
+    };
+
+    PainelDoca.niceTicks = function (max) {
+      max = Math.max(1, max);
+      const step = Math.ceil(max / 4);
+      const ticks = [];
+      for (let i = 0; i <= 4; i++) ticks.push(step * i);
+      return ticks;
+    };
+
+    PainelDoca.drawGrid = function (svg, width, height, margin, max) {
+      const plotH = height - margin.top - margin.bottom;
+      const ticks = PainelDoca.niceTicks(max);
+      const tickMax = Math.max(...ticks);
+      for (const value of ticks) {
+        const y = margin.top + plotH - (value / tickMax) * plotH;
+        svg.appendChild(PainelDoca.svg('line', { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: '#e5e7eb', 'stroke-width': 1 }));
+        const txt = PainelDoca.svg('text', { x: margin.left - 10, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#6b7280' });
+        txt.textContent = value;
+        svg.appendChild(txt);
       }
     };
 
-    PainelDoca.renderChips = function (boxId, values, selectedSet, touchedFlagName, onChange) {
-      const box = document.getElementById(boxId);
-      const isUsers = boxId === 'usersBox';
+    PainelDoca.renderLegend = function (groups) {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      const limited = groups.slice(0, 28);
+      for (const group of limited) {
+        const item = document.createElement('div');
+        item.className = 'legendItem';
+        const dot = document.createElement('span');
+        dot.className = 'legendDot';
+        dot.style.background = PainelDoca.colorFor(group);
+        const txt = document.createElement('span');
+        txt.textContent = document.getElementById('groupBy').value === 'usuario' ? PainelDoca.shortUserName(group) : group;
+        txt.title = group;
+        item.appendChild(dot);
+        item.appendChild(txt);
+        legend.appendChild(item);
+      }
+      if (groups.length > limited.length) {
+        const more = document.createElement('div');
+        more.className = 'legendItem';
+        more.textContent = `+ ${groups.length - limited.length} grupo(s)`;
+        legend.appendChild(more);
+      }
+    };
 
-      if (!box) {
+    PainelDoca.getResolvedChartMode = function (items) {
+      const selected = document.getElementById('chartMode').value;
+      if (selected !== 'auto') return selected;
+      if (PainelDoca.state.mode === 'week') return 'bar';
+      if (PainelDoca.state.mode === 'month') return 'line';
+      if (PainelDoca.state.mode === 'all') return 'total';
+      const days = PainelDoca.getChartDays(items).length;
+      if (days <= 10) return 'bar';
+      if (days <= 120) return 'line';
+      return 'total';
+    };
+
+    PainelDoca.renderBarChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelDoca.groupDaily(items);
+      const days = grouped.days;
+      const groups = grouped.groups;
+      const today = PainelDoca.todayKey();
+      chart.innerHTML = '';
+      if (!groups.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelDoca.renderLegend([]);
         return;
       }
+      PainelDoca.renderLegend(groups);
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 10;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const groupMin = manyDays ? Math.max(38, groups.length * 13) : Math.max(92, groups.length * 30);
+      const width = Math.max(availableWidth, days.length * groupMin);
+      const height = Math.max(430, chart.clientHeight || 450);
+      const margin = { top: 28, right: 28, bottom: manyDays ? 72 : 58, left: 46 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => groups.map(group => grouped.data[day]?.[group] || 0)));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      PainelDoca.drawGrid(svg, width, height, margin, max);
+      const groupW = plotW / days.length;
+      const gap = manyDays ? 7 : 12;
+      const innerW = Math.max(10, groupW - gap);
+      const barGap = manyDays ? 3 : 5;
 
-      if (!PainelDoca.state[touchedFlagName]) {
-        selectedSet.clear();
-        values.forEach(v => selectedSet.add(v));
-      }
+      days.forEach((day, dayIndex) => {
+        if (day !== today) return;
+        const x = margin.left + dayIndex * groupW + 3;
+        svg.appendChild(PainelDoca.svg('rect', { x, y: margin.top - 12, width: Math.max(18, groupW - 6), height: plotH + 22, rx: 15, fill: '#dbeafe', opacity: 0.72 }));
+      });
 
-      for (const value of [...selectedSet]) {
-        if (!values.includes(value)) {
-          selectedSet.delete(value);
-        }
-      }
+      days.forEach((day, dayIndex) => {
+        const groupX = margin.left + dayIndex * groupW + gap / 2;
 
-      box.innerHTML = '';
+        // v10.1: compacta as barras por dia.
+        // Antes a posição era baseada em todos os grupos do período; se um usuário não tinha chamado no dia,
+        // o "slot" dele ficava vazio e criava aquele espaço gigante entre as barras.
+        const presentGroups = groups.filter(group => (grouped.data[day]?.[group] || 0) > 0);
+        const dayBarCount = Math.max(1, presentGroups.length);
+        const dayBarW = Math.max(5, Math.min(manyDays ? 18 : 34, (innerW - (dayBarCount - 1) * barGap) / dayBarCount));
+        const totalBarsW = presentGroups.length ? presentGroups.length * dayBarW + (presentGroups.length - 1) * barGap : 0;
+        const startX = groupX + (innerW - totalBarsW) / 2;
 
-      if (!values.length) {
-        box.innerHTML = '<div class="multiSelectSummary"><span class="multiSelectSummaryText">Sem dados ainda</span></div>';
-        PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
-        return;
-      }
-
-      const details = document.createElement('details');
-      details.className = 'multiSelect';
-
-      const summary = document.createElement('summary');
-      summary.className = 'multiSelectSummary';
-
-      const summaryText = document.createElement('span');
-      summaryText.className = 'multiSelectSummaryText';
-
-      const arrow = document.createElement('span');
-      arrow.className = 'multiSelectArrow';
-      arrow.textContent = '⌄';
-
-      summary.appendChild(summaryText);
-      summary.appendChild(arrow);
-
-      const menu = document.createElement('div');
-      menu.className = 'multiSelectMenu';
-
-      const actions = document.createElement('div');
-      actions.className = 'multiSelectActions';
-
-      const allBtn = document.createElement('button');
-      allBtn.type = 'button';
-      allBtn.className = 'miniSelectBtn';
-      allBtn.textContent = 'Selecionar todos';
-
-      const noneBtn = document.createElement('button');
-      noneBtn.type = 'button';
-      noneBtn.className = 'miniSelectBtn';
-      noneBtn.textContent = 'Limpar seleção';
-
-      actions.appendChild(allBtn);
-      actions.appendChild(noneBtn);
-
-      const search = document.createElement('input');
-      search.type = 'text';
-      search.className = 'multiSelectSearch';
-      search.placeholder = isUsers ? 'Buscar usuário...' : 'Buscar loja...';
-
-      const list = document.createElement('div');
-      list.className = 'multiSelectList';
-
-      function refreshSelectionUi() {
-        const labels = list.querySelectorAll('.multiOption');
-
-        labels.forEach(label => {
-          const input = label.querySelector('input');
-          label.classList.toggle('active', !!input.checked);
-        });
-
-        PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
-      }
-
-      function applyDataFilter() {
-        if (typeof PainelDoca.scheduleDataRender === 'function') {
-          PainelDoca.scheduleDataRender();
-        } else if (typeof onChange === 'function') {
-          onChange();
-        }
-      }
-
-      for (const value of values) {
-        const checked = selectedSet.has(value);
-        const label = document.createElement('label');
-        label.className = 'multiOption' + (checked ? ' active' : '');
-        label.dataset.searchText = PainelDoca.norm(value);
-
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.checked = checked;
-
-        input.addEventListener('change', function () {
-          PainelDoca.state[touchedFlagName] = true;
-
-          if (input.checked) {
-            selectedSet.add(value);
-          } else {
-            selectedSet.delete(value);
+        presentGroups.forEach((group, groupIndex) => {
+          const value = grouped.data[day]?.[group] || 0;
+          const h = Math.max(4, (value / max) * plotH);
+          const x = startX + groupIndex * (dayBarW + barGap);
+          const y = margin.top + plotH - h;
+          const rect = PainelDoca.svg('rect', { x, y, width: dayBarW, height: h, rx: manyDays ? 5 : 8, fill: PainelDoca.colorFor(group) });
+          rect.addEventListener('mousemove', function (event) {
+            PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${PainelDoca.fullDateLabel(day)} • ${value} chamado(s)`);
+          });
+          rect.addEventListener('mouseleave', PainelDoca.hideTooltip);
+          svg.appendChild(rect);
+          if (!manyDays) {
+            const txt = PainelDoca.svg('text', { x: x + dayBarW / 2, y: y - 7, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 950, fill: '#111827' });
+            txt.textContent = value;
+            svg.appendChild(txt);
           }
-
-          refreshSelectionUi();
-          applyDataFilter();
         });
+        const isToday = day === today;
+        const labelX = groupX + innerW / 2;
+        const labelY = height - (manyDays ? 34 : 28);
+        const label = PainelDoca.svg('text', { x: labelX, y: labelY, 'text-anchor': 'middle', 'font-size': manyDays ? 10 : 11, 'font-weight': isToday ? 950 : 500, fill: isToday ? '#2563eb' : '#6b7280' });
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${labelX} ${labelY})`);
+          label.textContent = isToday ? 'Hoje' : PainelDoca.shortDateLabel(day);
+        } else {
+          label.textContent = isToday ? 'Hoje' : `${PainelDoca.weekdayLabel(day)} ${PainelDoca.shortDateLabel(day)}`;
+        }
+        svg.appendChild(label);
+      });
+      chart.appendChild(svg);
+    };
 
+    PainelDoca.renderLineChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelDoca.groupDaily(items);
+      const days = grouped.days;
+      const groups = grouped.groups;
+      const today = PainelDoca.todayKey();
+      chart.innerHTML = '';
+      if (!groups.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelDoca.renderLegend([]);
+        return;
+      }
+      PainelDoca.renderLegend(groups);
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 18;
+      const veryManyDays = days.length > 60;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const dayW = veryManyDays ? 18 : manyDays ? 36 : 76;
+      const width = Math.max(availableWidth, days.length * dayW);
+      const height = Math.max(430, chart.clientHeight || 450);
+      const margin = { top: 30, right: 36, bottom: manyDays ? 72 : 58, left: 46 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => groups.map(group => grouped.data[day]?.[group] || 0)));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      PainelDoca.drawGrid(svg, width, height, margin, max);
+      const xFor = function (index) { return days.length === 1 ? margin.left + plotW / 2 : margin.left + (index / (days.length - 1)) * plotW; };
+      const yFor = function (value) { return margin.top + plotH - (value / max) * plotH; };
+      days.forEach((day, index) => {
+        if (day !== today) return;
+        const x = xFor(index);
+        svg.appendChild(PainelDoca.svg('line', { x1: x, y1: margin.top - 12, x2: x, y2: margin.top + plotH + 8, stroke: '#2563eb', 'stroke-width': 2, 'stroke-dasharray': '6 6', opacity: 0.48 }));
+      });
+      for (const group of groups) {
+        const points = days.map((day, index) => ({ day, x: xFor(index), y: yFor(grouped.data[day]?.[group] || 0), value: grouped.data[day]?.[group] || 0 }));
+        let d = '';
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+          if (i === 0) d += `M ${p.x} ${p.y}`;
+          else {
+            const prev = points[i - 1];
+            const cx1 = prev.x + (p.x - prev.x) * 0.45;
+            const cy1 = prev.y;
+            const cx2 = prev.x + (p.x - prev.x) * 0.55;
+            const cy2 = p.y;
+            d += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
+          }
+        }
+        svg.appendChild(PainelDoca.svg('path', { d, fill: 'none', stroke: PainelDoca.colorFor(group), 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+        for (const p of points) {
+          if (!p.value && veryManyDays) continue;
+          const circle = PainelDoca.svg('circle', { cx: p.x, cy: p.y, r: manyDays ? 4 : 6, fill: '#fff', stroke: PainelDoca.colorFor(group), 'stroke-width': manyDays ? 3 : 4 });
+          circle.addEventListener('mousemove', function (event) {
+            PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${PainelDoca.fullDateLabel(p.day)} • ${p.value} chamado(s)`);
+          });
+          circle.addEventListener('mouseleave', PainelDoca.hideTooltip);
+          svg.appendChild(circle);
+          if (p.value && !manyDays) {
+            const txt = PainelDoca.svg('text', { x: p.x, y: p.y - 12, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 950, fill: '#111827' });
+            txt.textContent = p.value;
+            svg.appendChild(txt);
+          }
+        }
+      }
+      days.forEach((day, index) => {
+        const isToday = day === today;
+        const x = xFor(index);
+        const y = height - (manyDays ? 34 : 28);
+        const label = PainelDoca.svg('text', { x, y, 'text-anchor': 'middle', 'font-size': manyDays ? 10 : 11, 'font-weight': isToday ? 950 : 500, fill: isToday ? '#2563eb' : '#6b7280' });
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${x} ${y})`);
+          label.textContent = isToday ? 'Hoje' : PainelDoca.shortDateLabel(day);
+        } else {
+          label.textContent = isToday ? 'Hoje' : `${PainelDoca.weekdayLabel(day)} ${PainelDoca.shortDateLabel(day)}`;
+        }
+        svg.appendChild(label);
+      });
+      chart.appendChild(svg);
+    };
+
+    PainelDoca.renderTotalChart = function (items) {
+      const chart = document.getElementById('chart');
+      const totals = PainelDoca.groupTotal(items);
+      chart.innerHTML = '';
+      PainelDoca.renderLegend(totals.map(([group]) => group));
+      if (!totals.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado para mostrar.</div>';
+        return;
+      }
+      const wrap = chart.parentElement;
+      const width = Math.max(760, wrap.clientWidth - 8);
+      const height = Math.max(430, Math.min(860, totals.length * 54 + 80, chart.clientHeight || 450));
+      const margin = { top: 28, right: 55, bottom: 34, left: 190 };
+      const plotW = width - margin.left - margin.right;
+      const rowH = Math.min(54, (height - margin.top - margin.bottom) / totals.length);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      totals.forEach(([group, count], index) => {
+        const y = margin.top + index * rowH + 8;
+        const w = Math.max(10, (count / max) * plotW);
+        const label = PainelDoca.svg('text', { x: margin.left - 12, y: y + 22, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 950, fill: '#374151' });
+        label.textContent = document.getElementById('groupBy').value === 'usuario' ? PainelDoca.shortUserName(group) : group;
+        svg.appendChild(label);
+        svg.appendChild(PainelDoca.svg('rect', { x: margin.left, y, width: plotW, height: 28, rx: 14, fill: '#eef2f7' }));
+        const rect = PainelDoca.svg('rect', { x: margin.left, y, width: w, height: 28, rx: 14, fill: PainelDoca.colorFor(group) });
+        rect.addEventListener('mousemove', function (event) { PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${count} chamado(s)`); });
+        rect.addEventListener('mouseleave', PainelDoca.hideTooltip);
+        svg.appendChild(rect);
+        const value = PainelDoca.svg('text', { x: Math.min(margin.left + w + 9, width - margin.right + 8), y: y + 20, 'font-size': 12, 'font-weight': 950, fill: '#111827' });
+        value.textContent = count;
+        svg.appendChild(value);
+      });
+      chart.appendChild(svg);
+    };
+
+    PainelDoca.renderChart = function (items) {
+      const mode = PainelDoca.getResolvedChartMode(items);
+      if (mode === 'bar') return PainelDoca.renderBarChart(items);
+      if (mode === 'line') return PainelDoca.renderLineChart(items);
+      PainelDoca.renderTotalChart(items);
+    };
+
+    PainelDoca.renderHeader = function () {
+      const mode = PainelDoca.state.mode;
+      const label = document.getElementById('periodLabel');
+      const title = document.getElementById('chartTitle');
+      const hint = document.getElementById('chartHint');
+      const prev = document.getElementById('prevPeriodBtn');
+      const next = document.getElementById('nextPeriodBtn');
+      const customRange = document.getElementById('customRange');
+      const groupBy = document.getElementById('groupBy').value;
+      const groupLabel = PainelDoca.GROUP_LABELS[groupBy] || 'grupo';
+      const items = PainelDoca.getVisibleItems();
+      const chartMode = PainelDoca.getResolvedChartMode(items);
+      for (const btn of document.querySelectorAll('.segmented button')) btn.classList.toggle('active', btn.dataset.mode === mode);
+      customRange.classList.toggle('hidden', mode !== 'custom');
+
+      if (mode === 'week') {
+        const range = PainelDoca.currentRange();
+        const currentWeek = PainelDoca.startOfWeek(new Date());
+        title.textContent = chartMode === 'line' ? `Semana por ${groupLabel} em linha` : chartMode === 'total' ? `Resumo da semana por ${groupLabel}` : `Semana por ${groupLabel}`;
+        hint.textContent = 'Domingo a sábado, com hoje em destaque.';
+        label.textContent = `${PainelDoca.shortDateLabel(range.startKey)} até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        prev.disabled = false;
+        next.disabled = PainelDoca.toDateInput(PainelDoca.state.weekStart) >= PainelDoca.toDateInput(currentWeek);
+        return;
+      }
+
+      if (mode === 'month') {
+        const currentMonth = PainelDoca.startOfMonth(new Date());
+        title.textContent = chartMode === 'bar' ? `Mês por ${groupLabel} em barras` : chartMode === 'total' ? `Resumo do mês por ${groupLabel}` : `Mês por ${groupLabel} em linha`;
+        hint.textContent = 'Evolução diária das capturas no mês.';
+        label.textContent = PainelDoca.monthName(PainelDoca.state.monthStart);
+        prev.disabled = false;
+        next.disabled = PainelDoca.toDateInput(PainelDoca.state.monthStart) >= PainelDoca.toDateInput(currentMonth);
+        return;
+      }
+
+      if (mode === 'custom') {
+        const range = PainelDoca.currentRange();
+        title.textContent = chartMode === 'bar' ? `Período por ${groupLabel} em barras` : chartMode === 'total' ? `Resumo do período por ${groupLabel}` : `Período por ${groupLabel} em linha`;
+        if (range.startKey && range.endKey) label.textContent = `${PainelDoca.shortDateLabel(range.startKey)} até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        else if (range.startKey) label.textContent = `Desde ${PainelDoca.shortDateLabel(range.startKey)}`;
+        else if (range.endKey) label.textContent = `Até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        else label.textContent = 'Personalizado';
+        hint.textContent = 'Use as datas para filtrar qualquer intervalo.';
+        prev.disabled = true;
+        next.disabled = true;
+        return;
+      }
+
+      title.textContent = `Tudo por ${groupLabel}`;
+      hint.textContent = 'Todos os chamados carregados.';
+      label.textContent = 'Todos os registros';
+      prev.disabled = true;
+      next.disabled = true;
+    };
+
+    PainelDoca.renderRanking = function (items) {
+      const box = document.getElementById('ranking');
+      const totalEl = document.getElementById('summaryTotal');
+      const totals = PainelDoca.groupTotal(items);
+      const totalCount = totals.reduce((sum, [, count]) => sum + count, 0);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const groupBy = document.getElementById('groupBy').value;
+      const groupLabel = PainelDoca.GROUP_LABELS[groupBy] || 'grupo';
+      document.getElementById('summaryMeta').textContent = `${totals.length} ${groupLabel}(s)`;
+      if (PainelDoca.state.lastTotalCount < totalCount) {
+        totalEl.classList.remove('pulse');
+        void totalEl.offsetWidth;
+        totalEl.classList.add('pulse');
+      }
+      totalEl.textContent = totalCount;
+      if (!totals.length) {
+        box.innerHTML = '<div class="empty">Sem dados.</div>';
+        PainelDoca.state.lastTotals = new Map();
+        PainelDoca.state.lastTotalCount = totalCount;
+        return;
+      }
+      const previousTotals = PainelDoca.state.lastTotals;
+      const nextTotals = new Map(totals);
+      const frag = document.createDocumentFragment();
+      for (const [group, count] of totals) {
+        const item = document.createElement('div');
+        item.className = 'rankItem';
+        const name = document.createElement('div');
+        name.className = 'rankName';
         const dot = document.createElement('span');
         dot.className = 'colorDot';
-        dot.style.background = isUsers ? PainelDoca.colorFor(value) : '#1a82cd';
-
+        dot.style.background = PainelDoca.colorFor(group);
         const text = document.createElement('span');
-        text.className = 'multiOptionText';
-        text.textContent = isUsers ? PainelDoca.shortUserName(value) : value;
-        text.title = value;
-
-        label.appendChild(input);
-        label.appendChild(dot);
-        label.appendChild(text);
-        list.appendChild(label);
+        text.textContent = groupBy === 'usuario' ? PainelDoca.shortUserName(group) : group;
+        text.title = group;
+        name.appendChild(dot);
+        name.appendChild(text);
+        const value = document.createElement('div');
+        value.className = 'rankValue';
+        if ((previousTotals.get(group) || 0) < count) value.classList.add('pulse');
+        value.textContent = count;
+        const track = document.createElement('div');
+        track.className = 'progressTrack';
+        const fill = document.createElement('div');
+        fill.className = 'progressFill';
+        fill.style.background = PainelDoca.colorFor(group);
+        fill.style.width = `${(count / max) * 100}%`;
+        track.appendChild(fill);
+        item.appendChild(name);
+        item.appendChild(value);
+        item.appendChild(track);
+        frag.appendChild(item);
       }
-
-      allBtn.addEventListener('click', function () {
-        PainelDoca.state[touchedFlagName] = true;
-        selectedSet.clear();
-        values.forEach(v => selectedSet.add(v));
-        list.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = true; });
-        refreshSelectionUi();
-        applyDataFilter();
-      });
-
-      noneBtn.addEventListener('click', function () {
-        PainelDoca.state[touchedFlagName] = true;
-        selectedSet.clear();
-        list.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
-        refreshSelectionUi();
-        applyDataFilter();
-      });
-
-      search.addEventListener('input', function () {
-        const q = PainelDoca.norm(search.value);
-
-        list.querySelectorAll('.multiOption').forEach(label => {
-          label.style.display = !q || label.dataset.searchText.includes(q) ? '' : 'none';
-        });
-      });
-
-      menu.appendChild(actions);
-      menu.appendChild(search);
-      menu.appendChild(list);
-      details.appendChild(summary);
-      details.appendChild(menu);
-      box.appendChild(details);
-
-      PainelDoca.updateMultiSelectCaption(boxId, values, selectedSet, touchedFlagName);
-    };
-
-    PainelDoca.renderFilterOptions = function () {
-      PainelDoca.renderChips(
-        'usersBox',
-        PainelDoca.getAllUsers(),
-        PainelDoca.state.selectedUsers,
-        'touchedUsers',
-        PainelDoca.scheduleRender
-      );
-
-      PainelDoca.renderChips(
-        'storesBox',
-        PainelDoca.getAllStores(),
-        PainelDoca.state.selectedStores,
-        'touchedStores',
-        PainelDoca.scheduleRender
-      );
-
-      const select = document.getElementById('filterSubcategoria');
-      const current = select.value;
-      const values = PainelDoca.getAllSubcategories();
-
-      select.innerHTML = '<option value="">Todas</option>';
-
-      for (const value of values) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        select.appendChild(option);
-      }
-
-      if (values.includes(current)) {
-        select.value = current;
-      }
+      box.innerHTML = '';
+      box.appendChild(frag);
+      PainelDoca.state.lastTotals = nextTotals;
+      PainelDoca.state.lastTotalCount = totalCount;
     };
 
     PainelDoca.highlightAccessKey = function (key) {
       key = PainelDoca.onlyDigits(key);
-
-      if (key.length !== 44) {
-        return PainelDoca.escapeHTML(key || '—');
-      }
-
+      if (key.length !== 44) return PainelDoca.escapeHTML(key || '—');
       const p1 = key.slice(0, 6);
       const cnpj = key.slice(6, 20);
       const p2 = key.slice(20, 25);
       const numero = key.slice(25, 34);
       const p3 = key.slice(34);
-
       return [
         PainelDoca.escapeHTML(p1),
         '<span class="keyCnpj" title="CNPJ emitente">' + PainelDoca.escapeHTML(cnpj) + '</span>',
@@ -1794,368 +1753,131 @@
       ].join('');
     };
 
-    PainelDoca.buildTableRow = function (item, isNew) {
+    PainelDoca.buildTableRow = function (item) {
       const tr = document.createElement('tr');
-
-      tr.dataset.rowId = item.id;
-      tr.dataset.ts = String(item.ts || 0);
-      tr.dataset.sortId = item.id || '';
-
-      if (isNew) {
-        tr.classList.add('rowNew');
-        setTimeout(function () {
-          tr.classList.remove('rowNew');
-        }, 1500);
-      }
-
-      const tdId = document.createElement('td');
-      tdId.innerHTML = `
-        <a class="idLink" href="https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a>
+      const link = `https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}`;
+      tr.innerHTML = `
+        <td><a class="idLink" href="${link}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a></td>
+        <td class="dateCell">${item.reservaDataTexto ? PainelDoca.escapeHTML(item.reservaDataTexto).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td class="dateCell">${item.aberturaTexto ? PainelDoca.escapeHTML(item.aberturaTexto).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td><strong>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</strong>${item.lojaCodigo ? '<div class="muted">Loja ' + PainelDoca.escapeHTML(item.lojaCodigo) + '</div>' : ''}</td>
+        <td><div class="supplier">${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</div>${item.cnpjEmitente ? '<div class="muted">CNPJ: ' + PainelDoca.escapeHTML(item.cnpjEmitenteFormatado || PainelDoca.formatCnpj(item.cnpjEmitente)) + '</div>' : ''}${item.nfNumero ? '<div class="muted">NF: ' + PainelDoca.escapeHTML(item.nfNumero) + '</div>' : ''}</td>
+        <td><span class="subcat">${PainelDoca.escapeHTML(item.subcategoria || '—')}</span></td>
+        <td><span class="statusPill">${PainelDoca.escapeHTML(item.statusNome || '—')}</span></td>
+        <td><div class="keyWrap"><div class="keyText">${PainelDoca.highlightAccessKey(item.chaveAcesso)}</div><button class="copyBtn" type="button" data-copy="${PainelDoca.escapeHTML(item.chaveAcesso || '')}">Copiar chave</button></div></td>
+        <td><span class="userPill" title="${PainelDoca.escapeHTML(item.usuario || '—')}" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.usuario) || '—')}</span></td>
       `;
-
-      const tdReservado = document.createElement('td');
-      tdReservado.className = 'dateCell';
-      tdReservado.innerHTML = item.reservaDataTexto
-        ? PainelDoca.escapeHTML(item.reservaDataTexto).replace(' ', '<br>')
-        : '<span class="muted">—</span>';
-
-      const tdAberto = document.createElement('td');
-      tdAberto.className = 'dateCell';
-      tdAberto.innerHTML = item.aberturaTexto
-        ? PainelDoca.escapeHTML(item.aberturaTexto).replace(' ', '<br>')
-        : '<span class="muted">—</span>';
-
-      const tdLoja = document.createElement('td');
-      tdLoja.innerHTML = `
-        <strong>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</strong>
-        ${item.lojaCodigo ? '<div class="muted">Loja ' + PainelDoca.escapeHTML(item.lojaCodigo) + '</div>' : ''}
-      `;
-
-      const tdFornecedor = document.createElement('td');
-      tdFornecedor.innerHTML = `
-        <div class="supplier">${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</div>
-        ${item.cnpjEmitente ? '<div class="muted">CNPJ: ' + PainelDoca.escapeHTML(item.cnpjEmitenteFormatado || PainelDoca.formatCnpj(item.cnpjEmitente)) + '</div>' : ''}
-        ${item.nfNumero ? '<div class="muted">NF: ' + PainelDoca.escapeHTML(item.nfNumero) + '</div>' : ''}
-      `;
-
-      const tdSub = document.createElement('td');
-      tdSub.innerHTML = `<span class="subcat">${PainelDoca.escapeHTML(item.subcategoria || '—')}</span>`;
-
-      const tdKey = document.createElement('td');
-      tdKey.innerHTML = `
-        <div class="keyWrap">
-          <div class="keyText">${PainelDoca.highlightAccessKey(item.chaveAcesso)}</div>
-          <div class="keyActions">
-            <button class="copyBtn" type="button" data-copy="${PainelDoca.escapeHTML(item.chaveAcesso || '')}">Copiar chave</button>
-            <span class="miniLegend"><span class="legendMark" style="background:#fef3c7;"></span> CNPJ</span>
-            <span class="miniLegend"><span class="legendMark" style="background:#dcfce7;"></span> Nº NF</span>
-          </div>
-        </div>
-      `;
-
-      const tdUser = document.createElement('td');
-      tdUser.innerHTML = `
-        <span class="userPill" title="${PainelDoca.escapeHTML(item.usuario || '—')}" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.usuario) || '—')}</span>
-      `;
-
-      [
-        [tdId, 'ID'],
-        [tdReservado, 'Reservado'],
-        [tdAberto, 'Aberto'],
-        [tdLoja, 'Loja'],
-        [tdFornecedor, 'Fornecedor'],
-        [tdSub, 'Subcategoria'],
-        [tdKey, 'Chave'],
-        [tdUser, 'Usuário']
-      ].forEach(function ([td, label]) {
-        td.setAttribute('data-label', label);
-      });
-
-      tr.appendChild(tdId);
-      tr.appendChild(tdReservado);
-      tr.appendChild(tdAberto);
-      tr.appendChild(tdLoja);
-      tr.appendChild(tdFornecedor);
-      tr.appendChild(tdSub);
-      tr.appendChild(tdKey);
-      tr.appendChild(tdUser);
-
       return tr;
     };
 
-    PainelDoca.updateTableHint = function () {
-      const visible = PainelDoca.getVisibleItems().length;
-      document.getElementById('tableHint').textContent = `${visible} chamado(s) filtrado(s) de ${PainelDoca.getItems().length}.`;
-    };
-
-    PainelDoca.ensureEmptyTableState = function () {
+    PainelDoca.renderTable = function (items) {
       const body = document.getElementById('tableBody');
-      const visible = PainelDoca.getVisibleItems().length;
-
-      if (!visible) {
-        body.innerHTML = '<tr data-empty-row="1"><td colspan="8" class="empty">Nenhum chamado encontrado.</td></tr>';
-        return;
+      const search = PainelDoca.norm(document.getElementById('searchInput').value);
+      let rows = [...items];
+      if (search) {
+        rows = rows.filter(item => PainelDoca.norm([
+          item.id, item.usuario, item.lojaTexto, item.fornecedorNome, item.subcategoria, item.statusNome, item.chaveAcesso, item.cnpjEmitente, item.nfNumero
+        ].join(' ')).includes(search));
       }
-
-      const empty = body.querySelector('[data-empty-row]');
-
-      if (empty) {
-        empty.remove();
-      }
-    };
-
-    PainelDoca.sortTableDom = function () {
-      const body = document.getElementById('tableBody');
-      const rows = Array.from(body.querySelectorAll('tr[data-row-id]'));
-
-      rows.sort(function (a, b) {
-        const tsA = Number(a.dataset.ts || 0);
-        const tsB = Number(b.dataset.ts || 0);
-
-        if (tsA !== tsB) {
-          return tsB - tsA;
-        }
-
-        return String(b.dataset.sortId || '').localeCompare(String(a.dataset.sortId || ''), 'pt-BR');
-      });
-
-      rows.forEach(row => body.appendChild(row));
-    };
-
-    PainelDoca.upsertVisibleRow = function (item, isNew) {
-      const body = document.getElementById('tableBody');
-      const old = body.querySelector(`tr[data-row-id="${CSS.escape(item.id)}"]`);
-      const row = PainelDoca.buildTableRow(item, isNew);
-
-      const empty = body.querySelector('[data-empty-row]');
-
-      if (empty) {
-        empty.remove();
-      }
-
-      if (old) {
-        old.replaceWith(row);
-      } else {
-        body.appendChild(row);
-      }
-
-      PainelDoca.sortTableDom();
-      PainelDoca.updateTableHint();
-    };
-
-    PainelDoca.removeVisibleRow = function (id) {
-      const body = document.getElementById('tableBody');
-      const row = body.querySelector(`tr[data-row-id="${CSS.escape(String(id))}"]`);
-
-      if (row) {
-        row.remove();
-      }
-
-      PainelDoca.ensureEmptyTableState();
-      PainelDoca.updateTableHint();
-    };
-
-    PainelDoca.renderTable = function () {
-      const body = document.getElementById('tableBody');
-      const rows = PainelDoca.getVisibleItems();
-
-      PainelDoca.updateTableHint();
-
+      document.getElementById('detailsHint').textContent = `${rows.length} chamado(s).`;
       if (!rows.length) {
-        body.innerHTML = '<tr data-empty-row="1"><td colspan="8" class="empty">Nenhum chamado encontrado.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" class="empty">Nenhum ID para mostrar.</td></tr>';
         return;
       }
-
       const frag = document.createDocumentFragment();
-
-      for (const item of rows) {
-        frag.appendChild(PainelDoca.buildTableRow(item, false));
-      }
-
+      for (const item of rows) frag.appendChild(PainelDoca.buildTableRow(item));
       body.innerHTML = '';
       body.appendChild(frag);
     };
 
-    PainelDoca.applyVisibleItemChange = function (id, beforeVisible, afterVisible) {
-      if (!beforeVisible && !afterVisible) {
+    PainelDoca.renderChips = function (boxId, values, selectedSet, touchedName, colorByUser) {
+      const box = document.getElementById(boxId);
+      const meta = document.getElementById(boxId === 'usersBox' ? 'usersMeta' : 'storesMeta');
+      const singular = boxId === 'usersBox' ? 'usuário' : 'loja';
+      const plural = boxId === 'usersBox' ? 'usuários' : 'lojas';
+      if (!PainelDoca.state[touchedName]) {
+        selectedSet.clear();
+        values.forEach(v => selectedSet.add(v));
+      }
+      for (const value of [...selectedSet]) if (!values.includes(value)) selectedSet.delete(value);
+      const count = PainelDoca.state[touchedName] ? values.filter(v => selectedSet.has(v)).length : values.length;
+      meta.textContent = !values.length ? `Sem ${plural}` : count === values.length ? `Todos (${values.length})` : count === 0 ? `Nenhum ${singular}` : `${count} de ${values.length}`;
+      box.innerHTML = '';
+      if (!values.length) {
+        box.innerHTML = `<span class="hint">Sem ${plural} ainda</span>`;
         return;
       }
-
-      if (!afterVisible) {
-        PainelDoca.removeVisibleRow(id);
-        PainelDoca.renderRanking();
-        return;
-      }
-
-      const item = PainelDoca.normalizeItem(id, PainelDoca.state.byId[id]);
-
-      if (!item) {
-        return;
-      }
-
-      PainelDoca.upsertVisibleRow(item, !beforeVisible);
-      PainelDoca.renderRanking();
-    };
-
-    PainelDoca.groupByUser = function (items) {
-      const totals = {};
-
-      for (const item of items) {
-        const user = item.usuario || 'Sem usuário';
-        totals[user] = (totals[user] || 0) + 1;
-      }
-
-      return Object.entries(totals)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
-    };
-
-    PainelDoca.renderRanking = function () {
-      const items = PainelDoca.getVisibleItems();
-      const totals = PainelDoca.groupByUser(items);
-      const totalCount = totals.reduce((sum, [, count]) => sum + count, 0);
-      const max = Math.max(1, ...totals.map(([, count]) => count));
-      const box = document.getElementById('ranking');
-
-      document.getElementById('summaryTotal').textContent = totalCount;
-      document.getElementById('summaryMeta').textContent = `${totals.length} usuário(s)`;
-
-      if (!totals.length) {
-        box.innerHTML = '<div class="empty">Sem dados.</div>';
-        return;
-      }
-
-      const frag = document.createDocumentFragment();
-
-      for (const [user, count] of totals) {
-        const item = document.createElement('div');
-        item.className = 'rankItem';
-
-        const name = document.createElement('div');
-        name.className = 'rankName';
-
+      for (const value of values) {
+        const checked = selectedSet.has(value);
+        const label = document.createElement('label');
+        label.className = 'chip' + (checked ? ' active' : '');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+        input.addEventListener('change', function () {
+          PainelDoca.state[touchedName] = true;
+          if (input.checked) selectedSet.add(value);
+          else selectedSet.delete(value);
+          PainelDoca.scheduleRender();
+        });
         const dot = document.createElement('span');
         dot.className = 'colorDot';
-        dot.style.background = PainelDoca.colorFor(user);
-
+        dot.style.background = colorByUser ? PainelDoca.colorFor(value) : '#1a82cd';
         const text = document.createElement('span');
-        text.textContent = PainelDoca.shortUserName(user);
-        text.title = user;
-
-        name.appendChild(dot);
-        name.appendChild(text);
-
-        const value = document.createElement('div');
-        value.className = 'rankValue';
-        value.textContent = count;
-
-        const track = document.createElement('div');
-        track.className = 'progressTrack';
-
-        const fill = document.createElement('div');
-        fill.className = 'progressFill';
-        fill.style.background = PainelDoca.colorFor(user);
-        fill.style.width = `${(count / max) * 100}%`;
-
-        track.appendChild(fill);
-
-        item.appendChild(name);
-        item.appendChild(value);
-        item.appendChild(track);
-
-        frag.appendChild(item);
+        text.textContent = colorByUser ? PainelDoca.shortUserName(value) : value;
+        text.title = value;
+        label.appendChild(input);
+        label.appendChild(dot);
+        label.appendChild(text);
+        box.appendChild(label);
       }
-
-      box.innerHTML = '';
-      box.appendChild(frag);
     };
 
-    PainelDoca.filterSignature = function () {
-      return JSON.stringify({
-        users: PainelDoca.getAllUsers(),
-        stores: PainelDoca.getAllStores(),
-        subcategories: PainelDoca.getAllSubcategories()
-      });
-    };
-
-    PainelDoca.renderData = function () {
-      PainelDoca.renderTable();
-      PainelDoca.renderRanking();
+    PainelDoca.renderFilterOptions = function () {
+      PainelDoca.renderChips('usersBox', PainelDoca.getAllUsers(), PainelDoca.state.selectedUsers, 'touchedUsers', true);
+      PainelDoca.renderChips('storesBox', PainelDoca.getAllStores(), PainelDoca.state.selectedStores, 'touchedStores', false);
+      const select = document.getElementById('filterSubcategoria');
+      const current = select.value;
+      const values = PainelDoca.getAllSubcategories();
+      select.innerHTML = '<option value="">Todas</option>';
+      for (const value of values) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      }
+      if (values.includes(current)) select.value = current;
     };
 
     PainelDoca.render = function () {
       PainelDoca.renderFilterOptions();
-      PainelDoca.state.filterSignature = PainelDoca.filterSignature();
-      PainelDoca.renderData();
-    };
-
-    PainelDoca.refreshFiltersIfNeeded = function () {
-      const nextSignature = PainelDoca.filterSignature();
-
-      if (nextSignature !== PainelDoca.state.filterSignature) {
-        PainelDoca.renderFilterOptions();
-        PainelDoca.state.filterSignature = nextSignature;
-      }
+      PainelDoca.renderHeader();
+      const items = PainelDoca.getVisibleItems();
+      PainelDoca.renderChart(items);
+      PainelDoca.renderRanking(items);
+      if (PainelDoca.state.detailsVisible) PainelDoca.renderTable(items);
     };
 
     PainelDoca.scheduleRender = function () {
-      if (PainelDoca.state.renderFrame) {
-        cancelAnimationFrame(PainelDoca.state.renderFrame);
-      }
-
+      if (PainelDoca.state.renderFrame) cancelAnimationFrame(PainelDoca.state.renderFrame);
       PainelDoca.state.renderFrame = requestAnimationFrame(function () {
         PainelDoca.state.renderFrame = null;
         PainelDoca.render();
       });
     };
 
-    PainelDoca.scheduleDataRender = function () {
-      if (PainelDoca.state.renderFrame) {
-        cancelAnimationFrame(PainelDoca.state.renderFrame);
-      }
-
-      PainelDoca.state.renderFrame = requestAnimationFrame(function () {
-        PainelDoca.state.renderFrame = null;
-        PainelDoca.renderData();
-      });
-    };
-
-    PainelDoca.visibleFingerprint = function () {
-      return PainelDoca.getVisibleItems()
-        .map(item => [
-          item.id,
-          item.ts || 0,
-          item.usuario || '',
-          item.statusId || '',
-          item.chaveAcesso || '',
-          item.fornecedorNome || ''
-        ].join(':'))
-        .join('|');
-    };
-
     PainelDoca.setStatus = function (ok, text) {
       const dot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
-
       dot.className = 'dot ' + (ok ? 'ok' : 'err');
       statusText.textContent = text;
-
-      const now = new Date();
-      document.getElementById('lastUpdate').textContent = `Atualizado às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     };
 
     PainelDoca.fetchSnapshot = async function (useServerDateFilter) {
-      const res = await fetch(PainelDoca.firebaseUrl(useServerDateFilter), {
-        cache: 'no-store'
-      });
-
+      const res = await fetch(PainelDoca.firebaseUrl(useServerDateFilter), { cache: 'no-store' });
       let data = null;
-
-      try {
-        data = await res.json();
-      } catch (_) {
-        throw new Error(`Resposta inválida do Firebase. HTTP ${res.status}`);
-      }
-
+      try { data = await res.json(); }
+      catch (_) { throw new Error(`Resposta inválida do Firebase. HTTP ${res.status}`); }
       if (!res.ok || (data && data.error)) {
         const message = (data && data.error) || `HTTP ${res.status}`;
         const error = new Error(message);
@@ -2163,22 +1885,12 @@
         error.firebasePayload = data;
         throw error;
       }
-
       return data || {};
     };
 
-    PainelDoca.showLoadErrorInTable = function (error) {
-      const body = document.getElementById('tableBody');
-      const message = PainelDoca.escapeHTML(error && error.message ? error.message : 'Erro desconhecido');
-
-      body.innerHTML = `
-        <tr data-empty-row="1">
-          <td colspan="8" class="empty">
-            Não consegui carregar o Firebase.<br>
-            <span class="muted">Detalhe: ${message}</span>
-          </td>
-        </tr>
-      `;
+    PainelDoca.showLoadError = function (error) {
+      document.getElementById('chart').innerHTML = `<div class="empty">Não consegui carregar o Firebase.<br><span class="muted">${PainelDoca.escapeHTML(error && error.message ? error.message : 'Erro desconhecido')}</span></div>`;
+      document.getElementById('tableBody').innerHTML = '<tr><td colspan="9" class="empty">Erro ao carregar dados.</td></tr>';
     };
 
     PainelDoca.loadInitial = async function () {
@@ -2186,122 +1898,54 @@
         PainelDoca.state.eventSource.close();
         PainelDoca.state.eventSource = null;
       }
-
       PainelDoca.state.hasInitialLoad = false;
-
       try {
         PainelDoca.setStatus(false, 'Carregando turbo...');
-
         const data = await PainelDoca.fetchSnapshot(true);
-
         PainelDoca.state.queryMode = 'turbo';
         PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
         PainelDoca.state.hasInitialLoad = true;
         PainelDoca.setStatus(true, 'Online turbo');
+        PainelDoca.state.lastTotalCount = 0;
+        PainelDoca.state.lastTotals = new Map();
         PainelDoca.scheduleRender();
         PainelDoca.connectRealtime(true);
       } catch (turboError) {
-        console.warn('Modo turbo do Firebase falhou. Tentando modo seguro sem query indexada:', turboError);
-
+        console.warn('Modo turbo do Firebase falhou. Tentando modo seguro sem filtro por índice:', turboError);
         try {
           PainelDoca.setStatus(false, 'Modo seguro...');
-
           const data = await PainelDoca.fetchSnapshot(false);
-
           PainelDoca.state.queryMode = 'seguro';
           PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
           PainelDoca.state.hasInitialLoad = true;
           PainelDoca.setStatus(true, 'Online seguro');
+          PainelDoca.toast('Modo seguro: confira .indexOn capturadoEm');
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
           PainelDoca.scheduleRender();
-          PainelDoca.toast('Modo seguro: falta indexar capturadoEm');
           PainelDoca.connectRealtime(false);
         } catch (safeError) {
           console.error('Erro ao carregar Firebase:', safeError);
           PainelDoca.state.byId = {};
-          PainelDoca.state.hasInitialLoad = false;
           PainelDoca.setStatus(false, 'Erro');
-          PainelDoca.showLoadErrorInTable(safeError);
-          PainelDoca.renderRanking();
+          PainelDoca.showLoadError(safeError);
         }
       }
     };
 
     PainelDoca.applyRemoteItem = function (id, item) {
       const normalized = PainelDoca.normalizeItem(id, item);
-
-      if (!normalized) {
-        delete PainelDoca.state.byId[id];
-        return;
-      }
-
-      PainelDoca.state.byId[normalized.id] = normalized;
-    };
-
-    PainelDoca.applyChangedChild = function (id, data, eventType) {
-      id = PainelDoca.clean(id);
-
-      if (!id) {
-        return false;
-      }
-
-      const beforeItem = PainelDoca.state.byId[id]
-        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
-        : null;
-
-      const beforeVisible = beforeItem ? PainelDoca.matchesFilters(beforeItem) : false;
-
-      if (data === null) {
-        delete PainelDoca.state.byId[id];
-
-        if (beforeVisible) {
-          PainelDoca.removeVisibleRow(id);
-          PainelDoca.renderRanking();
-          return true;
-        }
-
-        return false;
-      }
-
-      if (eventType === 'patch') {
-        const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
-        Object.assign(current, data || {});
-        PainelDoca.applyRemoteItem(id, current);
-      } else {
-        PainelDoca.applyRemoteItem(id, data);
-      }
-
-      const afterItem = PainelDoca.state.byId[id]
-        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
-        : null;
-
-      const afterVisible = afterItem ? PainelDoca.matchesFilters(afterItem) : false;
-
-      if (!beforeVisible && !afterVisible) {
-        return false;
-      }
-
-      PainelDoca.applyVisibleItemChange(id, beforeVisible, afterVisible);
-      return true;
+      if (!normalized) delete PainelDoca.state.byId[id];
+      else PainelDoca.state.byId[normalized.id] = normalized;
     };
 
     PainelDoca.handleFirebaseEvent = function (raw, eventType) {
       let payload;
-
-      try {
-        payload = JSON.parse(raw || '{}');
-      } catch (_) {
-        return;
-      }
-
-      eventType = eventType || 'put';
-
+      try { payload = JSON.parse(raw || '{}'); }
+      catch (_) { return; }
       const path = String(payload.path || '/');
       const data = payload.data;
-      const cleanPath = path.replace(/^\/+/, '');
-      const parts = cleanPath.split('/').filter(Boolean);
-
-      // Primeiro PUT do EventSource costuma ser o snapshot inteiro.
-      // Como já carregamos pelo fetch inicial, ignoramos para não redesenhar tudo de novo.
+      const parts = path.replace(/^\/+/, '').split('/').filter(Boolean);
       if ((path === '/' || path === '') && eventType === 'put') {
         if (!PainelDoca.state.hasInitialLoad) {
           PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
@@ -2309,85 +1953,37 @@
           PainelDoca.setStatus(true, 'Online');
           PainelDoca.scheduleRender();
         }
-
         return;
       }
-
-      // PATCH na raiz não é snapshot completo. Normalmente vem só com o(s) filho(s) alterado(s).
-      // Aqui fica o comportamento tipo AJAX: aplica apenas a linha nova/alterada.
       if ((path === '/' || path === '') && eventType === 'patch') {
-        let changedVisible = false;
-
         for (const [childId, childData] of Object.entries(data || {})) {
-          if (PainelDoca.applyChangedChild(childId, childData, 'patch')) {
-            changedVisible = true;
-          }
+          if (childData === null) delete PainelDoca.state.byId[childId];
+          else PainelDoca.applyRemoteItem(childId, childData);
         }
-
-        if (changedVisible) {
-          PainelDoca.setStatus(true, 'Online');
-        }
-
-        return;
-      }
-
-      const id = PainelDoca.clean(parts[0]);
-
-      if (!id) {
-        return;
-      }
-
-      if (parts.length === 1) {
-        const changedVisible = PainelDoca.applyChangedChild(id, data, eventType);
-
-        if (changedVisible) {
-          PainelDoca.setStatus(true, 'Online');
-        }
-
-        return;
-      }
-
-      const beforeItem = PainelDoca.state.byId[id]
-        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
-        : null;
-
-      const beforeVisible = beforeItem ? PainelDoca.matchesFilters(beforeItem) : false;
-      const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
-      current[parts[1]] = data;
-      PainelDoca.applyRemoteItem(id, current);
-
-      const afterItem = PainelDoca.state.byId[id]
-        ? PainelDoca.normalizeItem(id, PainelDoca.state.byId[id])
-        : null;
-
-      const afterVisible = afterItem ? PainelDoca.matchesFilters(afterItem) : false;
-
-      if (beforeVisible || afterVisible) {
         PainelDoca.setStatus(true, 'Online');
-        PainelDoca.applyVisibleItemChange(id, beforeVisible, afterVisible);
+        PainelDoca.scheduleRender();
+        return;
       }
+      const id = PainelDoca.clean(parts[0]);
+      if (!id) return;
+      if (data === null) delete PainelDoca.state.byId[id];
+      else if (parts.length === 1) PainelDoca.applyRemoteItem(id, data);
+      else {
+        const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
+        current[parts[1]] = data;
+        PainelDoca.applyRemoteItem(id, current);
+      }
+      PainelDoca.setStatus(true, 'Online');
+      PainelDoca.scheduleRender();
     };
 
     PainelDoca.connectRealtime = function (useServerDateFilter) {
-      if (PainelDoca.state.eventSource) {
-        PainelDoca.state.eventSource.close();
-      }
-
+      if (PainelDoca.state.eventSource) PainelDoca.state.eventSource.close();
       try {
         const es = new EventSource(PainelDoca.firebaseUrl(useServerDateFilter !== false));
-
-        es.addEventListener('put', function (event) {
-          PainelDoca.handleFirebaseEvent(event.data, 'put');
-        });
-
-        es.addEventListener('patch', function (event) {
-          PainelDoca.handleFirebaseEvent(event.data, 'patch');
-        });
-
-        es.onerror = function () {
-          PainelDoca.setStatus(false, 'Reconectando...');
-        };
-
+        es.addEventListener('put', function (event) { PainelDoca.handleFirebaseEvent(event.data, 'put'); });
+        es.addEventListener('patch', function (event) { PainelDoca.handleFirebaseEvent(event.data, 'patch'); });
+        es.onerror = function () { PainelDoca.setStatus(false, 'Reconectando...'); };
         PainelDoca.state.eventSource = es;
       } catch (error) {
         console.error('Erro no realtime:', error);
@@ -2395,37 +1991,59 @@
       }
     };
 
-    PainelDoca.copyText = async function (text) {
-      text = PainelDoca.clean(text);
-
-      if (!text) {
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch (_) {
-        const input = document.createElement('textarea');
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        input.remove();
-      }
-
-      PainelDoca.toast('Chave copiada');
+    PainelDoca.reloadForRange = function () {
+      clearTimeout(PainelDoca.state.reloadTimer);
+      PainelDoca.state.reloadTimer = setTimeout(PainelDoca.loadInitial, 220);
+      PainelDoca.scheduleRender();
     };
 
-    PainelDoca.toast = function (message) {
-      const el = document.getElementById('toast');
+    PainelDoca.setMode = function (mode) {
+      PainelDoca.state.mode = mode;
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      PainelDoca.loadInitial();
+      PainelDoca.scheduleRender();
+    };
 
-      el.textContent = message;
-      el.classList.add('show');
+    PainelDoca.prevPeriod = function () {
+      if (PainelDoca.state.mode === 'week') PainelDoca.state.weekStart = PainelDoca.addDays(PainelDoca.state.weekStart, -7);
+      if (PainelDoca.state.mode === 'month') PainelDoca.state.monthStart = PainelDoca.addMonths(PainelDoca.state.monthStart, -1);
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      PainelDoca.loadInitial();
+      PainelDoca.scheduleRender();
+    };
 
-      clearTimeout(PainelDoca.toastTimer);
-      PainelDoca.toastTimer = setTimeout(function () {
-        el.classList.remove('show');
-      }, 1500);
+    PainelDoca.nextPeriod = function () {
+      if (PainelDoca.state.mode === 'week') {
+        const currentWeek = PainelDoca.startOfWeek(new Date());
+        const next = PainelDoca.addDays(PainelDoca.state.weekStart, 7);
+        if (PainelDoca.toDateInput(next) <= PainelDoca.toDateInput(currentWeek)) PainelDoca.state.weekStart = next;
+      }
+      if (PainelDoca.state.mode === 'month') {
+        const currentMonth = PainelDoca.startOfMonth(new Date());
+        const next = PainelDoca.addMonths(PainelDoca.state.monthStart, 1);
+        if (PainelDoca.toDateInput(next) <= PainelDoca.toDateInput(currentMonth)) PainelDoca.state.monthStart = next;
+      }
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      PainelDoca.loadInitial();
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.toggleDetails = function () {
+      PainelDoca.state.detailsVisible = !PainelDoca.state.detailsVisible;
+      document.getElementById('detailsPanel').classList.toggle('hidden', !PainelDoca.state.detailsVisible);
+      document.getElementById('toggleDetailsBtn').textContent = PainelDoca.state.detailsVisible ? 'Ocultar IDs' : 'Ver IDs';
+      if (PainelDoca.state.detailsVisible) PainelDoca.renderTable(PainelDoca.getVisibleItems());
+    };
+
+    PainelDoca.toggleSummary = function () {
+      PainelDoca.state.summaryVisible = !PainelDoca.state.summaryVisible;
+      document.getElementById('summaryPanel').classList.toggle('hidden', !PainelDoca.state.summaryVisible);
+      document.getElementById('mainGrid').classList.toggle('noSummary', !PainelDoca.state.summaryVisible);
+      document.getElementById('summaryToggleBtn').textContent = PainelDoca.state.summaryVisible ? 'Ocultar resumo' : 'Mostrar resumo';
+      PainelDoca.scheduleRender();
     };
 
     PainelDoca.clearFilters = function () {
@@ -2433,195 +2051,110 @@
       document.getElementById('searchChamado').value = '';
       document.getElementById('searchNf').value = '';
       document.getElementById('searchCnpj').value = '';
-      PainelDoca.setCurrentWeekDates();
       document.getElementById('filterSubcategoria').value = '';
-
+      document.getElementById('searchInput').value = '';
       PainelDoca.state.touchedUsers = false;
       PainelDoca.state.touchedStores = false;
       PainelDoca.state.selectedUsers.clear();
       PainelDoca.state.selectedStores.clear();
-
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
       PainelDoca.scheduleRender();
     };
 
-    PainelDoca.toggleAll = function (type) {
-      const isUsers = type === 'users';
-      const values = isUsers ? PainelDoca.getAllUsers() : PainelDoca.getAllStores();
-      const set = isUsers ? PainelDoca.state.selectedUsers : PainelDoca.state.selectedStores;
-      const flag = isUsers ? 'touchedUsers' : 'touchedStores';
-
-      PainelDoca.state[flag] = true;
-
-      if (set.size === values.length) {
-        set.clear();
-      } else {
-        set.clear();
-        values.forEach(v => set.add(v));
+    PainelDoca.copyText = async function (text) {
+      text = PainelDoca.clean(text);
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); }
+      catch (_) {
+        const input = document.createElement('textarea');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
       }
-
-      PainelDoca.scheduleRender();
+      PainelDoca.toast('Chave copiada');
     };
 
-    PainelDoca.setSummaryVisible = function (visible) {
-      document.body.classList.toggle('summaryHidden', !visible);
-
-      const toggleBtn = document.getElementById('showSummaryBtn');
-
-      if (toggleBtn) {
-        toggleBtn.textContent = visible ? 'Ocultar contagem' : 'Mostrar contagem';
-      }
-
-      try {
-        localStorage.setItem('PainelDoca.summaryHidden', visible ? '0' : '1');
-      } catch (_) {}
-    };
-
-    PainelDoca.toggleSummaryPanel = function () {
-      const hidden = document.body.classList.contains('summaryHidden');
-      PainelDoca.setSummaryVisible(hidden);
-    };
-
-    PainelDoca.applySavedSummaryState = function () {
-      let hidden = false;
-
-      try {
-        hidden = localStorage.getItem('PainelDoca.summaryHidden') === '1';
-      } catch (_) {}
-
-      PainelDoca.setSummaryVisible(!hidden);
+    PainelDoca.toast = function (message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(PainelDoca.toastTimer);
+      PainelDoca.toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1500);
     };
 
     PainelDoca.exportCsv = function () {
       const rows = PainelDoca.getVisibleItems();
-      const header = [
-        'chamadoId',
-        'lojaTexto',
-        'fornecedorNome',
-        'subcategoria',
-        'chaveAcesso',
-        'cnpjEmitente',
-        'nfNumero',
-        'usuario',
-        'capturadoEm',
-        'reservaDataTexto',
-        'aberturaTexto'
-      ];
-
+      const header = ['chamadoId', 'reservadoEm', 'aberturaTexto', 'lojaTexto', 'fornecedorNome', 'subcategoria', 'statusNome', 'chaveAcesso', 'cnpjEmitente', 'nfNumero', 'usuario'];
       const lines = [header.join(';')];
-
       for (const item of rows) {
-        const values = header.map(key => {
-          const raw = PainelDoca.clean(item[key] || '');
-          return '"' + raw.replace(/"/g, '""') + '"';
-        });
-
+        const values = [item.id, item.reservaDataTexto, item.aberturaTexto, item.lojaTexto, item.fornecedorNome, item.subcategoria, item.statusNome, item.chaveAcesso, item.cnpjEmitente, item.nfNumero, item.usuario]
+          .map(value => '"' + PainelDoca.clean(value).replace(/"/g, '""') + '"');
         lines.push(values.join(';'));
       }
-
       const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-
       a.href = url;
-      a.download = 'infra-doca-capturas.csv';
+      a.download = 'infra-doca-capturas-graficos.csv';
       document.body.appendChild(a);
       a.click();
       a.remove();
-
       URL.revokeObjectURL(url);
     };
 
-    PainelDoca.reloadFirebaseView = function () {
-      PainelDoca.loadInitial();
-    };
-
-    PainelDoca.reloadForDateRange = function () {
-      clearTimeout(PainelDoca.state.dateRangeReloadTimer);
-
-      PainelDoca.state.dateRangeReloadTimer = setTimeout(function () {
-        PainelDoca.reloadFirebaseView();
-      }, 250);
-
-      PainelDoca.scheduleRender();
-    };
-
     PainelDoca.bind = function () {
-      const clientFilterIds = [
-        'searchGeneral',
-        'searchChamado',
-        'searchNf',
-        'searchCnpj',
-        'filterSubcategoria'
-      ];
-
-      clientFilterIds.forEach(id => {
-        document.getElementById(id).addEventListener('input', PainelDoca.scheduleRender);
-        document.getElementById(id).addEventListener('change', PainelDoca.scheduleRender);
+      document.getElementById('modeWeek').addEventListener('click', () => PainelDoca.setMode('week'));
+      document.getElementById('modeMonth').addEventListener('click', () => PainelDoca.setMode('month'));
+      document.getElementById('modeCustom').addEventListener('click', () => PainelDoca.setMode('custom'));
+      document.getElementById('modeAll').addEventListener('click', () => PainelDoca.setMode('all'));
+      document.getElementById('prevPeriodBtn').addEventListener('click', PainelDoca.prevPeriod);
+      document.getElementById('nextPeriodBtn').addEventListener('click', PainelDoca.nextPeriod);
+      document.getElementById('dateFrom').addEventListener('change', PainelDoca.reloadForRange);
+      document.getElementById('dateTo').addEventListener('change', PainelDoca.reloadForRange);
+      ['searchGeneral', 'searchChamado', 'searchNf', 'searchCnpj', 'filterSubcategoria', 'groupBy', 'chartMode'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('input', function () {
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+          PainelDoca.scheduleRender();
+        });
+        el.addEventListener('change', function () {
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+          PainelDoca.scheduleRender();
+        });
       });
-
-      ['dateFrom', 'dateTo'].forEach(id => {
-        document.getElementById(id).addEventListener('input', PainelDoca.reloadForDateRange);
-        document.getElementById(id).addEventListener('change', PainelDoca.reloadForDateRange);
+      document.getElementById('searchInput').addEventListener('input', function () {
+        PainelDoca.renderTable(PainelDoca.getVisibleItems());
       });
-
-      document.getElementById('clearBtn').addEventListener('click', function () {
-        PainelDoca.clearFilters();
-        PainelDoca.reloadFirebaseView();
-      });
-      document.getElementById('reloadBtn').addEventListener('click', PainelDoca.reloadFirebaseView);
+      document.getElementById('clearBtn').addEventListener('click', PainelDoca.clearFilters);
+      document.getElementById('reloadBtn').addEventListener('click', PainelDoca.loadInitial);
+      document.getElementById('toggleDetailsBtn').addEventListener('click', PainelDoca.toggleDetails);
+      document.getElementById('summaryToggleBtn').addEventListener('click', PainelDoca.toggleSummary);
       document.getElementById('exportBtn').addEventListener('click', PainelDoca.exportCsv);
-
-      const showSummaryBtn = document.getElementById('showSummaryBtn');
-      const hideSummaryBtn = document.getElementById('hideSummaryBtn');
-
-      if (showSummaryBtn) {
-        showSummaryBtn.addEventListener('click', PainelDoca.toggleSummaryPanel);
-      }
-
-      if (hideSummaryBtn) {
-        hideSummaryBtn.addEventListener('click', function () {
-          PainelDoca.setSummaryVisible(false);
-        });
-      }
-
-      const toggleUsersBtn = document.getElementById('toggleUsersBtn');
-      const toggleStoresBtn = document.getElementById('toggleStoresBtn');
-
-      if (toggleUsersBtn) {
-        toggleUsersBtn.addEventListener('click', function () {
-          PainelDoca.toggleAll('users');
-        });
-      }
-
-      if (toggleStoresBtn) {
-        toggleStoresBtn.addEventListener('click', function () {
-          PainelDoca.toggleAll('stores');
-        });
-      }
-
       document.addEventListener('click', function (event) {
         const btn = event.target.closest('[data-copy]');
-
-        if (!btn) {
-          return;
-        }
-
-        PainelDoca.copyText(btn.getAttribute('data-copy') || '');
+        if (btn) PainelDoca.copyText(btn.getAttribute('data-copy') || '');
       });
-
+      window.addEventListener('resize', PainelDoca.scheduleRender);
       window.addEventListener('beforeunload', function () {
-        if (PainelDoca.state.eventSource) {
-          PainelDoca.state.eventSource.close();
-        }
+        if (PainelDoca.state.eventSource) PainelDoca.state.eventSource.close();
       });
     };
 
     PainelDoca.start = function () {
-      PainelDoca.setCurrentWeekDates();
+      const now = new Date();
+      PainelDoca.state.weekStart = PainelDoca.startOfWeek(now);
+      PainelDoca.state.monthStart = PainelDoca.startOfMonth(now);
+      const range = PainelDoca.currentRange();
+      document.getElementById('dateFrom').value = range.startKey;
+      document.getElementById('dateTo').value = range.endKey;
       PainelDoca.bind();
-      PainelDoca.applySavedSummaryState();
       PainelDoca.render();
-      PainelDoca.reloadFirebaseView();
+      PainelDoca.loadInitial();
     };
 
     PainelDoca.start();
