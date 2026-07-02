@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      2.0.3
-// @description  Captura chamados da doca com Firebase somente no clique: trava leve e gravação completa da captura sem carregar o banco inteiro.
+// @version      2.0.4
+// @description  Captura chamados da doca com Firebase somente no clique, reserva reaberta para o mesmo usuário e expiração de trava após 1h.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -29,6 +29,13 @@
   InfraDeskDoca.FIREBASE_DB_URL = 'https://infra-doca-default-rtdb.firebaseio.com';
 
   InfraDeskDoca.FIREBASE_ROOT = 'doca_capturas';
+
+  // Compatibilidade com as versões antigas:
+  // continua usando doca_capturas/by_id/{chamadoId}.
+  // Uma reserva de outro usuário só bloqueia por 1 hora.
+  // A mesma pessoa pode recapturar antes disso, útil quando o chamado foi reaberto no Infradesk.
+  InfraDeskDoca.RESERVA_VALIDADE_MS = 60 * 60 * 1000;
+  InfraDeskDoca.RESERVA_VALIDADE_LABEL = '1 hora';
 
   InfraDeskDoca.STATUS_ABERTO = '2';
   InfraDeskDoca.STATUS_EM_LIBERACAO = '3';
@@ -98,6 +105,63 @@
     return InfraDeskDoca.norm(value)
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '') || 'sem_usuario';
+  };
+
+  InfraDeskDoca.getReservaUserKey = function (reserva) {
+    if (!reserva || typeof reserva !== 'object') {
+      return '';
+    }
+
+    var userKey = InfraDeskDoca.clean(reserva.usuarioNorm || '');
+
+    if (userKey) {
+      return userKey;
+    }
+
+    var nome = InfraDeskDoca.clean(reserva.usuario || reserva.operador || reserva.nome || '');
+
+    return nome ? InfraDeskDoca.keyUser(nome) : '';
+  };
+
+  InfraDeskDoca.isSameReservationUser = function (reserva, usuarioAtual) {
+    var reservedKey = InfraDeskDoca.getReservaUserKey(reserva);
+    var currentKey = InfraDeskDoca.keyUser(usuarioAtual);
+
+    return !!reservedKey && reservedKey === currentKey;
+  };
+
+  InfraDeskDoca.getReservaTimestamp = function (reserva) {
+    if (!reserva || typeof reserva !== 'object') {
+      return 0;
+    }
+
+    return Number(
+      reserva.reservadoEm ||
+      reserva.capturadoEm ||
+      reserva.atualizadoEm ||
+      reserva.ts ||
+      0
+    ) || 0;
+  };
+
+  InfraDeskDoca.getReservaAgeMs = function (reserva) {
+    var ts = InfraDeskDoca.getReservaTimestamp(reserva);
+
+    if (!ts) {
+      return 0;
+    }
+
+    return Math.max(0, Date.now() - ts);
+  };
+
+  InfraDeskDoca.isReservaExpirada = function (reserva) {
+    var ts = InfraDeskDoca.getReservaTimestamp(reserva);
+
+    if (!ts) {
+      return false;
+    }
+
+    return Date.now() - ts > InfraDeskDoca.RESERVA_VALIDADE_MS;
   };
 
   InfraDeskDoca.formatCnpj = function (cnpj) {
@@ -1178,15 +1242,7 @@
     }
 
     var currentKey = InfraDeskDoca.keyUser(usuarioAtual);
-    var reservedKey = InfraDeskDoca.clean(reserva.usuarioNorm || '');
-
-    if (!reservedKey) {
-      var reservedName = InfraDeskDoca.clean(reserva.usuario || reserva.operador || reserva.nome || '');
-
-      if (reservedName) {
-        reservedKey = InfraDeskDoca.keyUser(reservedName);
-      }
-    }
+    var reservedKey = InfraDeskDoca.getReservaUserKey(reserva);
 
     return !!reservedKey && reservedKey !== currentKey;
   };
@@ -1361,22 +1417,29 @@
   };
 
   InfraDeskDoca.buildMinimalReservation = function (id, usuario) {
+    var ts = Date.now();
+    var usuarioLimpo = InfraDeskDoca.clean(usuario);
+
     return {
-      operador: InfraDeskDoca.clean(usuario),
-      ts: Date.now()
+      chamadoId: InfraDeskDoca.clean(id),
+      operador: usuarioLimpo,
+      usuario: usuarioLimpo,
+      usuarioNorm: InfraDeskDoca.keyUser(usuarioLimpo),
+      ts: ts,
+      reservadoEm: ts,
+      expiraEm: ts + InfraDeskDoca.RESERVA_VALIDADE_MS,
+      origem: 'tampermonkey-infradesk-doca-lock'
     };
   };
 
-  // Modo ultra leve:
-  // - Não baixa o banco inteiro.
-  // - Não abre realtime/EventSource.
-  // - No clique, tenta criar somente /by_id/{chamadoId}.
-  // - If-Match:null_etag impede sobrescrever se outro usuário já reservou antes.
   // Modo ultra leve e compatível:
   // - Não baixa o banco inteiro.
   // - Não abre realtime/EventSource.
   // - No clique, consulta somente /by_id/{chamadoId}.
   // - Se estiver vazio, grava somente /by_id/{chamadoId} com payload mínimo.
+  // - Se já existir reserva de outro usuário com menos de 1 hora, bloqueia como antes.
+  // - Se já existir reserva do mesmo usuário, permite recapturar para tratar nota reaberta.
+  // - Se já existir reserva de outro usuário com mais de 1 hora, considera trava velha e sobrescreve.
   // Observação: este modo evita o problema de compatibilidade do If-Match/null_etag em alguns Tampermonkey/navegadores.
   InfraDeskDoca.tryReserveOnFirebase = async function (id, usuario) {
     id = InfraDeskDoca.clean(id);
@@ -1408,14 +1471,26 @@
       var existing = InfraDeskDoca.parseJson(readRes.responseText || 'null', null);
 
       if (existing && typeof existing === 'object') {
-        return {
-          ok: false,
-          exists: true,
-          reserva: existing
-        };
+        var sameUser = InfraDeskDoca.isSameReservationUser(existing, usuario);
+        var expired = InfraDeskDoca.isReservaExpirada(existing);
+
+        if (!sameUser && !expired) {
+          return {
+            ok: false,
+            exists: true,
+            reserva: existing
+          };
+        }
+
+        if (sameUser) {
+          console.info('[InfraDeskDoca] reserva anterior do mesmo usuário encontrada; permitindo recaptura do chamado reaberto:', id);
+        } else if (expired) {
+          console.info('[InfraDeskDoca] reserva antiga com mais de ' + InfraDeskDoca.RESERVA_VALIDADE_LABEL + ' encontrada; permitindo nova captura:', id, existing);
+        }
       }
 
-      // 2) Se não existe, grava somente o chamado clicado. print=silent evita resposta grande.
+      // 2) Se não existe, se é do mesmo usuário ou se está velha, grava somente o chamado clicado.
+      // print=silent evita resposta grande.
       var writeRes = await InfraDeskDoca.requestFirebase({
         method: 'PUT',
         url: InfraDeskDoca.firebaseUrl(path) + '?print=silent&_=' + Date.now(),
@@ -1750,7 +1825,9 @@
     var nomeReserva = InfraDeskDoca.clean(reserva && (reserva.usuario || reserva.operador || reserva.nome) || 'outro usuário');
 
     if (InfraDeskDoca.isDifferentReservation(reserva, usuarioAtual)) {
-      InfraDeskDoca.notify('warning', 'Este chamado já foi reservado por ' + nomeReserva + '.');
+      var ageMs = InfraDeskDoca.getReservaAgeMs(reserva);
+      var detalheTempo = ageMs ? ' Reserva com menos de ' + InfraDeskDoca.RESERVA_VALIDADE_LABEL + '.' : '';
+      InfraDeskDoca.notify('warning', 'Este chamado já foi reservado por ' + nomeReserva + '.' + detalheTempo);
     } else {
       InfraDeskDoca.notify('info', 'Este chamado já está reservado por você.');
     }
@@ -1948,7 +2025,7 @@
     InfraDeskDoca.scheduleOrderPriorityTabs(350);
 
     setTimeout(function () {
-      console.info('[InfraDeskDoca] v2.0.3 ativo: ordenando Aberto, Em liberação e Em Análise Terceiro; Firebase somente no clique.');
+      console.info('[InfraDeskDoca] v2.0.4 ativo: reserva expira após 1h; mesmo usuário pode recapturar chamado reaberto; Firebase somente no clique.');
     }, 600);
 
     window.addEventListener('beforeunload', function () {
