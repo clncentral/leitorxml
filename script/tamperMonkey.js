@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      4.0.5
-// @description  Marca/libera despesa no Firebase com operador e ts, e bloqueia abertura/gravação para outro usuário.
+// @version      4.3.1
+// @description  Marca/libera despesa no Firebase e inclui resumo local compacto de competências e vencimentos.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
@@ -1779,6 +1779,7 @@
 
       InfraDeskDespesas.state.debounceTimer = setTimeout(function () {
         InfraDeskDespesas.refreshLoggedUser();
+        InfraDeskDespesas.ensureCompetenciaPanel();
         InfraDeskDespesas.injectAllRows();
         InfraDeskDespesas.updateFinanceButtons();
         InfraDeskDespesas.updateModalSaveButtons();
@@ -1812,6 +1813,787 @@
     }, 700);
   };
 
+
+  /* ============================================================
+   *  Resumo compacto: competências por emissão
+   *  - Não usa Firebase
+   *  - Não grava em banco
+   *  - Lê a paginação atual automaticamente
+   *  - Conta emissão por mês/ano
+   * ============================================================ */
+
+  InfraDeskDespesas.ensureCompetenciaState = function () {
+    if (!InfraDeskDespesas.state.competencias) {
+      InfraDeskDespesas.state.competencias = {
+        scanning: false,
+        abort: false,
+        scanId: 0,
+        lastResult: null,
+        autoStarted: false,
+        autoTimer: null
+      };
+    }
+
+    return InfraDeskDespesas.state.competencias;
+  };
+
+  InfraDeskDespesas.injectCompetenciaStyle = function () {
+    if (document.getElementById('tm-competencia-style')) {
+      return;
+    }
+
+    var style = document.createElement('style');
+    style.id = 'tm-competencia-style';
+    style.textContent = `
+      .row.wrapper.border-bottom.white-bg.page-heading {
+        position: relative !important;
+        min-height: 84px !important;
+      }
+
+      #tm-competencia-panel-wrap {
+        position: absolute !important;
+        left: 230px !important;
+        right: 200px !important;
+        top: 28px !important;
+        z-index: 6 !important;
+        min-width: 300px !important;
+        pointer-events: none !important;
+      }
+
+      #tm-competencia-panel {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 12px !important;
+        width: 100% !important;
+        min-height: 38px !important;
+        padding: 6px 10px !important;
+        border-radius: 11px !important;
+        background: rgba(15, 23, 42, .94) !important;
+        border: 1px solid rgba(148, 163, 184, .22) !important;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, .16) !important;
+        color: #e5e7eb !important;
+        font-family: Arial, sans-serif !important;
+        overflow: hidden !important;
+        pointer-events: auto !important;
+      }
+
+      #tm-competencia-status {
+        display: none !important;
+      }
+
+      #tm-competencia-result {
+        flex: 1 1 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+        color: #f8fafc !important;
+      }
+
+      .tm-competencia-group {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+      }
+
+      .tm-competencia-label {
+        color: #bfdbfe !important;
+        font-weight: 900 !important;
+        letter-spacing: .1px !important;
+      }
+
+      .tm-competencia-chip {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        padding: 4px 9px !important;
+        border-radius: 999px !important;
+        background: rgba(255, 255, 255, .12) !important;
+        border: 1px solid rgba(255, 255, 255, .14) !important;
+        color: #f8fafc !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+      }
+
+      .tm-competencia-chip b {
+        color: #ffffff !important;
+        font-size: 13px !important;
+      }
+
+      .tm-venc-bubble {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        min-width: 34px !important;
+        height: 24px !important;
+        padding: 0 9px !important;
+        border-radius: 999px !important;
+        border: 1px solid rgba(255, 255, 255, .16) !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+      }
+
+      .tm-venc-bubble b {
+        color: #ffffff !important;
+        font-size: 13px !important;
+      }
+
+      .tm-venc-red {
+        background: rgba(239, 68, 68, .34) !important;
+        border-color: rgba(248, 113, 113, .45) !important;
+        box-shadow: inset 0 0 0 1px rgba(248, 113, 113, .12) !important;
+      }
+
+      .tm-venc-yellow {
+        background: rgba(245, 158, 11, .34) !important;
+        border-color: rgba(251, 191, 36, .45) !important;
+        box-shadow: inset 0 0 0 1px rgba(251, 191, 36, .12) !important;
+      }
+
+      .tm-venc-green {
+        background: rgba(34, 197, 94, .30) !important;
+        border-color: rgba(74, 222, 128, .45) !important;
+        box-shadow: inset 0 0 0 1px rgba(74, 222, 128, .12) !important;
+      }
+
+      .tm-venc-gray {
+        background: rgba(148, 163, 184, .22) !important;
+        border-color: rgba(203, 213, 225, .28) !important;
+      }
+
+      .tm-venc-group {
+        margin-left: 8px !important;
+      }
+
+      .tm-competencia-total {
+        background: rgba(37, 99, 235, .22) !important;
+        border-color: rgba(147, 197, 253, .32) !important;
+      }
+
+      .tm-competencia-sep {
+        width: 1px !important;
+        height: 22px !important;
+        background: rgba(255, 255, 255, .28) !important;
+        display: inline-block !important;
+      }
+
+      #tm-competencia-scan-btn {
+        flex: 0 0 auto !important;
+        width: 28px !important;
+        height: 26px !important;
+        border: 0 !important;
+        border-radius: 8px !important;
+        padding: 0 !important;
+        background: rgba(255, 255, 255, .12) !important;
+        color: #ffffff !important;
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        line-height: 26px !important;
+        cursor: pointer !important;
+      }
+
+      #tm-competencia-scan-btn.tm-running {
+        background: rgba(245, 158, 11, .35) !important;
+      }
+
+      #tm-competencia-scan-btn:hover {
+        filter: brightness(1.18) !important;
+      }
+
+      @media (max-width: 1180px) {
+        #tm-competencia-panel-wrap {
+          position: static !important;
+          display: block !important;
+          clear: both !important;
+          margin: 8px 15px 0 15px !important;
+          min-width: 0 !important;
+        }
+
+        .row.wrapper.border-bottom.white-bg.page-heading {
+          min-height: 0 !important;
+          padding-bottom: 10px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  };
+
+  InfraDeskDespesas.getCompetenciaHeading = function () {
+    var headings = Array.prototype.slice.call(document.querySelectorAll('.row.wrapper.border-bottom.white-bg.page-heading'));
+
+    for (var i = 0; i < headings.length; i++) {
+      if (/\bDespesas\b/i.test(headings[i].innerText || headings[i].textContent || '')) {
+        return headings[i];
+      }
+    }
+
+    return document.querySelector('.row.wrapper.border-bottom.white-bg.page-heading');
+  };
+
+  InfraDeskDespesas.ensureCompetenciaPanel = function () {
+    InfraDeskDespesas.ensureCompetenciaState();
+
+    var heading = InfraDeskDespesas.getCompetenciaHeading();
+
+    if (!heading) {
+      return;
+    }
+
+    InfraDeskDespesas.injectCompetenciaStyle();
+
+    var oldBigButton = document.getElementById('tm-competencia-scan-btn');
+
+    if (oldBigButton && oldBigButton.parentNode && oldBigButton.parentNode.classList && oldBigButton.parentNode.classList.contains('title-action')) {
+      oldBigButton.parentNode.removeChild(oldBigButton);
+    }
+
+    if (!document.getElementById('tm-competencia-panel-wrap')) {
+      var wrap = document.createElement('div');
+      wrap.id = 'tm-competencia-panel-wrap';
+      wrap.innerHTML = ''
+        + '<div id="tm-competencia-panel" title="Resumo local da paginação atual. Não envia nada para Firebase ou banco.">'
+        + '  <span id="tm-competencia-result">📅 Lendo competências...</span>'
+        + '  <button id="tm-competencia-scan-btn" type="button" title="Atualizar resumo">↻</button>'
+        + '</div>';
+
+      heading.appendChild(wrap);
+
+      var scanBtn = wrap.querySelector('#tm-competencia-scan-btn');
+
+      if (scanBtn) {
+        scanBtn.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          InfraDeskDespesas.onCompetenciaScanClick();
+        });
+      }
+    }
+
+    InfraDeskDespesas.scheduleAutoCompetenciaScan();
+  };
+
+  InfraDeskDespesas.scheduleAutoCompetenciaScan = function () {
+    var state = InfraDeskDespesas.ensureCompetenciaState();
+
+    if (state.autoStarted) {
+      return;
+    }
+
+    state.autoStarted = true;
+
+    clearTimeout(state.autoTimer);
+    state.autoTimer = setTimeout(function () {
+      InfraDeskDespesas.scanCompetenciasAllPages();
+    }, 900);
+  };
+
+  InfraDeskDespesas.setCompetenciaStatus = function (text) {
+    var el = document.getElementById('tm-competencia-status');
+
+    if (el) {
+      el.textContent = text || '';
+    }
+  };
+
+  InfraDeskDespesas.setCompetenciaButtonRunning = function (running) {
+    var btn = document.getElementById('tm-competencia-scan-btn');
+
+    if (!btn) {
+      return;
+    }
+
+    if (running) {
+      btn.classList.add('tm-running');
+      btn.textContent = '×';
+      btn.title = 'Cancelar varredura';
+    } else {
+      btn.classList.remove('tm-running');
+      btn.textContent = '↻';
+      btn.title = 'Atualizar resumo';
+    }
+  };
+
+  InfraDeskDespesas.escapeHtml = function (value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  InfraDeskDespesas.getTotalPagesFromDoc = function (doc) {
+    doc = doc || document;
+
+    var maxPage = 1;
+    var links = Array.prototype.slice.call(doc.querySelectorAll('ul.pagination a, .pagination a, a[href*="page="]'));
+
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href') || '';
+      var text = InfraDeskDespesas.clean(links[i].textContent || '');
+      var pageFromText = Number(text.replace(/\D+/g, '')) || 0;
+
+      if (pageFromText > maxPage) {
+        maxPage = pageFromText;
+      }
+
+      try {
+        var url = new URL(href, window.location.origin);
+        var pageFromHref = Number(url.searchParams.get('page') || 0) || 0;
+
+        if (pageFromHref > maxPage) {
+          maxPage = pageFromHref;
+        }
+      } catch (_) {}
+    }
+
+    var bodyText = InfraDeskDespesas.clean(doc.body ? (doc.body.innerText || doc.body.textContent || '') : '');
+    var matches = bodyText.match(/(?:p[aá]gina|page)\s+\d+\s+(?:de|of)\s+(\d+)/ig) || [];
+
+    for (var j = 0; j < matches.length; j++) {
+      var match = matches[j].match(/(\d+)\s*$/);
+
+      if (match && Number(match[1]) > maxPage) {
+        maxPage = Number(match[1]);
+      }
+    }
+
+    return Math.max(1, maxPage);
+  };
+
+  InfraDeskDespesas.getCurrentPageNumber = function () {
+    try {
+      var url = new URL(window.location.href);
+      return Math.max(1, Number(url.searchParams.get('page') || 1) || 1);
+    } catch (_) {
+      return 1;
+    }
+  };
+
+  InfraDeskDespesas.getUrlForPage = function (page) {
+    var url = new URL(window.location.href);
+
+    if (page <= 1) {
+      url.searchParams.delete('page');
+    } else {
+      url.searchParams.set('page', String(page));
+    }
+
+    return url.toString();
+  };
+
+  InfraDeskDespesas.fetchCompetenciaPageDoc = function (page) {
+    if (page === InfraDeskDespesas.getCurrentPageNumber()) {
+      return Promise.resolve(document);
+    }
+
+    var url = InfraDeskDespesas.getUrlForPage(page);
+
+    return fetch(url, {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store'
+    }).then(function (res) {
+      if (!res.ok) {
+        throw new Error('Erro ao carregar página ' + page + ' - status ' + res.status);
+      }
+
+      return res.text();
+    }).then(function (html) {
+      return new DOMParser().parseFromString(html, 'text/html');
+    });
+  };
+
+  InfraDeskDespesas.getMainRowsFromDoc = function (doc) {
+    doc = doc || document;
+
+    var table = doc.querySelector('.ibox-content table') || doc.querySelector('table');
+
+    if (!table) {
+      return [];
+    }
+
+    return Array.prototype.slice.call(table.querySelectorAll('tbody tr')).filter(function (tr) {
+      return InfraDeskDespesas.isMainDespesaRow(tr);
+    });
+  };
+
+  InfraDeskDespesas.parseBrDate = function (text) {
+    text = InfraDeskDespesas.clean(text);
+
+    var match = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})\b/);
+
+    if (!match) {
+      return null;
+    }
+
+    var day = Number(match[1]);
+    var month = Number(match[2]);
+    var year = Number(match[3]);
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    if (!day || !month || !year || month < 1 || month > 12 || day < 1 || day > 31) {
+      return null;
+    }
+
+    var date = new Date(year, month - 1, day);
+
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return null;
+    }
+
+    return date;
+  };
+
+  InfraDeskDespesas.getDateListFromRowDateCell = function (tr) {
+    if (!tr || !tr.children || tr.children.length < 5) {
+      return [];
+    }
+
+    var cell = tr.children[4];
+    var text = InfraDeskDespesas.clean(cell ? (cell.innerText || cell.textContent || '') : '');
+
+    return text.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g) || [];
+  };
+
+  InfraDeskDespesas.getEmissionDateFromRow = function (tr) {
+    var dates = InfraDeskDespesas.getDateListFromRowDateCell(tr);
+
+    if (!dates.length) {
+      return null;
+    }
+
+    return InfraDeskDespesas.parseBrDate(dates[0]);
+  };
+
+  InfraDeskDespesas.getVencimentoDateFromRow = function (tr) {
+    var vencEl = tr && tr.querySelector ? tr.querySelector('[data-sigma-vencimento-processado], .sigma-vencimento-vermelho, .sigma-vencimento-amarelo, .sigma-vencimento-verde') : null;
+
+    if (vencEl) {
+      var dataAttr = vencEl.getAttribute('data-sigma-vencimento-processado') || '';
+      var parsedAttr = InfraDeskDespesas.parseBrDate(dataAttr);
+
+      if (parsedAttr) {
+        return parsedAttr;
+      }
+
+      var parsedText = InfraDeskDespesas.parseBrDate(vencEl.innerText || vencEl.textContent || '');
+
+      if (parsedText) {
+        return parsedText;
+      }
+    }
+
+    var dates = InfraDeskDespesas.getDateListFromRowDateCell(tr);
+
+    if (dates.length < 2) {
+      return null;
+    }
+
+    return InfraDeskDespesas.parseBrDate(dates[1]);
+  };
+
+  InfraDeskDespesas.startOfDay = function (date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+
+  InfraDeskDespesas.daysUntil = function (date) {
+    if (!date) {
+      return null;
+    }
+
+    var today = InfraDeskDespesas.startOfDay(new Date());
+    var target = InfraDeskDespesas.startOfDay(date);
+
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
+  };
+
+  InfraDeskDespesas.getVencimentoColorFromRow = function (tr, vencDate) {
+    var vencEl = tr && tr.querySelector ? tr.querySelector('[data-sigma-vencimento-processado], .sigma-vencimento-vermelho, .sigma-vencimento-amarelo, .sigma-vencimento-verde') : null;
+    var cls = vencEl ? String(vencEl.className || '') : '';
+
+    if (/sigma-vencimento-vermelho/i.test(cls)) {
+      return 'vermelho';
+    }
+
+    if (/sigma-vencimento-amarelo/i.test(cls)) {
+      return 'amarelo';
+    }
+
+    if (/sigma-vencimento-verde/i.test(cls)) {
+      return 'verde';
+    }
+
+    var days = InfraDeskDespesas.daysUntil(vencDate);
+
+    if (days == null) {
+      return 'semCor';
+    }
+
+    if (days <= 2) {
+      return 'vermelho';
+    }
+
+    if (days <= 5) {
+      return 'amarelo';
+    }
+
+    return 'verde';
+  };
+
+  InfraDeskDespesas.getCompetenciaKey = function (date) {
+    if (!date) {
+      return '';
+    }
+
+    var year = date.getFullYear();
+    var month = String(date.getMonth() + 1).padStart(2, '0');
+
+    return year + '-' + month;
+  };
+
+  InfraDeskDespesas.formatCompetenciaKey = function (key) {
+    var parts = String(key || '').split('-');
+
+    if (parts.length !== 2) {
+      return key || 'Sem competência';
+    }
+
+    return parts[1] + '/' + parts[0];
+  };
+
+  InfraDeskDespesas.delay = function (ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms || 0);
+    });
+  };
+
+  InfraDeskDespesas.scanCompetenciasInDoc = function (doc, stats) {
+    var rows = InfraDeskDespesas.getMainRowsFromDoc(doc);
+
+    stats.pagesRead++;
+    stats.rowsFound += rows.length;
+
+    for (var i = 0; i < rows.length; i++) {
+      var tr = rows[i];
+      var id = InfraDeskDespesas.getRowId(tr) || ('sem-id-' + stats.pagesRead + '-' + i);
+
+      if (stats.seen[id]) {
+        continue;
+      }
+
+      stats.seen[id] = true;
+      stats.total++;
+
+      var emissionDate = InfraDeskDespesas.getEmissionDateFromRow(tr);
+
+      if (!emissionDate) {
+        stats.semData++;
+      } else {
+        var key = InfraDeskDespesas.getCompetenciaKey(emissionDate);
+
+        if (!stats.byCompetencia[key]) {
+          stats.byCompetencia[key] = {
+            key: key,
+            label: InfraDeskDespesas.formatCompetenciaKey(key),
+            count: 0
+          };
+        }
+
+        stats.byCompetencia[key].count++;
+      }
+
+      var vencDate = InfraDeskDespesas.getVencimentoDateFromRow(tr);
+      var vencColor = InfraDeskDespesas.getVencimentoColorFromRow(tr, vencDate);
+
+      if (!stats.byVencimento) {
+        stats.byVencimento = {
+          vermelho: 0,
+          amarelo: 0,
+          verde: 0,
+          semCor: 0
+        };
+      }
+
+      if (vencColor === 'vermelho' || vencColor === 'amarelo' || vencColor === 'verde') {
+        stats.byVencimento[vencColor]++;
+      } else {
+        stats.byVencimento.semCor++;
+      }
+
+    }
+  };
+
+  InfraDeskDespesas.renderCompetenciaProgress = function (stats, currentPage, totalPages) {
+    var result = document.getElementById('tm-competencia-result');
+
+    if (!result) {
+      return;
+    }
+
+    result.innerHTML = ''
+      + '<span class="tm-competencia-group"><span class="tm-competencia-label">📅 Lendo competências</span>'
+      + '<span class="tm-competencia-chip">pág. <b>' + InfraDeskDespesas.escapeHtml(currentPage) + '/' + InfraDeskDespesas.escapeHtml(totalPages) + '</b></span>'
+      + '<span class="tm-competencia-chip">despesas <b>' + InfraDeskDespesas.escapeHtml(stats.total) + '</b></span></span>';
+  };
+
+  InfraDeskDespesas.buildCompetenciaChips = function (items, limit) {
+    var keys = Object.keys(items || {}).sort();
+    var html = '';
+
+    for (var i = 0; i < keys.length && i < limit; i++) {
+      var item = items[keys[i]];
+      html += '<span class="tm-competencia-chip">' + InfraDeskDespesas.escapeHtml(item.label) + ' <b>' + InfraDeskDespesas.escapeHtml(item.count) + '</b></span>';
+    }
+
+    if (keys.length > limit) {
+      html += '<span class="tm-competencia-chip">+' + InfraDeskDespesas.escapeHtml(keys.length - limit) + '</span>';
+    }
+
+    return html;
+  };
+
+  InfraDeskDespesas.buildVencimentoBolinhas = function (stats) {
+    var venc = stats && stats.byVencimento ? stats.byVencimento : {};
+    var vermelho = Number(venc.vermelho || 0) || 0;
+    var amarelo = Number(venc.amarelo || 0) || 0;
+    var verde = Number(venc.verde || 0) || 0;
+    var semCor = Number(venc.semCor || 0) || 0;
+
+    var html = ''
+      + '<span class="tm-venc-bubble tm-venc-red" title="Vencimentos vermelhos">🔴 <b>' + InfraDeskDespesas.escapeHtml(vermelho) + '</b></span>'
+      + '<span class="tm-venc-bubble tm-venc-yellow" title="Vencimentos amarelos">🟡 <b>' + InfraDeskDespesas.escapeHtml(amarelo) + '</b></span>'
+      + '<span class="tm-venc-bubble tm-venc-green" title="Vencimentos verdes">🟢 <b>' + InfraDeskDespesas.escapeHtml(verde) + '</b></span>';
+
+    if (semCor > 0) {
+      html += '<span class="tm-venc-bubble tm-venc-gray" title="Vencimentos sem cor identificada">⚪ <b>' + InfraDeskDespesas.escapeHtml(semCor) + '</b></span>';
+    }
+
+    return html;
+  };
+
+  InfraDeskDespesas.renderCompetenciaResult = function (stats, cancelled) {
+    var result = document.getElementById('tm-competencia-result');
+
+    if (!result) {
+      return;
+    }
+
+    var compChips = InfraDeskDespesas.buildCompetenciaChips(stats.byCompetencia, 8) || '<span class="tm-competencia-chip">sem emissão <b>' + InfraDeskDespesas.escapeHtml(stats.semData || 0) + '</b></span>';
+    var vencBolinhas = InfraDeskDespesas.buildVencimentoBolinhas(stats);
+    var totalInfo = '<span class="tm-competencia-chip tm-competencia-total">total <b>' + InfraDeskDespesas.escapeHtml(stats.total) + '</b></span>';
+
+    result.innerHTML = ''
+      + '<span class="tm-competencia-group"><span class="tm-competencia-label">📅 Competências</span>' + compChips + '</span>'
+      + '<span class="tm-competencia-sep"></span>'
+      + '<span class="tm-competencia-group tm-venc-group"><span class="tm-competencia-label">⏰ Venc.</span>' + vencBolinhas + '</span>'
+      + '<span class="tm-competencia-sep"></span>'
+      + totalInfo;
+
+    if (stats.semData) {
+      result.title = 'Sem emissão: ' + (stats.semData || 0);
+    } else {
+      result.title = '';
+    }
+  };
+
+  InfraDeskDespesas.onCompetenciaScanClick = function () {
+    var state = InfraDeskDespesas.ensureCompetenciaState();
+
+    if (state.scanning) {
+      state.abort = true;
+      InfraDeskDespesas.setCompetenciaStatus('Cancelando');
+      return;
+    }
+
+    InfraDeskDespesas.scanCompetenciasAllPages();
+  };
+
+  InfraDeskDespesas.scanCompetenciasAllPages = function () {
+    var state = InfraDeskDespesas.ensureCompetenciaState();
+    var totalPages = InfraDeskDespesas.getTotalPagesFromDoc(document);
+    var scanId = Date.now();
+
+    state.scanning = true;
+    state.abort = false;
+    state.scanId = scanId;
+
+    InfraDeskDespesas.setCompetenciaButtonRunning(true);
+    InfraDeskDespesas.setCompetenciaStatus('Lendo...');
+
+    var stats = {
+      totalPages: totalPages,
+      pagesRead: 0,
+      rowsFound: 0,
+      total: 0,
+      semData: 0,
+      seen: {},
+      byCompetencia: {},
+      byVencimento: {
+        vermelho: 0,
+        amarelo: 0,
+        verde: 0,
+        semCor: 0
+      }
+    };
+
+    var chain = Promise.resolve();
+
+    for (var page = 1; page <= totalPages; page++) {
+      (function (pageNumber) {
+        chain = chain.then(function () {
+          if (state.abort || state.scanId !== scanId) {
+            return null;
+          }
+
+          InfraDeskDespesas.setCompetenciaStatus(pageNumber + '/' + totalPages);
+
+          return InfraDeskDespesas.fetchCompetenciaPageDoc(pageNumber).then(function (doc) {
+            InfraDeskDespesas.scanCompetenciasInDoc(doc, stats);
+            InfraDeskDespesas.renderCompetenciaProgress(stats, pageNumber, totalPages);
+            return InfraDeskDespesas.delay(100);
+          });
+        });
+      })(page);
+    }
+
+    return chain.then(function () {
+      var cancelled = !!state.abort;
+      state.lastResult = stats;
+      InfraDeskDespesas.renderCompetenciaResult(stats, cancelled);
+      InfraDeskDespesas.setCompetenciaStatus(cancelled ? 'Parcial' : 'OK');
+    }).catch(function (err) {
+      console.warn('[InfraDeskDespesas] erro na varredura de competências', err);
+      InfraDeskDespesas.setCompetenciaStatus('Erro');
+
+      var result = document.getElementById('tm-competencia-result');
+
+      if (result) {
+        result.innerHTML = '⚠️ Não consegui concluir: ' + InfraDeskDespesas.escapeHtml(err && err.message ? err.message : String(err));
+      }
+    }).then(function () {
+      state.scanning = false;
+      state.abort = false;
+      InfraDeskDespesas.setCompetenciaButtonRunning(false);
+    });
+  };
+
   InfraDeskDespesas.bindEvents = function () {
     document.removeEventListener('click', InfraDeskDespesas.onDocumentClickCapture, true);
     document.addEventListener('click', InfraDeskDespesas.onDocumentClickCapture, true);
@@ -1828,10 +2610,12 @@
     InfraDeskDespesas.state.started = true;
 
     InfraDeskDespesas.injectStyle();
+    InfraDeskDespesas.ensureCompetenciaPanel();
     InfraDeskDespesas.refreshLoggedUser();
     InfraDeskDespesas.bindEvents();
 
     setTimeout(function () {
+      InfraDeskDespesas.ensureCompetenciaPanel();
       InfraDeskDespesas.injectAllRows();
       InfraDeskDespesas.loadFirebaseState();
       InfraDeskDespesas.connectRealtime(false);
