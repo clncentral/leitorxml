@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      4.3.1
-// @description  Marca/libera despesa no Firebase e inclui resumo local compacto de competências e vencimentos.
+// @version      4.3.2
+// @description  Marca/libera despesa no Firebase e inclui resumo local compacto manual com cache local.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
@@ -1818,7 +1818,8 @@
    *  Resumo compacto: competências por emissão
    *  - Não usa Firebase
    *  - Não grava em banco
-   *  - Lê a paginação atual automaticamente
+   *  - Lê a paginação somente quando clicar no botão
+   *  - Guarda o último resumo no localStorage
    *  - Conta emissão por mês/ano
    * ============================================================ */
 
@@ -1830,7 +1831,8 @@
         scanId: 0,
         lastResult: null,
         autoStarted: false,
-        autoTimer: null
+        autoTimer: null,
+        cachePrefix: 'tm-infradesk-despesas-competencias-v2:'
       };
     }
 
@@ -2064,9 +2066,9 @@
       var wrap = document.createElement('div');
       wrap.id = 'tm-competencia-panel-wrap';
       wrap.innerHTML = ''
-        + '<div id="tm-competencia-panel" title="Resumo local da paginação atual. Não envia nada para Firebase ou banco.">'
-        + '  <span id="tm-competencia-result">📅 Lendo competências...</span>'
-        + '  <button id="tm-competencia-scan-btn" type="button" title="Atualizar resumo">↻</button>'
+        + '<div id="tm-competencia-panel" title="Resumo salvo localmente. Clique em consultar quando quiser atualizar.">'
+        + '  <span id="tm-competencia-result">📅 Competências: clique em ↻ para consultar</span>'
+        + '  <button id="tm-competencia-scan-btn" type="button" title="Consultar / atualizar resumo">↻</button>'
         + '</div>';
 
       heading.appendChild(wrap);
@@ -2082,22 +2084,16 @@
       }
     }
 
-    InfraDeskDespesas.scheduleAutoCompetenciaScan();
+    InfraDeskDespesas.renderCompetenciaFromCacheOrEmpty();
   };
 
   InfraDeskDespesas.scheduleAutoCompetenciaScan = function () {
-    var state = InfraDeskDespesas.ensureCompetenciaState();
-
-    if (state.autoStarted) {
-      return;
-    }
-
-    state.autoStarted = true;
-
-    clearTimeout(state.autoTimer);
-    state.autoTimer = setTimeout(function () {
-      InfraDeskDespesas.scanCompetenciasAllPages();
-    }, 900);
+    /*
+     * Versão 4.3.2:
+     * antes esta função disparava a varredura automaticamente ao abrir a página.
+     * Agora ela não consulta nada sozinha. O resumo só atualiza quando clicar no botão ↻.
+     */
+    InfraDeskDespesas.renderCompetenciaFromCacheOrEmpty();
   };
 
   InfraDeskDespesas.setCompetenciaStatus = function (text) {
@@ -2118,11 +2114,11 @@
     if (running) {
       btn.classList.add('tm-running');
       btn.textContent = '×';
-      btn.title = 'Cancelar varredura';
+      btn.title = 'Cancelar consulta';
     } else {
       btn.classList.remove('tm-running');
       btn.textContent = '↻';
-      btn.title = 'Atualizar resumo';
+      btn.title = 'Consultar / atualizar resumo';
     }
   };
 
@@ -2384,6 +2380,157 @@
     });
   };
 
+  InfraDeskDespesas.yieldCompetenciaScan = function () {
+    return new Promise(function (resolve) {
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(function () {
+          resolve();
+        }, {
+          timeout: 350
+        });
+        return;
+      }
+
+      setTimeout(resolve, 180);
+    });
+  };
+
+  InfraDeskDespesas.getCompetenciaCacheKey = function () {
+    var state = InfraDeskDespesas.ensureCompetenciaState();
+
+    try {
+      var url = new URL(window.location.href);
+
+      url.searchParams.delete('page');
+
+      if (typeof url.searchParams.sort === 'function') {
+        url.searchParams.sort();
+      }
+
+      return state.cachePrefix + url.pathname + '?' + url.searchParams.toString();
+    } catch (_) {
+      return state.cachePrefix + String(window.location.pathname || 'despesas');
+    }
+  };
+
+  InfraDeskDespesas.sanitizeCompetenciaStatsForStorage = function (stats) {
+    stats = stats || {};
+
+    return {
+      totalPages: Number(stats.totalPages || 0) || 0,
+      pagesRead: Number(stats.pagesRead || 0) || 0,
+      rowsFound: Number(stats.rowsFound || 0) || 0,
+      total: Number(stats.total || 0) || 0,
+      semData: Number(stats.semData || 0) || 0,
+      byCompetencia: stats.byCompetencia || {},
+      byVencimento: stats.byVencimento || {
+        vermelho: 0,
+        amarelo: 0,
+        verde: 0,
+        semCor: 0
+      },
+      savedAt: Number(stats.savedAt || Date.now()) || Date.now(),
+      cancelled: !!stats.cancelled
+    };
+  };
+
+  InfraDeskDespesas.saveCompetenciaCache = function (stats, cancelled) {
+    try {
+      var safeStats = InfraDeskDespesas.sanitizeCompetenciaStatsForStorage(stats);
+
+      safeStats.savedAt = Date.now();
+      safeStats.cancelled = !!cancelled;
+
+      localStorage.setItem(InfraDeskDespesas.getCompetenciaCacheKey(), JSON.stringify({
+        savedAt: safeStats.savedAt,
+        stats: safeStats
+      }));
+
+      return safeStats;
+    } catch (err) {
+      console.warn('[InfraDeskDespesas] não consegui salvar cache local de competências', err);
+      return InfraDeskDespesas.sanitizeCompetenciaStatsForStorage(stats);
+    }
+  };
+
+  InfraDeskDespesas.loadCompetenciaCache = function () {
+    try {
+      var raw = localStorage.getItem(InfraDeskDespesas.getCompetenciaCacheKey());
+
+      if (!raw) {
+        return null;
+      }
+
+      var payload = InfraDeskDespesas.parseJson(raw, null);
+
+      if (!payload || !payload.stats) {
+        return null;
+      }
+
+      return InfraDeskDespesas.sanitizeCompetenciaStatsForStorage(payload.stats);
+    } catch (err) {
+      console.warn('[InfraDeskDespesas] não consegui ler cache local de competências', err);
+      return null;
+    }
+  };
+
+  InfraDeskDespesas.formatCacheTime = function (ts) {
+    ts = Number(ts || 0) || 0;
+
+    if (!ts) {
+      return '';
+    }
+
+    try {
+      var d = new Date(ts);
+      return String(d.toLocaleDateString('pt-BR')) + ' ' + String(d.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }));
+    } catch (_) {
+      return '';
+    }
+  };
+
+  InfraDeskDespesas.renderCompetenciaEmptyState = function () {
+    var result = document.getElementById('tm-competencia-result');
+
+    if (!result) {
+      return;
+    }
+
+    result.innerHTML = ''
+      + '<span class="tm-competencia-group">'
+      + '<span class="tm-competencia-label">📅 Competências</span>'
+      + '<span class="tm-competencia-chip">clique em <b>↻</b> para consultar</span>'
+      + '</span>'
+      + '<span class="tm-competencia-sep"></span>'
+      + '<span class="tm-competencia-group tm-venc-group">'
+      + '<span class="tm-competencia-label">⏰ Venc.</span>'
+      + '<span class="tm-venc-bubble tm-venc-gray"><b>—</b></span>'
+      + '</span>';
+
+    result.title = 'Nada foi consultado nesta combinação de filtros ainda.';
+  };
+
+  InfraDeskDespesas.renderCompetenciaFromCacheOrEmpty = function () {
+    var state = InfraDeskDespesas.ensureCompetenciaState();
+
+    if (state.scanning) {
+      return;
+    }
+
+    var cached = InfraDeskDespesas.loadCompetenciaCache();
+
+    if (cached && cached.total) {
+      state.lastResult = cached;
+      InfraDeskDespesas.renderCompetenciaResult(cached, cached.cancelled);
+      return;
+    }
+
+    InfraDeskDespesas.renderCompetenciaEmptyState();
+  };
+
   InfraDeskDespesas.scanCompetenciasInDoc = function (doc, stats) {
     var rows = InfraDeskDespesas.getMainRowsFromDoc(doc);
 
@@ -2495,22 +2642,37 @@
       return;
     }
 
+    stats = stats || {};
+
     var compChips = InfraDeskDespesas.buildCompetenciaChips(stats.byCompetencia, 8) || '<span class="tm-competencia-chip">sem emissão <b>' + InfraDeskDespesas.escapeHtml(stats.semData || 0) + '</b></span>';
     var vencBolinhas = InfraDeskDespesas.buildVencimentoBolinhas(stats);
-    var totalInfo = '<span class="tm-competencia-chip tm-competencia-total">total <b>' + InfraDeskDespesas.escapeHtml(stats.total) + '</b></span>';
+    var totalInfo = '<span class="tm-competencia-chip tm-competencia-total">total <b>' + InfraDeskDespesas.escapeHtml(stats.total || 0) + '</b></span>';
+    var savedText = InfraDeskDespesas.formatCacheTime(stats.savedAt);
+    var savedInfo = savedText ? '<span class="tm-competencia-chip">salvo <b>' + InfraDeskDespesas.escapeHtml(savedText) + '</b></span>' : '';
+    var parcialInfo = cancelled ? '<span class="tm-competencia-chip">parcial</span>' : '';
 
     result.innerHTML = ''
       + '<span class="tm-competencia-group"><span class="tm-competencia-label">📅 Competências</span>' + compChips + '</span>'
       + '<span class="tm-competencia-sep"></span>'
       + '<span class="tm-competencia-group tm-venc-group"><span class="tm-competencia-label">⏰ Venc.</span>' + vencBolinhas + '</span>'
       + '<span class="tm-competencia-sep"></span>'
-      + totalInfo;
+      + totalInfo
+      + savedInfo
+      + parcialInfo;
+
+    var titleParts = [];
 
     if (stats.semData) {
-      result.title = 'Sem emissão: ' + (stats.semData || 0);
-    } else {
-      result.title = '';
+      titleParts.push('Sem emissão: ' + (stats.semData || 0));
     }
+
+    if (savedText) {
+      titleParts.push('Última consulta local: ' + savedText);
+    }
+
+    titleParts.push('Clique em ↻ para atualizar manualmente.');
+
+    result.title = titleParts.join(' | ');
   };
 
   InfraDeskDespesas.onCompetenciaScanClick = function () {
@@ -2567,7 +2729,7 @@
           return InfraDeskDespesas.fetchCompetenciaPageDoc(pageNumber).then(function (doc) {
             InfraDeskDespesas.scanCompetenciasInDoc(doc, stats);
             InfraDeskDespesas.renderCompetenciaProgress(stats, pageNumber, totalPages);
-            return InfraDeskDespesas.delay(100);
+            return InfraDeskDespesas.yieldCompetenciaScan();
           });
         });
       })(page);
@@ -2575,8 +2737,10 @@
 
     return chain.then(function () {
       var cancelled = !!state.abort;
-      state.lastResult = stats;
-      InfraDeskDespesas.renderCompetenciaResult(stats, cancelled);
+      var safeStats = InfraDeskDespesas.saveCompetenciaCache(stats, cancelled);
+
+      state.lastResult = safeStats;
+      InfraDeskDespesas.renderCompetenciaResult(safeStats, cancelled);
       InfraDeskDespesas.setCompetenciaStatus(cancelled ? 'Parcial' : 'OK');
     }).catch(function (err) {
       console.warn('[InfraDeskDespesas] erro na varredura de competências', err);
