@@ -11,8 +11,8 @@
 // @grant        GM.xmlHttpRequest
 // @grant        unsafeWindow
 // @connect      infradesk-operadores-default-rtdb.firebaseio.com
-// @updateURL    https://clncentral.github.io/leitorxml/script/tamperMonkey.js
-// @downloadURL  https://clncentral.github.io/leitorxml/script/tamperMonkey.js
+// @updateURL    https://clncentral.github.io/leitorxml/script/tamperMonkey.user.js
+// @downloadURL  https://clncentral.github.io/leitorxml/script/tamperMonkey.user.js
 // @noframes
 // ==/UserScript==
 
