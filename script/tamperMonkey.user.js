@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      5.0.6
+// @version      5.0.7
 // @description  Reserva despesas em tempo real na tela original e oferece um painel financeiro rápido, unificado e integrado ao Firebase.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
@@ -25,7 +25,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "5.0.6",
+    versao: "5.0.7",
     parametroPainel: "sigma_painel_financeiro_v5",
     urlPainel: "/backend/despesas?sigma_painel_financeiro_v5=1",
     statusFilaFixo: "P",
@@ -917,9 +917,20 @@
     const url = match ? match[1].replace(/&amp;/g, "&") : "";
     const root = paginaWindow();
     const $ = root.jQuery || root.$ || window.jQuery || window.$;
+    const modalBody = corpoPrincipalModal();
 
-    if (url && $ && document.getElementById("ModalDespesas")) {
-      $("#ModalDespesas").modal("show").find(".modal-body").load(url, function () {
+    if (url && $ && document.getElementById("ModalDespesas") && modalBody) {
+      $("#ModalDespesas").modal("show");
+      $(modalBody).load(url, function (_resposta, status, xhr) {
+        if (status === "error") {
+          notificarPaginaPrincipal(
+            "error",
+            "Não consegui carregar o Financeiro"
+              + (xhr && xhr.status ? ` (HTTP ${xhr.status})` : "")
+              + "."
+          );
+          return;
+        }
         atualizarBotoesModalNormal();
       });
       return;
@@ -1516,34 +1527,71 @@
 
     #ModalDespesas { z-index: 999990 !important; }
     body > .modal-backdrop { z-index: 999980 !important; }
-    #ModalDespesas .modal-dialog {
+    #ModalDespesas > .modal-dialog {
       width: calc(100vw - 42px) !important;
       max-width: 1500px !important;
-      margin: 16px auto !important;
+      height: calc(100vh - 24px) !important;
+      margin: 12px auto !important;
     }
-    #ModalDespesas .modal-content {
+    #ModalDespesas > .modal-dialog > .modal-content {
       position: relative !important;
+      height: 100% !important;
       border: 0 !important;
       border-radius: 13px !important;
       overflow: hidden !important;
     }
-    #ModalDespesas .modal-header {
-      position: relative;
-      display: flex;
-      align-items: stretch;
-      min-height: 54px;
-      padding: 8px 58px 8px 10px;
-      border: 0;
-      border-bottom: 1px solid #d8c4f4;
-      background: #f3e8ff;
-      color: #5b21b6;
+    #ModalDespesas > .modal-dialog > .modal-content > .modal-body {
+      width: 100% !important;
+      height: 100% !important;
+      max-height: none !important;
+      background: #f7f9fc !important;
+    }
+    #ModalDespesas > .modal-dialog > .modal-content > .modal-body.sigma-modal-body-novo {
+      overflow: hidden !important;
+      padding: 0 !important;
+    }
+    #ModalDespesas > .modal-dialog > .modal-content > .modal-body:not(.sigma-modal-body-novo) {
+      overflow: auto !important;
+      padding: 13px !important;
+    }
+    #ModalDespesas .sigma-modal-shell-carregando {
+      height: 100%;
+      overflow: auto;
+      padding: 14px;
+      background: #f7f9fc;
+    }
+    #ModalDespesas .sigma-modal-body-novo > form.form-financeiro {
+      display: block;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+    #ModalDespesas .despesa-modal-layout {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      min-height: 0 !important;
+    }
+    #ModalDespesas .despesa-modal-header,
+    #ModalDespesas .despesa-modal-footer {
+      flex: 0 0 auto !important;
+    }
+    #ModalDespesas .despesa-modal-scroll {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
     }
     #ModalDespesas .sigma-modal-observacao {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      width: 100%;
+      width: auto;
       min-width: 0;
+      margin: 12px 15px 6px;
       padding: 8px 10px;
       border-left: 5px solid #8b5cf6;
       border-radius: 8px;
@@ -1553,6 +1601,9 @@
       font-weight: 800;
       line-height: 1.4;
       overflow-wrap: anywhere;
+    }
+    #ModalDespesas .sigma-modal-observacao--carregando {
+      margin: 0 0 12px;
     }
     #ModalDespesas .sigma-modal-observacao i {
       flex: 0 0 auto;
@@ -1565,34 +1616,6 @@
       display: inline;
       margin-right: 4px;
       color: #4c1d95;
-    }
-    #ModalDespesas .modal-header .close {
-      position: absolute;
-      top: 50%;
-      right: 12px;
-      display: inline-flex !important;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      margin: 0 !important;
-      padding: 0 !important;
-      transform: translateY(-50%);
-      border: 0;
-      border-radius: 10px;
-      background: #7c3aed;
-      color: #fff;
-      opacity: 1;
-      text-shadow: none;
-      font-size: 22px;
-      line-height: 1;
-    }
-    #ModalDespesas .modal-header .close:hover { background: #5b21b6; }
-    #ModalDespesas .modal-body {
-      max-height: calc(100vh - 96px);
-      overflow: auto;
-      padding: 13px;
-      background: #f7f9fc;
     }
     #ModalDespesas .btn-default { display: inline-block !important; }
     #ModalDespesas #btns-voltar { display: inline-flex !important; align-items: center; }
@@ -1645,7 +1668,7 @@
     #sigma-toast {
       position: fixed;
       right: 18px;
-      bottom: 18px;
+      bottom: 55px;
       z-index: 2000000;
       display: none;
       max-width: 430px;
@@ -1751,16 +1774,17 @@
   </div>
 
   <div id="ModalDespesas" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-dialog modal-xl modal-despesas-dialog" role="document">
       <div class="modal-content">
-        <div class="modal-header">
-          <div class="sigma-modal-observacao" id="sigma-modal-observacao">
-            <i class="fa-solid fa-comment-dots"></i>
-            <span class="sigma-modal-observacao-texto"><strong>Observação:</strong> Carregando...</span>
+        <div class="modal-body sigma-modal-body-novo">
+          <div class="sigma-modal-shell-carregando">
+            <div class="sigma-modal-observacao sigma-modal-observacao--carregando" id="sigma-modal-observacao">
+              <i class="fa-solid fa-comment-dots"></i>
+              <span class="sigma-modal-observacao-texto"><strong>Observação:</strong> Carregando...</span>
+            </div>
+            <div class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Aguardando despesa...</div>
           </div>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Fechar" title="Fechar">&times;</button>
         </div>
-        <div class="modal-body"><div class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Aguardando despesa...</div></div>
         <div id="sigma-modal-salvando" aria-live="polite" aria-hidden="true">
           <div class="sigma-salvando-card">
             <i class="fa-solid fa-circle-notch fa-spin sigma-salvando-icone"></i>
@@ -2624,8 +2648,7 @@
         return;
       }
 
-      const item = state.despesas.find(function (despesa) { return despesa.id === id; })
-        || state.itemModal;
+      const item = itemDespesaPorId(id);
       if (!item || !item.financeUrl) {
         throw new Error("O InfraDesk não informou o endereço do formulário financeiro.");
       }
@@ -2640,10 +2663,24 @@
 
       const $ = paginaWindow().jQuery;
       const modal = $("#ModalDespesas");
+      const modalBody = corpoPrincipalModal();
+      if (!modalBody) throw new Error("O corpo do modal Financeiro não foi encontrado.");
+
       modal.modal("show");
-      modal.find(".modal-body")
-        .html('<div class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando formulário financeiro...</div>')
-        .load(item.financeUrl, function () {
+      $(modalBody)
+        .html('<div class="sigma-modal-shell-carregando"><div class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando formulário financeiro...</div></div>')
+        .load(item.financeUrl, function (_resposta, status, xhr) {
+          if (status === "error") {
+            $(modalBody).html(
+              '<div class="sigma-modal-shell-carregando"><div class="sigma-vazio" style="color:#991b1b!important">'
+              + '<i class="fa-solid fa-triangle-exclamation"></i><br>'
+              + 'Não consegui carregar o formulário Financeiro'
+              + (xhr && xhr.status ? ` (HTTP ${xhr.status})` : "")
+              + '.</div></div>'
+            );
+            toast("Não consegui carregar o Financeiro desta despesa.", "erro");
+            return;
+          }
           void processarFormularioModal();
         });
     } catch (falha) {
@@ -3316,6 +3353,79 @@
   // O conteúdo vem do endpoint verdadeiro do InfraDesk.
   // A extensão que lê boletos continua podendo atuar no modal.
   // =========================================================
+  function corpoPrincipalModal() {
+    const conteudo = document.querySelector("#ModalDespesas > .modal-dialog > .modal-content");
+    if (!conteudo) return null;
+
+    return Array.from(conteudo.children).find(function (filho) {
+      return filho.classList && filho.classList.contains("modal-body");
+    }) || conteudo.querySelector(".modal-body");
+  }
+
+  function itemDespesaPorId(id) {
+    id = texto(id);
+    if (!id) return null;
+
+    const encontrado = state.despesas.find(function (item) {
+      return texto(item && item.id) === id;
+    });
+    if (encontrado) return encontrado;
+
+    return state.itemModal && texto(state.itemModal.id) === id
+      ? state.itemModal
+      : null;
+  }
+
+  function criarFaixaObservacaoModal(form) {
+    if (!form) return null;
+
+    let faixa = document.getElementById("sigma-modal-observacao");
+    if (faixa && form.contains(faixa)) return faixa;
+    if (faixa) faixa.remove();
+
+    faixa = document.createElement("div");
+    faixa.className = "sigma-modal-observacao";
+    faixa.id = "sigma-modal-observacao";
+    faixa.innerHTML = `
+      <i class="fa-solid fa-comment-dots"></i>
+      <span class="sigma-modal-observacao-texto"><strong>Observação:</strong> Carregando...</span>
+    `;
+
+    const destino =
+      form.querySelector(".despesa-modal-scroll") ||
+      form.querySelector(".ctn-form") ||
+      form;
+
+    destino.insertBefore(faixa, destino.firstChild);
+    return faixa;
+  }
+
+  function adaptarEstruturaModalAtual(form) {
+    if (!form) return;
+
+    const modal = form.closest("#ModalDespesas");
+    const dialog = modal ? modal.querySelector(":scope > .modal-dialog") : null;
+    const conteudo = dialog ? dialog.querySelector(":scope > .modal-content") : null;
+    const body = corpoPrincipalModal();
+    const layoutNovo = form.querySelector(".despesa-modal-layout");
+
+    if (dialog) dialog.classList.add("modal-xl", "modal-despesas-dialog");
+    if (body) body.classList.toggle("sigma-modal-body-novo", !!layoutNovo);
+    if (modal) modal.dataset.sigmaLayoutFinanceiro = layoutNovo ? "novo" : "legado";
+
+    // Remove somente o cabeçalho criado pelas versões antigas deste painel.
+    // O formulário novo já possui seu próprio cabeçalho e botão de fechar.
+    if (conteudo) {
+      Array.from(conteudo.children).forEach(function (filho) {
+        if (filho.classList && filho.classList.contains("sigma-modal-header-legado")) {
+          filho.remove();
+        }
+      });
+    }
+
+    criarFaixaObservacaoModal(form);
+  }
+
   function observacaoPrincipal(item) {
     if (!item || !Array.isArray(item.observacoes) || !item.observacoes.length) {
       return "Sem observação cadastrada para esta despesa.";
@@ -3337,7 +3447,7 @@
   }
 
   function criarObservadorDoModal() {
-    const body = document.querySelector("#ModalDespesas .modal-body");
+    const body = corpoPrincipalModal();
     if (!body) return;
     state.modalObserver = new MutationObserver(function () {
       clearTimeout(criarObservadorDoModal.timer);
@@ -3354,13 +3464,15 @@
     const action = String(form.getAttribute("action") || "");
     const match = action.match(/\/backend\/despesas\/financeiro\/(\d+)/i);
     const id = match ? match[1] : "";
-    const item = state.despesas.find(function (d) { return d.id === id; }) || state.itemModal;
+    const item = itemDespesaPorId(id);
+    adaptarEstruturaModalAtual(form);
     if (item) {
       state.itemModal = item;
-      atualizarCabecalhoModal(item);
     }
+    atualizarCabecalhoModal(item || { id: id, observacoes: [] });
 
-    const login = texto(form.querySelector("#pagamento-by") ? form.querySelector("#pagamento-by").value : "");
+    const campoLogin = form.querySelector('#pagamento-by, input[name="pagamento_by"]');
+    const login = texto(campoLogin ? campoLogin.value : "");
     if (login) {
       state.usuario.login = login;
       document.documentElement.dataset.sigmaUsuarioLogin = login;
@@ -3735,7 +3847,8 @@
 
     const match = String(form.action || "").match(/\/backend\/despesas\/financeiro\/(\d+)/i);
     const id = match ? match[1] : "";
-    const item = state.despesas.find(function (d) { return d.id === id; }) || state.itemModal;
+    const item = itemDespesaPorId(id);
+
     if (!id) {
       toast("Não consegui identificar a despesa deste formulário.", "erro");
       return;
@@ -3916,7 +4029,13 @@
 
     const match = String(form.action || "").match(/\/backend\/despesas\/financeiro\/(\d+)/i);
     const id = match ? match[1] : "";
-    const item = state.despesas.find(function (d) { return d.id === id; }) || state.itemModal;
+    const item = itemDespesaPorId(id);
+
+    if (!id) {
+      form.dataset.sigmaEnviando = "0";
+      toast("Não consegui identificar a despesa. Nada foi enviado nem registrado.", "erro");
+      return;
+    }
 
     try {
       const reserva = await reservarDespesaFirebaseSeguro(
@@ -4003,7 +4122,13 @@
 
       // O InfraDesk já confirmou neste ponto. A despesa sai da fila agora;
       // o Firebase sincroniza em segundo plano e possui fila local de repetição.
-      if (item) gravarEstadoFinal(item, "");
+      gravarEstadoFinal(item || {
+        id: id,
+        competencia: "",
+        fornecedor: "",
+        tipo: "",
+        valor: "",
+      }, "");
       state.despesas = state.despesas.filter(function (d) { return d.id !== id; });
       paginaWindow().jQuery("#ModalDespesas").modal("hide");
       reconstruirOpcoesFiltros();
@@ -4041,8 +4166,26 @@
     }
   }
 
+  function substituirConteudoModalExecutandoScripts(modalBody, html) {
+    if (!modalBody) return;
+
+    const root = paginaWindow();
+    const $ = root.jQuery || root.$ || window.jQuery || window.$;
+
+    if ($ && $.fn) {
+      // append(html) passa pelo mesmo mecanismo usado pelo .load() do
+      // InfraDesk e executa novamente os scripts do fragmento devolvido.
+      $(modalBody).empty().append(String(html || ""));
+      return;
+    }
+
+    // Proteção de último recurso. O processamento do formulário ainda ocorre,
+    // mesmo que os componentes visuais nativos não possam ser reinicializados.
+    modalBody.innerHTML = String(html || "");
+  }
+
   function restaurarFormularioRetornado(doc, formularioRetornado) {
-    const modalBody = document.querySelector("#ModalDespesas .modal-body");
+    const modalBody = corpoPrincipalModal();
     if (!modalBody || !formularioRetornado) return;
 
     const corpoResposta = doc && doc.body ? doc.body : null;
@@ -4050,8 +4193,10 @@
       && !doc.querySelector("#wrapper, nav.navbar, .navbar-default, .sigma-topo")
       && corpoResposta.innerHTML.length < 250000;
 
+    let conteudo;
+
     if (respostaPareceFragmento) {
-      modalBody.innerHTML = corpoResposta.innerHTML;
+      conteudo = corpoResposta.innerHTML;
     } else {
       const avisos = Array.from(doc.querySelectorAll(".alert, .error-message, .form-error"))
         .filter(function (el) {
@@ -4060,8 +4205,10 @@
         .slice(-4)
         .map(function (el) { return el.outerHTML; })
         .join("");
-      modalBody.innerHTML = avisos + formularioRetornado.outerHTML;
+      conteudo = avisos + formularioRetornado.outerHTML;
     }
+
+    substituirConteudoModalExecutandoScripts(modalBody, conteudo);
 
     setTimeout(function () {
       processarFormularioModal();
