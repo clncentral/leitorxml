@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      4.0.0
+// @version      4.0.1
 // @description  Painel operacional e Kanban unificados, com reservas em tempo real e baixo consumo do Firebase.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
@@ -30,7 +30,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "4.0.0",
+    versao: "4.0.1",
     parametroPainel: "sigma_painel_doca",
     urlPainel: "/backend/chamados/lista?sigma_painel_doca=1",
     urlFonte: "/backend/chamados/lista",
@@ -508,15 +508,20 @@
     .sigma-nf-integracoes { color:#243247;font-weight:700; }
     .sigma-nf-integracoes > strong { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px; }
     .sigma-chave-linha {
-      display:flex;align-items:center;gap:5px;min-width:0;margin-top:4px;color:#475569;
-      font-family:Consolas,monospace;font-size:9px;font-weight:800;
+      display:flex;align-items:center;gap:10px;min-width:0;margin-top:4px;color:#475569;
+      font-family:Consolas,monospace;font-size:9px;font-weight:800;white-space:nowrap;
     }
-    .sigma-chave-texto { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .sigma-nf-numero { display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;color:#172033; }
+    .sigma-chave-texto { flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
     .sigma-chave-copiar {
       flex:0 0 auto;width:20px;height:20px;padding:0;border:1px solid #cbd5e1;border-radius:5px;
       background:#fff;color:#475569;cursor:pointer;font-size:8px;
     }
     .sigma-chave-copiar:hover { border-color:#2563eb;color:#1d4ed8;background:#eff6ff; }
+    .sigma-chave-linha.sigma-chave-invalida { color:#b91c1c; }
+    .sigma-chave-linha.sigma-chave-invalida .sigma-chave-copiar[data-acao="copiar-chave"] {
+      border-color:#fca5a5;background:#fff1f2;color:#b91c1c;
+    }
     .sigma-fornecedor { max-width:220px;font-size:12px;font-weight:900;line-height:1.3; }
     .sigma-pessoa { max-width:150px; }
     .sigma-pessoa strong { display:block;color:#334155;font-size:11px; }
@@ -1115,6 +1120,7 @@
       if (tipo === "feedback") abrirModalFeedback(item);
       if (tipo === "xabuia") acionarIntegracaoExterna(item, "xabuia");
       if (tipo === "comercial") acionarIntegracaoExterna(item, "comercial");
+      if (tipo === "copiar-nf") copiarTexto(acao.dataset.valor || numeroNfDaChave(item.chaveNf) || item.nota || "", "Número da NF copiado.");
       if (tipo === "copiar-chave") copiarTexto(acao.dataset.valor || item.chaveNf || item.chaveNfTexto || "", "Chave/referência copiada.");
       if (tipo === "capturar") capturarChamado(item);
     });
@@ -3196,10 +3202,21 @@
     const minha = responsavel.minha;
     const reservadaOutro = dono && !minha;
     const capturando = !!state.capturandoIds[item.id];
-    const notaOuId = item.nota ? `NF ${item.nota}` : "Sem número de NF identificado";
     const chaveExibida = item.chaveNf || item.chaveNfTexto || "";
-    const rotuloChave = item.chaveNf ? "Chave de acesso" : "Referência informada";
-    const chaveValida = /^\d{44}$/.test(String(item.chaveNf || ""));
+    const chaveDigitos = String(chaveExibida).replace(/\D+/g, "");
+    const chaveValida = chaveDigitos.length === 44;
+    const rotuloChave = chaveValida ? "Chave de acesso" : "Referência informada";
+
+    // NF_NUMERO_DIRETO_DA_CHAVE
+    // Com uma chave válida, mostra somente o número extraído dela. O número
+    // antigo fica como alternativa apenas quando a chave ainda não existe.
+    const numeroNfExibido = chaveValida ? numeroNfDaChave(chaveDigitos) : texto(item.nota);
+    const nfNumeroHtml = numeroNfExibido
+      ? `<span class="sigma-nf-numero"><strong>NF Nº: ${escaparHtml(numeroNfExibido)}</strong><button class="sigma-chave-copiar" type="button" data-acao="copiar-nf" data-id="${item.id}" data-valor="${escaparHtml(numeroNfExibido)}" title="Copiar número da NF"><i class="fa-regular fa-copy"></i></button></span>`
+      : `<span class="sigma-nf-numero"><strong>Sem número de NF identificado</strong></span>`;
+    const chaveTitulo = chaveValida
+      ? `${rotuloChave}: ${chaveDigitos}`
+      : `${rotuloChave} inválida: precisa ter exatamente 44 dígitos`;
     const mostrarIntegracoes = item.statusId === "6";
 
     let ownerHtml = '<span class="sigma-owner livre"><i class="fa-regular fa-circle"></i> Livre</span>';
@@ -3225,8 +3242,7 @@
       <td class="sigma-tipo"><strong>${escaparHtml(item.subcategoria || (!ehPrioridadeGenerica(item.prioridade) ? item.prioridade : "") || item.categoria || "Sem tipo")}</strong><small>${escaparHtml(ehPrioridadeGenerica(item.prioridade) ? `${item.categoria || "Fornecedor"} • prioridade ${item.prioridade}` : (item.categoria || ""))}</small></td>
       <td class="sigma-nf-integracoes">
         <div class="sigma-nf-base">
-          <strong>${escaparHtml(notaOuId)}</strong>
-          ${chaveExibida ? `<span class="sigma-chave-linha" title="${escaparHtml(rotuloChave + ": " + chaveExibida)}"><span class="sigma-chave-texto">${escaparHtml(rotuloChave)}: ${escaparHtml(chaveExibida)}</span><button class="sigma-chave-copiar" type="button" data-acao="copiar-chave" data-id="${item.id}" data-valor="${escaparHtml(chaveExibida)}" title="Copiar"><i class="fa-regular fa-copy"></i></button></span>` : `<span class="sigma-chave-linha"><span class="sigma-chave-texto">Chave ainda não disponível</span></span>`}
+          ${chaveExibida ? `<span class="sigma-chave-linha ${chaveValida ? "" : "sigma-chave-invalida"}" title="${escaparHtml(chaveTitulo)}">${nfNumeroHtml}<span class="sigma-chave-texto">${escaparHtml(rotuloChave)}: ${escaparHtml(chaveValida ? chaveDigitos : chaveExibida)}</span><button class="sigma-chave-copiar" type="button" data-acao="copiar-chave" data-id="${item.id}" data-valor="${escaparHtml(chaveValida ? chaveDigitos : chaveExibida)}" title="Copiar ${chaveValida ? "chave de acesso" : "referência informada"}"><i class="fa-regular fa-copy"></i></button></span>` : `<span class="sigma-chave-linha">${nfNumeroHtml}<span class="sigma-chave-texto">Chave ainda não disponível</span></span>`}
         </div>
         <div class="sigma-integracoes-resumo ${mostrarIntegracoes ? "aguardando" : ""}" data-integracoes-id="${item.id}"></div>
       </td>
@@ -6831,7 +6847,7 @@
     InfraDeskDoca.scheduleOrderPriorityTabs(350);
 
     setTimeout(function () {
-      console.info('[InfraDeskDoca] v4.0.0 unificado ativo: painel econômico, reserva expira após 1h e Firebase completo somente no clique.');
+      console.info('[InfraDeskDoca] v4.0.1 unificado ativo: painel econômico, reserva expira após 1h e Firebase completo somente no clique.');
     }, 600);
 
     window.addEventListener('beforeunload', function () {
