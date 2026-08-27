@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      5.0.7
+// @version      5.1.3
 // @description  Reserva despesas em tempo real na tela original e oferece um painel financeiro rápido, unificado e integrado ao Firebase.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
@@ -25,10 +25,14 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "5.0.7",
+    versao: "5.1.3",
     parametroPainel: "sigma_painel_financeiro_v5",
     urlPainel: "/backend/despesas?sigma_painel_financeiro_v5=1",
     statusFilaFixo: "P",
+    statusAbas: {
+      agendar: ["P"],
+      pendentes: ["R", "A"],
+    },
 
     // O InfraDesk pagina o resultado normal. Portanto podemos usar
     // um período amplo sem mandar o navegador desenhar 200 despesas.
@@ -86,6 +90,11 @@
 
   const state = {
     despesas: [],
+    abaAtual: "agendar",
+    cacheAbas: {
+      agendar: null,
+      pendentes: null,
+    },
     reservas: {},
     estados: {},
     usuario: { nome: "", setor: "", login: "", id: "" },
@@ -1179,6 +1188,44 @@
       flex: 0 0 auto;
     }
 
+    .sigma-abas {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .sigma-aba {
+      min-height: 29px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .sigma-aba:hover {
+      background: rgba(255, 255, 255, .08);
+      color: #fff;
+    }
+
+    .sigma-aba.ativo {
+      background: #fff;
+      color: #172033;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, .22);
+    }
+
+    .sigma-aba:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
     .sigma-usuario {
       display: inline-flex;
       align-items: center;
@@ -1211,19 +1258,46 @@
     .sigma-btn:hover { background: rgba(255, 255, 255, .16); }
     .sigma-btn:disabled { opacity: .48; cursor: wait; }
 
+    /* FILTROS_NAO_ENCOLHEM
+       CTRL + F: FILTROS_NAO_ENCOLHEM
+       O painel é um flex vertical. Quando a grade ganhava muitas linhas,
+       o navegador podia encolher este bloco e cortar inputs/selects,
+       deixando visíveis somente os rótulos. Filtros, topo e resumo agora
+       preservam a própria altura; somente a grade ocupa o espaço restante. */
+    .sigma-topo,
+    .sigma-filtros,
+    .sigma-resumo {
+      flex: 0 0 auto;
+    }
+
     .sigma-filtros {
+      min-height: 59px;
       padding: 8px 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
       border: 1px solid var(--sigma-border);
       border-radius: 11px;
       background: var(--sigma-card);
       box-shadow: 0 5px 18px rgba(15, 23, 42, .06);
     }
 
+    /* FILTROS_EM_UMA_LINHA
+       CTRL + F: FILTROS_EM_UMA_LINHA
+       Competência, Tipo e Responsável ficam compactos (130px).
+       Em telas menores preferimos rolagem horizontal a quebrar os filtros. */
     .sigma-filtros-linha {
       display: grid;
-      grid-template-columns: minmax(240px, 2fr) repeat(5, minmax(130px, 1fr));
+      grid-template-columns:
+        minmax(280px, 1.65fr)
+        130px
+        minmax(220px, 1.15fr)
+        minmax(210px, 1fr)
+        130px
+        130px
+        165px;
       gap: 7px;
       align-items: end;
+      min-width: 1305px;
     }
 
     .sigma-campo label {
@@ -1249,8 +1323,9 @@
       width: 100% !important;
       height: 32px !important;
       margin: 0 !important;
-      overflow: visible !important;
-      white-space: normal !important;
+      overflow: hidden !important;
+      white-space: nowrap !important;
+      text-overflow: ellipsis !important;
       opacity: 1 !important;
     }
 
@@ -1341,14 +1416,148 @@
     }
 
     .sigma-grade tbody td {
-      padding: 8px;
+      padding: 7px 8px;
       border-top: 1px solid #e7edf4;
       color: #475569;
-      font-size: 11px;
+      font-size: 12px;
       vertical-align: middle;
     }
 
-    .sigma-grade tbody tr.sigma-despesa:hover td { background: #f3f8ff; }
+    .sigma-grade tbody tr.sigma-despesa:hover td,
+    .sigma-grade tbody tr.sigma-despesa-dados:hover td,
+    .sigma-grade tbody tr.sigma-despesa-rodape:hover td,
+    .sigma-grade tbody tr.sigma-observacoes:hover td { background: #f7faff; }
+
+    /* BORDA_CARD_DESPESA
+       CTRL + F: BORDA_CARD_DESPESA
+       O contorno EXTERNO é propositalmente mais forte que as divisórias
+       internas. Assim fica evidente onde cada despesa começa e termina. */
+    .sigma-despesa-meta td {
+      padding: 5px 8px !important;
+      border-top: 2px solid #94a3b8 !important;
+      border-left: 2px solid #94a3b8 !important;
+      border-right: 2px solid #94a3b8 !important;
+      border-radius: 7px 7px 0 0;
+      background: #fbfdff;
+      box-shadow: 0 -1px 0 rgba(15, 23, 42, .04);
+    }
+
+    .sigma-despesa-dados td {
+      border-top: 1px solid #e2e8f0 !important;
+    }
+    .sigma-despesa-dados td:first-child { border-left: 2px solid #94a3b8 !important; }
+    .sigma-despesa-dados td:last-child { border-right: 2px solid #94a3b8 !important; }
+
+    .sigma-meta-linha {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .sigma-meta-esquerda,
+    .sigma-meta-direita {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .sigma-numero-id {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .sigma-fluxo {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 22px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .sigma-fluxo strong {
+      color: #1e293b;
+      font-weight: 950;
+    }
+
+    .sigma-despesa-rodape td {
+      padding: 5px 8px !important;
+      border-top: 1px solid #e2e8f0 !important;
+      border-left: 2px solid #94a3b8 !important;
+      border-right: 2px solid #94a3b8 !important;
+      background: #fff;
+    }
+    .sigma-despesa-rodape.sem-observacao td {
+      border-bottom: 2px solid #94a3b8 !important;
+      border-radius: 0 0 7px 7px;
+      box-shadow: 0 2px 4px rgba(15, 23, 42, .06);
+    }
+
+    .sigma-rodape-linha {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: nowrap;
+    }
+
+    .sigma-plano-conta {
+      overflow: hidden;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sigma-plano-conta strong {
+      color: #0f172a;
+      font-weight: 950;
+    }
+
+    .sigma-setor-contratante {
+      overflow: hidden;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sigma-setor-contratante::before {
+      content: "•";
+      margin-right: 8px;
+      color: #94a3b8;
+      font-weight: 950;
+    }
+    .sigma-setor-contratante strong {
+      color: #0f172a;
+      font-weight: 950;
+    }
+
+    .sigma-pgto-antecipado {
+      display: inline-flex;
+      align-items: center;
+      min-height: 21px;
+      margin-top: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 9px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
     .sigma-grade tbody tr.sigma-grupo td {
       position: sticky;
       top: 33px;
@@ -1361,10 +1570,10 @@
       font-weight: 900;
     }
 
-    .sigma-id p { display: inline; margin: 0; color: #172033; font-weight: 900; }
-    .sigma-id small { display: block; margin-top: 2px; color: #7c8ba1; font-size: 9px; }
-    .sigma-desc { max-width: 280px; color: #243247; font-weight: 700; }
-    .sigma-fornecedor { max-width: 250px; }
+    .sigma-id p { display: inline; margin: 0; color: #172033; font-size: 13px; font-weight: 950; }
+    .sigma-id small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; font-weight: 850; }
+    .sigma-desc { max-width: 320px; color: #243247; font-size: 12px; font-weight: 750; }
+    .sigma-fornecedor { max-width: 270px; font-size: 12px; font-weight: 750; }
     .sigma-tipo { white-space: nowrap; }
     .sigma-tipo-conteudo {
       display: inline-flex;
@@ -1407,10 +1616,10 @@
       white-space: nowrap;
       vertical-align: middle;
     }
-    .sigma-data { white-space: nowrap; font-weight: 800; }
+    .sigma-data { white-space: nowrap; font-size: 12px; font-weight: 850; }
     .sigma-data.vencida { color: #dc2626; }
     .sigma-data.hoje { color: #b45309; }
-    .sigma-valor { white-space: nowrap; color: #172033; font-family: Georgia, serif; font-weight: 900; }
+    .sigma-valor { white-space: nowrap; color: #172033; font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: 950; }
 
     .sigma-competencia {
       display: inline-flex;
@@ -1429,14 +1638,14 @@
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      max-width: 150px;
-      min-height: 24px;
-      padding: 0 7px;
+      max-width: 180px;
+      min-height: 25px;
+      padding: 0 8px;
       border: 1px solid #cbd5e1;
       border-radius: 999px;
       background: #fff;
       color: #475569;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 900;
       white-space: nowrap;
     }
@@ -1498,18 +1707,34 @@
       filter: grayscale(1) !important;
     }
 
-    .sigma-observacoes td { padding: 3px 8px 7px 16px !important; background: #fff; }
+    .sigma-observacoes td {
+      padding: 5px 8px 6px !important;
+      border-top: 1px solid #e2e8f0 !important;
+      border-left: 2px solid #94a3b8 !important;
+      border-right: 2px solid #94a3b8 !important;
+      border-bottom: 2px solid #94a3b8 !important;
+      border-radius: 0 0 7px 7px;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(15, 23, 42, .06);
+    }
     .sigma-observacao {
-      display: inline-block;
+      display: block;
+      width: 100%;
       max-width: 100%;
-      margin: 0 5px 3px 0;
-      padding: 5px 8px;
-      border-left: 4px solid #8b5cf6;
-      border-radius: 6px;
+      margin: 0;
+      padding: 4px 8px;
+      border-left: 3px solid #8b5cf6;
+      border-radius: 4px;
       background: #f3e8ff;
       color: #6b21a8;
-      font-size: 9px;
-      line-height: 1.35;
+      font-size: 10px;
+      line-height: 1.3;
+    }
+    .sigma-card-separador td {
+      height: 9px;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
     }
 
     .sigma-vazio,
@@ -1684,7 +1909,7 @@
     #sigma-toast.sucesso { background: #166534; }
 
     @media (max-width: 1450px) {
-      .sigma-filtros-linha { grid-template-columns: minmax(230px, 2fr) repeat(3, minmax(130px, 1fr)); }
+      .sigma-filtros { padding-bottom: 7px; }
     }
   </style>
 </head>
@@ -1695,10 +1920,14 @@
         <span class="sigma-marca-icone"><i class="fa-solid fa-money-check-dollar"></i></span>
         <span>
           <strong>Painel Financeiro Unificado</strong>
-          <small>Fila leve carregada das páginas paginadas do InfraDesk • Competência pela emissão • v${CONFIG.versao}</small>
+          <small>Agendamento e pendências do InfraDesk • carregamento por aba • v${CONFIG.versao}</small>
         </span>
       </div>
       <div class="sigma-topo-acoes">
+        <div class="sigma-abas" role="tablist" aria-label="Filas do painel">
+          <button class="sigma-aba ativo" type="button" data-aba-painel="agendar"><i class="fa-regular fa-calendar-check"></i> Agendar pagamento</button>
+          <button class="sigma-aba" type="button" data-aba-painel="pendentes"><i class="fa-solid fa-inbox"></i> Pendentes</button>
+        </div>
         <span class="sigma-usuario" id="sigma-usuario"><i class="fa-solid fa-user"></i> Identificando usuário...</span>
         <button class="sigma-btn" id="sigma-atualizar" type="button"><i class="fa-solid fa-rotate"></i> Atualizar InfraDesk</button>
         <a class="sigma-btn" href="/backend/despesas" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Tela original</a>
@@ -1714,6 +1943,10 @@
         <div class="sigma-campo">
           <label>Competência</label>
           <select id="sigma-filtro-competencia"><option value="">Todas</option></select>
+        </div>
+        <div class="sigma-campo">
+          <label>Setor Contratante</label>
+          <select id="sigma-filtro-setor"><option value="">Todos</option></select>
         </div>
         <div class="sigma-campo">
           <label>Fornecedor</label>
@@ -1755,14 +1988,14 @@
       <table class="sigma-grade" id="sigma-tabela">
         <thead>
           <tr>
-            <th style="width:95px">Nº / Documento</th>
+            <th style="width:225px">Nº Documento</th>
             <th>Descrição</th>
             <th>Fornecedor</th>
-            <th style="width:145px">Tipo</th>
-            <th style="width:105px">Competência</th>
+            <th style="width:165px">Tipo</th>
+            <th style="width:95px">Emissão</th>
             <th style="width:95px">Vencimento</th>
-            <th style="width:105px">Valor</th>
-            <th style="width:145px">Responsável</th>
+            <th style="width:110px">Valor</th>
+            <th style="width:155px">Responsável</th>
             <th style="width:58px;text-align:center">Abrir</th>
           </tr>
         </thead>
@@ -1944,6 +2177,7 @@
     });
 
     configurarEventosDaTela();
+    atualizarAbasPainel();
     forcarFiltrosNativos();
     criarObservadorDoModal();
 
@@ -2037,6 +2271,7 @@
     const ids = [
       "sigma-busca",
       "sigma-filtro-competencia",
+      "sigma-filtro-setor",
       "sigma-filtro-fornecedor",
       "sigma-filtro-tipo",
       "sigma-filtro-owner",
@@ -2057,6 +2292,14 @@
       });
     });
 
+    document.querySelectorAll("[data-aba-painel]").forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        const aba = texto(botao.dataset.abaPainel);
+        if (!aba || aba === state.abaAtual || state.carregando) return;
+        void trocarAbaPainel(aba);
+      });
+    });
+
     document.querySelectorAll("[data-situacao]").forEach(function (botao) {
       botao.addEventListener("click", function () {
         document.querySelectorAll("[data-situacao]").forEach(function (outro) {
@@ -2070,6 +2313,7 @@
 
     document.getElementById("sigma-atualizar").addEventListener("click", async function () {
       if (state.carregando) return;
+      state.cacheAbas[state.abaAtual] = null;
       await carregarTodasDespesas();
       reconstruirOpcoesFiltros();
       restaurarPreferenciasPainel(false);
@@ -2113,11 +2357,26 @@
   // Usa a página normal /backend/despesas, que pagina em blocos.
   // Nenhuma dessas páginas é desenhada na tela.
   // =========================================================
-  function montarUrlFonte(pagina) {
+  // =========================================================
+  // ABAS_DO_PAINEL
+  // CTRL + F: ABAS_DO_PAINEL
+  // Agendar pagamento carrega primeiro. Pendentes (R + A) só
+  // consulta o InfraDesk quando o usuário clicar na aba.
+  // =========================================================
+  function statusDaAba(aba) {
+    const chave = aba === "pendentes" ? "pendentes" : "agendar";
+    return (CONFIG.statusAbas[chave] || [CONFIG.statusFilaFixo]).slice();
+  }
+
+  function nomeAba(aba) {
+    return aba === "pendentes" ? "Pendentes" : "Agendar pagamento";
+  }
+
+  function montarUrlFonte(pagina, status) {
     const url = new URL("/backend/despesas", window.location.origin);
     const params = {
       setor_id: "",
-      status: CONFIG.statusFilaFixo,
+      status: texto(status) || CONFIG.statusFilaFixo,
       tipo_data: "V",
       data_intervalo: `${CONFIG.periodoInicial} - ${CONFIG.periodoFinal}`,
       nfe_id: "",
@@ -2138,62 +2397,139 @@
     return url.toString();
   }
 
+  async function trocarAbaPainel(aba) {
+    aba = aba === "pendentes" ? "pendentes" : "agendar";
+    if (aba === state.abaAtual) return;
+
+    salvarPreferenciasPainel();
+    state.abaAtual = aba;
+    atualizarAbasPainel();
+
+    const cache = state.cacheAbas[aba];
+    if (Array.isArray(cache)) {
+      state.despesas = cache.slice();
+      reconstruirOpcoesFiltros();
+      restaurarPreferenciasPainel(false);
+      renderizar();
+      atualizarStatus(`${state.despesas.length} despesa(s) em ${nomeAba(aba)} • dados já carregados`);
+      return;
+    }
+
+    await carregarTodasDespesas();
+    reconstruirOpcoesFiltros();
+    restaurarPreferenciasPainel(false);
+    renderizar();
+  }
+
+  function atualizarAbasPainel() {
+    document.querySelectorAll("[data-aba-painel]").forEach(function (botao) {
+      const ativa = botao.dataset.abaPainel === state.abaAtual;
+      botao.classList.toggle("ativo", ativa);
+      botao.setAttribute("aria-selected", ativa ? "true" : "false");
+      botao.disabled = !!state.carregando;
+    });
+  }
+
   async function carregarTodasDespesas() {
     state.carregando = true;
     const botao = document.getElementById("sigma-atualizar");
-    botao.disabled = true;
-    atualizarStatus("Carregando fila 6 • A Agendar Pgto...");
+    if (botao) botao.disabled = true;
+    atualizarAbasPainel();
+
+    const abaCarregando = state.abaAtual;
+    const statuses = statusDaAba(abaCarregando);
+    const descricaoStatus = abaCarregando === "pendentes"
+      ? "1 • A Revisar Despesa + 2 • A Aprovar Gestor"
+      : "6 • A Agendar Pgto.";
+
+    atualizarStatus(`Carregando ${descricaoStatus}...`);
     document.getElementById("sigma-corpo-tabela").innerHTML =
       '<tr><td colspan="9" class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Consultando o InfraDesk sem renderizar as páginas...</td></tr>';
 
     try {
-      const primeira = await buscarPagina(1);
-      instalarContextoUsuario(primeira.doc);
-
-      const totalPaginas = obterTotalPaginas(primeira.doc);
       const mapa = new Map();
-      primeira.itens.forEach(function (item) { mapa.set(item.id, item); });
-      atualizarStatus(`Página 1 de ${totalPaginas} • ${mapa.size} despesas`);
+      let paginasConsultadas = 0;
+      let contextoInstalado = false;
 
-      let proxima = 2;
-      let concluidas = 1;
-      const workers = [];
-      const quantidadeWorkers = Math.min(CONFIG.paginasSimultaneas, Math.max(0, totalPaginas - 1));
+      for (let indiceStatus = 0; indiceStatus < statuses.length; indiceStatus++) {
+        const status = statuses[indiceStatus];
+        const primeira = await buscarPagina(1, status);
 
-      for (let w = 0; w < quantidadeWorkers; w++) {
-        workers.push((async function () {
-          while (true) {
-            const pagina = proxima++;
-            if (pagina > totalPaginas) return;
-            const resultado = await buscarPagina(pagina);
-            resultado.itens.forEach(function (item) { mapa.set(item.id, item); });
-            concluidas++;
-            atualizarStatus(`Carregando ${concluidas} de ${totalPaginas} páginas • ${mapa.size} despesas`);
-          }
-        })());
+        if (!contextoInstalado) {
+          instalarContextoUsuario(primeira.doc);
+          contextoInstalado = true;
+        }
+
+        const totalPaginas = obterTotalPaginas(primeira.doc);
+        paginasConsultadas += totalPaginas;
+        primeira.itens.forEach(function (item) {
+          item.statusCodigo = status;
+          mapa.set(item.id, item);
+        });
+
+        atualizarStatus(
+          `${nomeAba(abaCarregando)} • status ${status} • página 1 de ${totalPaginas} • ${mapa.size} despesas`
+        );
+
+        let proxima = 2;
+        let concluidas = 1;
+        const workers = [];
+        const quantidadeWorkers = Math.min(CONFIG.paginasSimultaneas, Math.max(0, totalPaginas - 1));
+
+        for (let w = 0; w < quantidadeWorkers; w++) {
+          workers.push((async function () {
+            while (true) {
+              const pagina = proxima++;
+              if (pagina > totalPaginas) return;
+              const resultado = await buscarPagina(pagina, status);
+              resultado.itens.forEach(function (item) {
+                item.statusCodigo = status;
+                mapa.set(item.id, item);
+              });
+              concluidas++;
+              atualizarStatus(
+                `${nomeAba(abaCarregando)} • status ${status} • ${concluidas}/${totalPaginas} páginas • ${mapa.size} despesas`
+              );
+            }
+          })());
+        }
+
+        await Promise.all(workers);
       }
 
-      await Promise.all(workers);
-      state.despesas = Array.from(mapa.values());
-      atualizarStatus(`${state.despesas.length} despesas carregadas • ${totalPaginas} página(s) consultada(s)`);
-      log("Fila carregada", state.despesas.length);
+      const carregadas = Array.from(mapa.values());
+      state.cacheAbas[abaCarregando] = carregadas.slice();
+
+      // Se o usuário não trocou de aba durante a consulta, esta passa a ser
+      // a lista ativa. A aba Pendentes só chega aqui depois do primeiro clique.
+      if (state.abaAtual === abaCarregando) {
+        state.despesas = carregadas;
+      }
+
+      atualizarStatus(
+        `${carregadas.length} despesa(s) em ${nomeAba(abaCarregando)} • ${paginasConsultadas} página(s) consultada(s)`
+      );
+      log("Fila carregada", abaCarregando, carregadas.length);
     } catch (falha) {
       console.error(PREFIXO, falha);
       atualizarStatus("Erro ao carregar a fila");
       toast("Não consegui carregar a fila do InfraDesk: " + texto(falha.message || falha), "erro");
     } finally {
       state.carregando = false;
-      botao.disabled = false;
+      if (botao) botao.disabled = false;
+      atualizarAbasPainel();
     }
   }
 
-  async function buscarPagina(pagina) {
-    const resposta = await fetch(montarUrlFonte(pagina), {
+  async function buscarPagina(pagina, status) {
+    const resposta = await fetch(montarUrlFonte(pagina, status), {
       credentials: "same-origin",
       cache: "no-store",
       headers: { "X-Requested-With": "SigmaPainelFinanceiro" },
     });
-    if (!resposta.ok) throw new Error(`InfraDesk retornou HTTP ${resposta.status} na página ${pagina}.`);
+    if (!resposta.ok) {
+      throw new Error(`InfraDesk retornou HTTP ${resposta.status} na página ${pagina} do status ${status}.`);
+    }
     const html = await resposta.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
     return { doc: doc, itens: extrairDespesas(doc) };
@@ -2223,22 +2559,33 @@
     return maior;
   }
 
+  // =========================================================
+  // EXTRAIR_DESPESAS_ENRIQUECIDAS
+  // CTRL + F: EXTRAIR_DESPESAS_ENRIQUECIDAS
+  // Lê fluxo, pagamento antecipado, plano final, documento,
+  // emissão/vencimento e ignora competência nativa + encargos.
+  // =========================================================
   function extrairDespesas(doc) {
     const tabela = localizarTabelaFinanceira(doc);
     if (!tabela || !tabela.tBodies.length) return [];
 
     const itens = [];
     let observacoesPendentes = [];
+    let itemAtual = null;
 
     Array.from(tabela.tBodies[0].children).forEach(function (tr) {
       const alerta = tr.querySelector(".alert");
-      const botao = tr.querySelector('button[onclick*="/backend/despesas/financeiro/"]');
       const principal = tr.classList.contains("tr-index") && !tr.classList.contains("expandir");
 
       if (!principal) {
         if (alerta) {
           const obs = texto(alerta.textContent);
           if (obs) observacoesPendentes.push(obs);
+          return;
+        }
+
+        if (itemAtual && tr.classList.contains("expandir")) {
+          extrairComplementosDespesa(itemAtual, tr);
         }
         return;
       }
@@ -2261,38 +2608,74 @@
       }).filter(function (marcador) {
         return marcador.classes || marcador.titulo;
       });
+
       const fornecedorEl = celulas[3].querySelector("[data-original-title]");
       const fornecedor = texto((fornecedorEl && fornecedorEl.getAttribute("data-original-title")) || celulas[3].textContent);
+      const antecipadoEl = Array.from(celulas[3].querySelectorAll(".badge")).find(function (badge) {
+        return /antecipado/i.test(texto(badge.textContent));
+      });
+      const pagamentoAntecipado = !!antecipadoEl;
+
+      // O InfraDesk agora pode trazer Emissão + Competência + Vencimento.
+      // A competência nativa é ignorada no card; o vencimento é sempre a
+      // última data disponível na célula.
       const datas = texto(celulas[4].textContent).match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g) || [];
-      const emissao = parseDataBr(datas[0] || "");
-      const vencimento = parseDataBr(datas[1] || datas[0] || "");
-      const valor = texto(celulas[5].textContent);
+      const emissaoTexto = datas[0] || "";
+      const vencimentoTexto = datas.length >= 2 ? datas[datas.length - 1] : datas[0] || "";
+      const emissao = parseDataBr(emissaoTexto);
+      const vencimento = parseDataBr(vencimentoTexto);
+
+      // Pega somente o Valor Bruto. O valor de Encargos/Tributos não entra
+      // no painel, conforme a finalidade desta fila.
+      const valorEl = celulas[5].querySelector('[data-original-title="Valor Bruto"]')
+        || celulas[5].querySelector("b");
+      const valor = texto(valorEl ? valorEl.textContent : celulas[5].textContent);
+
       const statusEl = celulas[0].querySelector(".badge");
       const statusTexto = texto(statusEl ? statusEl.textContent : "");
-      const onclick = botao ? (botao.getAttribute("onclick") || "") : "";
-      const urlMatch = onclick.match(/\.load\(['"]([^'"]+)['"]\)/i);
-      const financeUrl = urlMatch ? urlMatch[1].replace(/&amp;/g, "&") : "";
+
+      const botaoFinanceiro = tr.querySelector('button[onclick*="/backend/despesas/financeiro/"]');
+      const financeiroDisponivel = !!(
+        botaoFinanceiro
+        && !botaoFinanceiro.classList.contains("disabled")
+        && !botaoFinanceiro.hasAttribute("disabled")
+      );
+      const onclickFinanceiro = financeiroDisponivel ? (botaoFinanceiro.getAttribute("onclick") || "") : "";
+      const financeMatch = onclickFinanceiro.match(/\.load\(['"]([^'"]+)['"]\)/i);
+      const financeUrl = financeMatch ? financeMatch[1].replace(/&amp;/g, "&") : "";
+
       const linkChamado = tr.querySelector('a[href*="/backend/chamados/criar?despesa_id="]');
-      const numeroDocumento = extrairNumeroDocumento(linkChamado ? linkChamado.getAttribute("href") : "");
+      const detalhesChamado = extrairDetalhesChamado(linkChamado ? linkChamado.getAttribute("href") : "");
 
       const item = {
         id: id,
-        numeroDocumento: numeroDocumento,
+        numeroDocumento: detalhesChamado.numeroDocumento,
         descricao: descricao,
         tipo: tipo,
         imagemTipoSrc: imagemTipoSrc,
         marcadoresTipo: marcadoresTipo,
         statusTexto: statusTexto,
         fornecedor: fornecedor,
+        pagamentoAntecipado: pagamentoAntecipado,
         emissao: emissao,
-        emissaoTexto: datas[0] || "",
+        emissaoTexto: emissaoTexto,
         vencimento: vencimento,
-        vencimentoTexto: datas[1] || datas[0] || "",
+        vencimentoTexto: vencimentoTexto,
         competencia: chaveCompetencia(emissao),
         valor: valor,
+        planoConta: detalhesChamado.planoConta,
+        setorContratante: detalhesChamado.setorContratante,
+        fluxo: {},
         observacoes: observacoesPendentes.slice(),
         financeUrl: financeUrl,
       };
+
+      itens.push(item);
+      itemAtual = item;
+      observacoesPendentes = [];
+    });
+
+    itens.forEach(function (item) {
       item.busca = normalizar([
         item.id,
         item.numeroDocumento,
@@ -2301,13 +2684,69 @@
         item.statusTexto,
         item.fornecedor,
         item.valor,
+        item.planoConta,
+        item.setorContratante,
+        item.pagamentoAntecipado ? "pagamento antecipado adiantamento" : "",
+        Object.keys(item.fluxo || {}).map(function (chave) {
+          const etapa = item.fluxo[chave] || {};
+          return [chave, etapa.usuario, etapa.data].join(" ");
+        }).join(" "),
         (item.marcadoresTipo || []).map(function (m) { return m.titulo; }).join(" "),
       ].join(" "));
-      itens.push(item);
-      observacoesPendentes = [];
     });
 
     return itens;
+  }
+
+  function extrairComplementosDespesa(item, tr) {
+    if (!item || !tr) return;
+
+    // Histórico das etapas. Mostramos somente o fluxo útil:
+    // Criado/Lançado, Revisado, Aprovado, Fiscal e Agendado.
+    Array.from(tr.querySelectorAll("strong")).forEach(function (strong) {
+      const titulo = normalizar(texto(strong.textContent));
+      let chave = "";
+      if (titulo === "lancado") chave = "criado";
+      else if (titulo === "revisado") chave = "revisado";
+      else if (titulo === "aprovado") chave = "aprovado";
+      else if (titulo === "fiscal") chave = "fiscal";
+      else if (titulo === "agendado") chave = "agendado";
+      if (!chave) return;
+
+      const bloco = strong.parentElement;
+      if (!bloco) return;
+
+      const clone = bloco.cloneNode(true);
+      Array.from(clone.querySelectorAll("strong, i")).forEach(function (el) { el.remove(); });
+      const conteudo = texto(clone.textContent);
+      const dataMatch = conteudo.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}:\d{2}\b/);
+      const data = texto(dataMatch ? dataMatch[0] : "");
+      const usuario = texto(conteudo.replace(dataMatch ? dataMatch[0] : "", ""));
+
+      if (usuario && !/^[-\s]+$/.test(usuario)) {
+        item.fluxo[chave] = {
+          usuario: usuario,
+          data: data && data !== "--" ? data : "",
+        };
+      }
+    });
+
+    const textoLinha = texto(tr.textContent);
+
+    if (!item.numeroDocumento && /N[º°o]?\s*Documento\s*:/i.test(textoLinha)) {
+      const matchDoc = textoLinha.match(/N[º°o]?\s*Documento\s*:\s*([^\s]+)/i);
+      if (matchDoc) item.numeroDocumento = texto(matchDoc[1]);
+    }
+
+    if (/Plano(?:s)?\s+de\s+Conta/i.test(textoLinha)) {
+      const plano = extrairUltimoPlanoConta(textoLinha);
+      if (plano) item.planoConta = plano;
+    }
+
+    if (/Setor\s+Contratante\s*:/i.test(textoLinha)) {
+      const matchSetor = textoLinha.match(/Setor\s+Contratante\s*:\s*(.*?)(?=\s+Rateio\s*:|$)/i);
+      if (matchSetor) item.setorContratante = texto(matchSetor[1]);
+    }
   }
 
   function classesIconeSeguras(valor) {
@@ -2319,16 +2758,64 @@
       .join(" ");
   }
 
-  function extrairNumeroDocumento(href) {
-    if (!href) return "";
+  function extrairDetalhesChamado(href) {
+    const retorno = {
+      numeroDocumento: "",
+      planoConta: "",
+      setorContratante: "",
+    };
+    if (!href) return retorno;
+
     try {
       const detalhes = new URL(href, window.location.origin).searchParams.get("detalhes") || "";
       const textoDetalhes = detalhes.replace(/<[^>]+>/g, " ").replace(/\|/g, " | ");
-      const match = textoDetalhes.match(/Doc\s*N[º°o]?\s*:\s*([^|]+)/i);
-      return texto(match ? match[1] : "");
-    } catch (_) {
-      return "";
+
+      const matchDoc = textoDetalhes.match(/Doc\s*N[º°o]?\s*:\s*([^|]+)/i);
+      retorno.numeroDocumento = texto(matchDoc ? matchDoc[1] : "");
+
+      const plano = extrairUltimoPlanoConta(textoDetalhes);
+      if (plano) retorno.planoConta = plano;
+
+      const matchSetor = textoDetalhes.match(/Setor\s+Contratante\s*:\s*([^|]+)/i);
+      retorno.setorContratante = texto(matchSetor ? matchSetor[1] : "");
+    } catch (_) {}
+
+    return retorno;
+  }
+
+  function extrairUltimoPlanoConta(valor) {
+    const bruto = texto(String(valor || "").replace(/\|/g, " "));
+    if (!bruto) return "";
+
+    // Procura contas analíticas (5 blocos numéricos) e escolhe a última.
+    // Ex.: 4.02.002.0004.00013 - Despesas De Trade Marketing
+    const regex = /(\d+(?:\.\d+){4})\s*-\s*(.*?)(?=\s+-\s+\d+(?:\.\d+){4}\b|\s*\||$)/g;
+    let match;
+    let ultimo = "";
+    while ((match = regex.exec(bruto))) {
+      const codigo = texto(match[1]);
+      let descricao = texto(match[2])
+        .replace(/\bSetor\s+Contratante\s*:.*$/i, "")
+        .replace(/\bDescri[cç][aã]o\s*:.*$/i, "")
+        .trim();
+      if (codigo && descricao) ultimo = `${codigo} - ${descricao}`;
     }
+
+    // Fallback mais permissivo para o HTML expandido, no qual o texto pode
+    // estar sem separadores "|" depois que o DOM é normalizado.
+    if (!ultimo) {
+      const matches = Array.from(bruto.matchAll(/(\d+(?:\.\d+){4})\s*-\s*([^-]+?)(?=\s+\d+(?:\.\d+){3,4}\s*-|$)/g));
+      if (matches.length) {
+        const escolhido = matches[matches.length - 1];
+        ultimo = `${texto(escolhido[1])} - ${texto(escolhido[2])}`;
+      }
+    }
+
+    return texto(ultimo);
+  }
+
+  function extrairNumeroDocumento(href) {
+    return extrairDetalhesChamado(href).numeroDocumento;
   }
 
   // =========================================================
@@ -2994,6 +3481,7 @@
   function despesasVisiveis() {
     const busca = normalizar(valorFiltro("sigma-busca"));
     const competencia = valorFiltro("sigma-filtro-competencia");
+    const setor = valorFiltro("sigma-filtro-setor");
     const fornecedor = valorFiltro("sigma-filtro-fornecedor");
     const tipo = valorFiltro("sigma-filtro-tipo");
     const ownerFiltro = valorFiltro("sigma-filtro-owner");
@@ -3006,6 +3494,7 @@
 
       if (busca && !item.busca.includes(busca)) return false;
       if (competencia && item.competencia !== competencia) return false;
+      if (setor && item.setorContratante !== setor) return false;
       if (fornecedor && item.fornecedor !== fornecedor) return false;
       if (tipo && item.tipo !== tipo) return false;
       if (ownerFiltro === "__livre__" && owner) return false;
@@ -3023,20 +3512,22 @@
 
   function reconstruirOpcoesFiltros() {
     preencherSelect("sigma-filtro-competencia", state.despesas.map(function (i) { return i.competencia; }), "Todas", ordenarCompetencias);
+    preencherSelectSetorComContagem();
     preencherSelectFornecedorComContagem();
     preencherSelect("sigma-filtro-tipo", state.despesas.map(function (i) { return i.tipo; }), "Todos");
     atualizarOpcoesResponsavel();
   }
 
   // =========================================================
-  // CONTAGEM_NO_FILTRO_FORNECEDOR
-  // Mostra FORNECEDOR (10), mas mantém o VALUE somente com o nome.
-  // A contagem respeita os demais filtros ativos e ignora apenas a
-  // seleção atual de fornecedor.
+  // CONTAGEM_NO_FILTRO_SETOR_CONTRATANTE
+  // CTRL + F: CONTAGEM_NO_FILTRO_SETOR_CONTRATANTE
+  // Igual ao fornecedor: mostra SETOR (quantidade) sem alterar o VALUE.
+  // A contagem respeita todos os outros filtros e ignora somente Setor.
   // =========================================================
-  function despesasParaContagemFornecedor() {
+  function despesasParaContagemSetor() {
     const busca = normalizar(valorFiltro("sigma-busca"));
     const competencia = valorFiltro("sigma-filtro-competencia");
+    const fornecedor = valorFiltro("sigma-filtro-fornecedor");
     const tipo = valorFiltro("sigma-filtro-tipo");
     const ownerFiltro = valorFiltro("sigma-filtro-owner");
     const situacao = situacaoAtual();
@@ -3048,6 +3539,66 @@
 
       if (busca && !item.busca.includes(busca)) return false;
       if (competencia && item.competencia !== competencia) return false;
+      if (fornecedor && item.fornecedor !== fornecedor) return false;
+      if (tipo && item.tipo !== tipo) return false;
+      if (ownerFiltro === "__livre__" && owner) return false;
+      if (ownerFiltro && ownerFiltro !== "__livre__" && owner !== ownerFiltro) return false;
+      if (situacao === "livres" && owner && !mesmaPessoa(owner, state.usuario.nome)) return false;
+      if (situacao === "minhas" && !mesmaPessoa(owner, state.usuario.nome)) return false;
+      if (situacao === "reservadas" && !owner) return false;
+      if (situacao === "vencidas" && !(dias != null && dias < 0)) return false;
+      return true;
+    });
+  }
+
+  function preencherSelectSetorComContagem() {
+    const select = document.getElementById("sigma-filtro-setor");
+    if (!select) return;
+
+    const atual = select.value;
+    const itens = despesasParaContagemSetor();
+    const contagens = new Map();
+
+    itens.forEach(function (item) {
+      const nome = texto(item.setorContratante) || "Sem setor";
+      contagens.set(nome, (contagens.get(nome) || 0) + 1);
+    });
+
+    const nomes = Array.from(contagens.keys()).sort(function (a, b) {
+      return a.localeCompare(b, "pt-BR");
+    });
+
+    select.innerHTML = `<option value="">Todos (${itens.length})</option>` + nomes.map(function (nome) {
+      return `<option value="${escaparHtml(nome)}">${escaparHtml(nome)} (${contagens.get(nome) || 0})</option>`;
+    }).join("");
+
+    if (Array.from(select.options).some(function (option) { return option.value === atual; })) {
+      select.value = atual;
+    }
+  }
+
+  // =========================================================
+  // CONTAGEM_NO_FILTRO_FORNECEDOR
+  // Mostra FORNECEDOR (10), mas mantém o VALUE somente com o nome.
+  // A contagem respeita os demais filtros ativos e ignora apenas a
+  // seleção atual de fornecedor.
+  // =========================================================
+  function despesasParaContagemFornecedor() {
+    const busca = normalizar(valorFiltro("sigma-busca"));
+    const competencia = valorFiltro("sigma-filtro-competencia");
+    const setor = valorFiltro("sigma-filtro-setor");
+    const tipo = valorFiltro("sigma-filtro-tipo");
+    const ownerFiltro = valorFiltro("sigma-filtro-owner");
+    const situacao = situacaoAtual();
+
+    return state.despesas.filter(function (item) {
+      if (estaFinalizadaRecentemente(item.id)) return false;
+      const owner = donoReserva(item.id);
+      const dias = diasPara(item.vencimento);
+
+      if (busca && !item.busca.includes(busca)) return false;
+      if (competencia && item.competencia !== competencia) return false;
+      if (setor && item.setorContratante !== setor) return false;
       if (tipo && item.tipo !== tipo) return false;
       if (ownerFiltro === "__livre__" && owner) return false;
       if (ownerFiltro && ownerFiltro !== "__livre__" && owner !== ownerFiltro) return false;
@@ -3134,7 +3685,10 @@
   }
 
   function chavePreferenciasPainel() {
-    return "sigma-painel-financeiro-filtros-v1:" + normalizar(nomeUsuarioPreferencias());
+    return "sigma-painel-financeiro-filtros-v2:"
+      + normalizar(nomeUsuarioPreferencias())
+      + ":"
+      + (state.abaAtual === "pendentes" ? "pendentes" : "agendar");
   }
 
   function lerPreferenciasPainel() {
@@ -3153,6 +3707,7 @@
     const dados = {
       busca: valorFiltro("sigma-busca"),
       competencia: valorFiltro("sigma-filtro-competencia"),
+      setor: valorFiltro("sigma-filtro-setor"),
       fornecedor: valorFiltro("sigma-filtro-fornecedor"),
       tipo: valorFiltro("sigma-filtro-tipo"),
       responsavel: valorFiltro("sigma-filtro-owner"),
@@ -3196,6 +3751,7 @@
 
       if (!somenteBasicos) {
         aplicarValorSeDisponivel("sigma-filtro-competencia", dados.competencia || "");
+        aplicarValorSeDisponivel("sigma-filtro-setor", dados.setor || "");
         aplicarValorSeDisponivel("sigma-filtro-fornecedor", dados.fornecedor || "");
         aplicarValorSeDisponivel("sigma-filtro-tipo", dados.tipo || "");
         aplicarValorSeDisponivel("sigma-filtro-owner", dados.responsavel || "");
@@ -3227,6 +3783,7 @@
     const corpo = document.getElementById("sigma-corpo-tabela");
     if (!corpo) return;
 
+    preencherSelectSetorComContagem();
     preencherSelectFornecedorComContagem();
     atualizarContadores();
     const lista = despesasVisiveis();
@@ -3281,6 +3838,11 @@
     return "Competência " + item.competencia;
   }
 
+  // =========================================================
+  // CARD_COMPACTO_DA_DESPESA
+  // CTRL + F: CARD_COMPACTO_DA_DESPESA
+  // Card fechado + ID/fluxo + dados + status/plano/setor + observação interna.
+  // =========================================================
   function htmlDespesa(item) {
     const owner = donoReserva(item.id);
     const bloqueado = owner && !mesmaPessoa(owner, state.usuario.nome);
@@ -3292,39 +3854,89 @@
     const acaoOwner = owner
       ? `<button type="button" data-liberar-id="${escaparHtml(item.id)}" title="${mesmaPessoa(owner, state.usuario.nome) ? "Liberar" : "Remover reserva de " + escaparHtml(owner)}" ${reservando ? "disabled" : ""}>×</button>`
       : `<button type="button" class="sigma-owner-reservar" data-reservar-id="${escaparHtml(item.id)}" title="Reservar para ${escaparHtml(state.usuario.nome || "o usuário logado")}" ${reservando ? "disabled" : ""}>+</button>`;
+
     const marcadores = (item.marcadoresTipo || []).map(function (marcador) {
       const classes = marcador.classes || "fa-solid fa-circle-info";
       return `<i class="${escaparHtml(classes)}" title="${escaparHtml(marcador.titulo || "Marcador especial")}"></i>`;
     }).join("");
+
     const tipoHtml = `<span class="sigma-tipo-conteudo">`
       + (item.imagemTipoSrc ? `<img class="sigma-tipo-img" src="${escaparHtml(item.imagemTipoSrc)}" alt="">` : "")
       + `<span class="sigma-tipo-texto" title="${escaparHtml(item.tipo)}">${escaparHtml(item.tipo)}</span>`
       + (marcadores ? `<span class="sigma-tipo-extra">${marcadores}</span>` : "")
       + `</span>`;
 
-    let html = "";
+    const fluxo = item.fluxo || {};
+    const fluxoHtml = [
+      ["criado", "Criado por"],
+      ["revisado", "Revisado por"],
+      ["aprovado", "Aprovado por"],
+      ["fiscal", "Fiscal"],
+      ["agendado", "Agendado por"],
+    ].map(function (par) {
+      const etapa = fluxo[par[0]];
+      if (!etapa || !etapa.usuario) return "";
+      const tituloData = etapa.data ? ` title="${escaparHtml(etapa.data)}"` : "";
+      return `<span class="sigma-fluxo"${tituloData}><strong>${escaparHtml(par[1])}:</strong> ${escaparHtml(etapa.usuario)}</span>`;
+    }).filter(Boolean).join("");
 
-    // Igual à tela normal do InfraDesk: a observação pertence à despesa
-    // seguinte e aparece imediatamente ANTES da linha principal.
-    if (item.observacoes && item.observacoes.length) {
-      html += `<tr class="sigma-observacoes"><td colspan="9">${item.observacoes.map(function (obs) {
+    const antecipadoHtml = item.pagamentoAntecipado
+      ? `<span class="sigma-pgto-antecipado"><i class="fa-solid fa-forward-fast"></i> Pgto Antecipado</span>`
+      : "";
+
+    let html = "";
+    const temObservacao = !!(item.observacoes && item.observacoes.length);
+
+    // Linha compacta do ID + pessoas que participaram do fluxo.
+    html += `<tr class="tr-index sigma-despesa sigma-despesa-meta" data-sigma-id="${escaparHtml(item.id)}">
+      <td colspan="9">
+        <div class="sigma-meta-linha">
+          <div class="sigma-meta-esquerda">
+            <span class="sigma-numero-id">ID ${escaparHtml(item.id)}</span>
+            ${fluxoHtml || '<span class="sigma-fluxo">Histórico ainda não informado</span>'}
+          </div>
+          <div class="sigma-meta-direita">
+            <span class="sigma-owner" style="${owner ? `background:${cor};border-color:${cor};color:#fff` : ""}">${escaparHtml(textoOwner)}${acaoOwner}</span>
+            ${item.financeUrl
+              ? `<button type="button" class="btn btn-success btn-sm sigma-financeiro ${bloqueado ? "tm-finance-blocked disabled" : "tm-finance-free"}" data-sigma-id="${escaparHtml(item.id)}" data-sigma-finance-url="${escaparHtml(item.financeUrl)}" data-tm-blocked-by-user="${bloqueado ? "1" : "0"}" title="${bloqueado ? "Bloqueado: " + escaparHtml(owner) : "Abrir financeiro"}" ${bloqueado ? "disabled aria-disabled=\"true\"" : ""}><i class="fa-regular fa-money-bill-1"></i></button>`
+              : ""}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+
+    // Dados principais. A competência nativa e os encargos não são exibidos.
+    html += `<tr class="sigma-despesa-dados" data-sigma-id="${escaparHtml(item.id)}">
+      <td class="sigma-id">${item.numeroDocumento ? `<small style="font-size:12px;color:#172033"><strong>Nº Doc:</strong> ${escaparHtml(item.numeroDocumento)}</small>` : '<small>—</small>'}</td>
+      <td class="sigma-desc" title="${escaparHtml(item.descricao)}">${escaparHtml(item.descricao)}</td>
+      <td class="sigma-fornecedor" title="${escaparHtml(item.fornecedor)}">${escaparHtml(item.fornecedor)}${antecipadoHtml}</td>
+      <td class="sigma-tipo">${tipoHtml}</td>
+      <td class="sigma-data">${escaparHtml(item.emissaoTexto)}</td>
+      <td class="sigma-data ${classeData}" title="${dias == null ? "" : dias < 0 ? Math.abs(dias) + " dia(s) vencida" : dias + " dia(s)"}">${escaparHtml(item.vencimentoTexto)}</td>
+      <td class="sigma-valor">${escaparHtml(item.valor)}</td>
+      <td></td>
+      <td></td>
+    </tr>`;
+
+    // Status + conta contábil + setor contratante ficam na mesma linha fina.
+    html += `<tr class="sigma-despesa-rodape ${temObservacao ? "" : "sem-observacao"}" data-sigma-id="${escaparHtml(item.id)}">
+      <td colspan="9">
+        <div class="sigma-rodape-linha">
+          ${item.statusTexto ? `<span class="sigma-status-mini" style="max-width:none;margin-top:0;font-size:10px">${escaparHtml(item.statusTexto)}</span>` : ""}
+          ${item.planoConta ? `<span class="sigma-plano-conta"><strong>Plano de Contas:</strong> ${escaparHtml(item.planoConta)}</span>` : ""}
+          ${item.setorContratante ? `<span class="sigma-setor-contratante"><strong>Setor Contratante:</strong> ${escaparHtml(item.setorContratante)}</span>` : ""}
+        </div>
+      </td>
+    </tr>`;
+
+    // A observação agora pertence claramente ao card e fecha sua borda.
+    if (temObservacao) {
+      html += `<tr class="sigma-observacoes" data-sigma-id="${escaparHtml(item.id)}"><td colspan="9">${item.observacoes.map(function (obs) {
         return `<span class="sigma-observacao">${escaparHtml(obs)}</span>`;
       }).join("")}</td></tr>`;
     }
 
-    html += `<tr class="tr-index sigma-despesa" data-sigma-id="${escaparHtml(item.id)}">
-      <td class="sigma-id"><p>${escaparHtml(item.id)}</p>${item.numeroDocumento ? `<small>Doc. ${escaparHtml(item.numeroDocumento)}</small>` : ""}${item.statusTexto ? `<span class="sigma-status-mini" title="${escaparHtml(item.statusTexto)}">${escaparHtml(item.statusTexto)}</span>` : ""}</td>
-      <td class="sigma-desc" title="${escaparHtml(item.descricao)}">${escaparHtml(item.descricao)}</td>
-      <td class="sigma-fornecedor" title="${escaparHtml(item.fornecedor)}">${escaparHtml(item.fornecedor)}</td>
-      <td class="sigma-tipo">${tipoHtml}</td>
-      <td><span class="sigma-competencia" title="Data de emissão: ${escaparHtml(item.emissaoTexto)}">${escaparHtml(item.competencia)}</span></td>
-      <td class="sigma-data ${classeData}" title="${dias == null ? "" : dias < 0 ? Math.abs(dias) + " dia(s) vencida" : dias + " dia(s)"}">${escaparHtml(item.vencimentoTexto)}</td>
-      <td class="sigma-valor">${escaparHtml(item.valor)}</td>
-      <td><span class="sigma-owner" style="${owner ? `background:${cor};border-color:${cor};color:#fff` : ""}">${escaparHtml(textoOwner)}${acaoOwner}</span></td>
-      <td style="text-align:center">${item.financeUrl
-        ? `<button type="button" class="btn btn-success btn-sm sigma-financeiro ${bloqueado ? "tm-finance-blocked disabled" : "tm-finance-free"}" data-sigma-id="${escaparHtml(item.id)}" data-sigma-finance-url="${escaparHtml(item.financeUrl)}" data-tm-blocked-by-user="${bloqueado ? "1" : "0"}" title="${bloqueado ? "Bloqueado: " + escaparHtml(owner) : "Abrir financeiro"}" ${bloqueado ? "disabled aria-disabled=\"true\"" : ""}><i class="fa-regular fa-money-bill-1"></i></button>`
-        : `<button type="button" class="btn btn-sm sigma-financeiro" disabled title="Esta etapa não possui formulário financeiro disponível"><i class="fa-solid fa-minus"></i></button>`}</td>
-    </tr>`;
+    html += '<tr class="sigma-card-separador" aria-hidden="true"><td colspan="9"></td></tr>';
 
     return html;
   }
@@ -3936,6 +4548,7 @@
 
       if (item) gravarEstadoFinal(item, codigoRetorno);
       state.despesas = state.despesas.filter(function (d) { return d.id !== id; });
+      state.cacheAbas[state.abaAtual] = state.despesas.slice();
       paginaWindow().jQuery("#ModalDespesas").modal("hide");
       reconstruirOpcoesFiltros();
       renderizar();
@@ -4130,6 +4743,7 @@
         valor: "",
       }, "");
       state.despesas = state.despesas.filter(function (d) { return d.id !== id; });
+      state.cacheAbas[state.abaAtual] = state.despesas.slice();
       paginaWindow().jQuery("#ModalDespesas").modal("hide");
       reconstruirOpcoesFiltros();
       renderizar();
