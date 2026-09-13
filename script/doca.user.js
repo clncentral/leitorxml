@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      4.0.1
-// @description  Painel operacional e Kanban unificados, com reservas em tempo real e baixo consumo do Firebase.
+// @version      4.1.1
+// @description  Painel operacional e Kanban unificados, com reservas em tempo real e integração econômica com NF-e/Status da Bluesoft.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -14,6 +14,9 @@
 // @connect      *.firebasedatabase.app
 // @connect      firebasedatabase.app
 // @connect      asp.infradesk.app
+// @require      https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js
+// @require      https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js
+// @require      https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js
 // @updateURL    https://clncentral.github.io/leitorxml/script/doca.user.js
 // @downloadURL  https://clncentral.github.io/leitorxml/script/doca.user.js
 // ==/UserScript==
@@ -30,7 +33,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "4.0.1",
+    versao: "4.1.1",
     parametroPainel: "sigma_painel_doca",
     urlPainel: "/backend/chamados/lista?sigma_painel_doca=1",
     urlFonte: "/backend/chamados/lista",
@@ -96,6 +99,46 @@
     // A organização opcional usa o representante: Recebimento 03, 01 e 05.
     // Dentro de cada loja, SLA mais urgente e chamados mais antigos vêm primeiro.
   };
+
+  // =========================================================
+  // BLUESOFT_FIREBASE_COMPARTILHADO
+  // Para localizar depois, use CTRL + F e procure por:
+  // BLUESOFT_FIREBASE_COMPARTILHADO
+  //
+  // Esta é uma SEGUNDA base Firebase, independente do Realtime Database
+  // usado pelas reservas do InfraDesk. Ela é a mesma base compartilhada
+  // pelo script da Bluesoft e contém notas/{nfKey}.
+  //
+  // Economia: as chaves de acesso da tabela são agrupadas em lotes de até
+  // 30 e acompanhadas por consultas em tempo real. Não existe uma leitura
+  // separada para cada linha e não há polling periódico do Firestore.
+  // =========================================================
+  const BLUESOFT_FIREBASE_CONFIG = Object.freeze({
+    apiKey: "AIzaSyBGqqtT6_cK-m3NqePOHgJP-ADYBcXnE6I",
+    authDomain: "compradores-c0537.firebaseapp.com",
+    projectId: "compradores-c0537",
+    storageBucket: "compradores-c0537.firebasestorage.app",
+    messagingSenderId: "886343500856",
+    appId: "1:886343500856:web:99aa530915f3f61b21d2cd",
+  });
+
+  const BLUESOFT_FIREBASE_APP_NOME = "cln-compradores-infradesk";
+  const BLUESOFT_FIREBASE_COLECAO_NOTAS = "notas";
+  const BLUESOFT_FIREBASE_MAX_CHAVES_POR_CONSULTA = 30;
+  const BLUESOFT_URL_RECEBIMENTO = "https://erp.bluesoft.com.br/flex/comercial/recebimentoMercadorias/prosseguirComRecebimento.action?nfKey=";
+  const BLUESOFT_URL_STATUS = "https://erp.bluesoft.com.br/flex/comercial/statusRecebimentoMercadorias/exibirHistorico.action?nfKey=";
+
+  // ICONES_OFICIAIS_BLUESOFT — CTRL + F: ICONES_OFICIAIS_BLUESOFT
+  // Mesmos arquivos usados pelo ERP Bluesoft na consulta de NF-e.
+  const BLUESOFT_ICONES = Object.freeze({
+    exibir: "https://cdn.bluesoft.com.br/commons/icons/visualizar.png",
+    receber: "https://cdn.bluesoft.com.br/commons/icons/icon_accept.gif",
+    pendente: "https://cdn.bluesoft.com.br/commons/icons/clock_error.png",
+    devolver: "https://cdn.bluesoft.com.br/commons/icons/stop.png",
+    divergencia: "https://cdn.bluesoft.com.br/commons/icons/warn.gif",
+    fechado: "https://cdn.bluesoft.com.br/commons/icons/lock.png",
+    neutro: "https://cdn.bluesoft.com.br/commons/icons/info.gif",
+  });
 
   const PREFIXO = "[Painel Doca]";
   const urlAtual = new URL(window.location.href);
@@ -175,6 +218,15 @@
     integracaoResizeHandler: null,
     integracaoAtivos: new Set(),
     complementoNfTimer: null,
+
+    // BLUESOFT_FIREBASE_COMPARTILHADO
+    bluesoftFirestore: null,
+    bluesoftFirebaseInicializacao: null,
+    bluesoftNfPorChave: {},
+    bluesoftListeners: [],
+    bluesoftAssinaturaChaves: "",
+    bluesoftSyncTimer: null,
+    bluesoftFalhaEm: 0,
   };
 
   prepararPainel().catch(function (falha) {
@@ -581,6 +633,22 @@
       text-decoration:none;font-size:11px;
     }
     .sigma-acao:hover { border-color:#2563eb;background:#eff6ff;color:#1d4ed8; }
+
+    /* BLUESOFT_BOTOES_NF_STATUS
+       Mantém exatamente a mesma altura/largura dos botões existentes, mas usa
+       os PRÓPRIOS ícones do ERP Bluesoft dentro deles. */
+    .sigma-acao.sigma-acao-bluesoft-exibir,
+    .sigma-acao.sigma-acao-bluesoft-status {
+      border-color:#cbd5e1;background:#fff;color:#334155;
+    }
+    .sigma-acao.sigma-acao-bluesoft-exibir:hover,
+    .sigma-acao.sigma-acao-bluesoft-status:hover {
+      border-color:#2563eb;background:#eff6ff;color:#1d4ed8;
+    }
+    .sigma-acao.sigma-acao-bluesoft-exibir img,
+    .sigma-acao.sigma-acao-bluesoft-status img {
+      display:block;width:16px;height:16px;object-fit:contain;image-rendering:auto;
+    }
     .sigma-acao.destaque { border-color:#0f8a5f;background:#12865d;color:#fff; }
     .sigma-acao.destaque:hover { background:#0b6b49;color:#fff; }
     .sigma-acao:disabled { opacity:.35;cursor:not-allowed;filter:grayscale(1); }
@@ -2527,6 +2595,247 @@
   }
 
   // =========================================================
+  // BLUESOFT_FIREBASE_COMPARTILHADO
+  // CTRL + F: BLUESOFT_FIREBASE_COMPARTILHADO
+  // =========================================================
+  function firebaseCompartilhadoSdk() {
+    try {
+      if (typeof firebase !== "undefined" && firebase?.initializeApp) return firebase;
+    } catch (_) {}
+    try {
+      if (window.firebase?.initializeApp) return window.firebase;
+    } catch (_) {}
+    return null;
+  }
+
+  async function obterFirestoreBluesoft() {
+    if (state.bluesoftFirestore) return state.bluesoftFirestore;
+    if (state.bluesoftFirebaseInicializacao) return state.bluesoftFirebaseInicializacao;
+
+    state.bluesoftFirebaseInicializacao = (async function () {
+      const fb = firebaseCompartilhadoSdk();
+      if (!fb?.initializeApp || !fb?.firestore) {
+        throw new Error("SDK Firebase compartilhado não carregou.");
+      }
+
+      let app;
+      try {
+        app = fb.app(BLUESOFT_FIREBASE_APP_NOME);
+      } catch (_) {
+        app = fb.initializeApp(BLUESOFT_FIREBASE_CONFIG, BLUESOFT_FIREBASE_APP_NOME);
+      }
+
+      // A base usada pelo script da Bluesoft autentica anonimamente. Caso a
+      // autenticação esteja temporariamente indisponível, ainda tentamos a
+      // leitura: isso também funciona quando as regras permitirem leitura pública.
+      try {
+        if (typeof app.auth === "function") {
+          const auth = app.auth();
+          if (!auth.currentUser) await auth.signInAnonymously();
+        }
+      } catch (falhaAuth) {
+        console.warn(PREFIXO, "Firebase Bluesoft: autenticação anônima não respondeu; tentando leitura pelas regras atuais.", falhaAuth);
+      }
+
+      state.bluesoftFirestore = app.firestore();
+      state.bluesoftFalhaEm = 0;
+      return state.bluesoftFirestore;
+    })();
+
+    try {
+      return await state.bluesoftFirebaseInicializacao;
+    } catch (falha) {
+      state.bluesoftFirebaseInicializacao = null;
+      state.bluesoftFirestore = null;
+      state.bluesoftFalhaEm = Date.now();
+      throw falha;
+    }
+  }
+
+  function chaveAcessoValidaDoItem(item) {
+    const chave = somenteDigitos(item?.chaveNf || item?.chaveNfTexto || "");
+    return chave.length === 44 ? chave : "";
+  }
+
+  function registroBluesoftDaChave(chave) {
+    chave = somenteDigitos(chave);
+    if (chave.length !== 44) return null;
+    return state.bluesoftNfPorChave[chave] || null;
+  }
+
+  function assinaturaRegistroBluesoft(registro) {
+    if (!registro) return "";
+    return [
+      texto(registro.nfKey),
+      texto(registro.chaveAcesso),
+      texto(registro.statusRecebimento),
+      texto(registro.comprador),
+    ].join("|");
+  }
+
+  function idsChamadosDaChave(chave) {
+    chave = somenteDigitos(chave);
+    if (chave.length !== 44) return [];
+    return state.chamados
+      .filter(function (item) { return chaveAcessoValidaDoItem(item) === chave; })
+      .map(function (item) { return String(item.id); });
+  }
+
+  function mapaChavesBluesoftAtuais() {
+    const mapa = new Map();
+    state.chamados.forEach(function (item) {
+      const chave = chaveAcessoValidaDoItem(item);
+      if (!chave) return;
+      if (!mapa.has(chave)) mapa.set(chave, []);
+      mapa.get(chave).push(String(item.id));
+    });
+    return mapa;
+  }
+
+  function dividirEmLotes(lista, tamanho) {
+    const lotes = [];
+    for (let i = 0; i < lista.length; i += tamanho) lotes.push(lista.slice(i, i + tamanho));
+    return lotes;
+  }
+
+  function cancelarListenersBluesoft(limparAssinatura = false) {
+    (state.bluesoftListeners || []).forEach(function (cancelar) {
+      try { cancelar?.(); } catch (_) {}
+    });
+    state.bluesoftListeners = [];
+    if (limparAssinatura) state.bluesoftAssinaturaChaves = "";
+  }
+
+  function agendarSincronizacaoBluesoftFirebase(atrasoMs = 180) {
+    clearTimeout(state.bluesoftSyncTimer);
+    state.bluesoftSyncTimer = setTimeout(function () {
+      state.bluesoftSyncTimer = null;
+      sincronizarBluesoftFirebaseTabela().catch(function (falha) {
+        console.warn(PREFIXO, "Não consegui sincronizar NF/Status da Bluesoft.", falha);
+      });
+    }, Math.max(0, Number(atrasoMs || 0)));
+  }
+
+  async function sincronizarBluesoftFirebaseTabela() {
+    const mapa = mapaChavesBluesoftAtuais();
+    const chaves = Array.from(mapa.keys()).sort();
+    const assinatura = chaves.join("|");
+
+    if (!chaves.length) {
+      cancelarListenersBluesoft(true);
+      return;
+    }
+
+    // Se o conjunto de chaves não mudou, os listeners existentes continuam
+    // trazendo apenas as alterações. Zero polling do Firestore.
+    if (assinatura === state.bluesoftAssinaturaChaves && state.bluesoftListeners.length) return;
+
+    // Evita martelar em caso de indisponibilidade/auth. Uma nova tentativa pode
+    // ocorrer depois de 2 minutos ou no próximo carregamento do painel.
+    if (state.bluesoftFalhaEm && Date.now() - state.bluesoftFalhaEm < 2 * 60 * 1000) return;
+
+    cancelarListenersBluesoft(false);
+    state.bluesoftAssinaturaChaves = assinatura;
+
+    const db = await obterFirestoreBluesoft();
+
+    // A lista pode ter mudado enquanto o Firebase inicializava.
+    const assinaturaAgora = Array.from(mapaChavesBluesoftAtuais().keys()).sort().join("|");
+    if (assinaturaAgora !== assinatura) {
+      state.bluesoftAssinaturaChaves = "";
+      agendarSincronizacaoBluesoftFirebase(100);
+      return;
+    }
+
+    const lotes = dividirEmLotes(chaves, BLUESOFT_FIREBASE_MAX_CHAVES_POR_CONSULTA);
+    const listeners = [];
+
+    for (const lote of lotes) {
+      const consulta = db
+        .collection(BLUESOFT_FIREBASE_COLECAO_NOTAS)
+        .where("chaveAcesso", "in", lote);
+
+      const cancelar = consulta.onSnapshot(function (snapshot) {
+        const encontrados = new Map();
+        snapshot.forEach(function (doc) {
+          const dados = doc.data() || {};
+          const chave = somenteDigitos(dados.chaveAcesso || "");
+          if (chave.length !== 44 || !lote.includes(chave)) return;
+
+          encontrados.set(chave, {
+            nfKey: texto(dados.nfKey || doc.id),
+            chaveAcesso: chave,
+            statusRecebimento: texto(dados.statusRecebimento || ""),
+            comprador: texto(dados.comprador || ""),
+            atualizadoEmMs: Number(dados.metadadosLinhaAtualizadosEmMs || dados.atualizadoEmMs || 0),
+          });
+        });
+
+        const idsAlterados = new Set();
+        lote.forEach(function (chave) {
+          const anterior = state.bluesoftNfPorChave[chave] || null;
+          const novo = encontrados.get(chave) || null;
+          if (assinaturaRegistroBluesoft(anterior) === assinaturaRegistroBluesoft(novo)) return;
+
+          if (novo) state.bluesoftNfPorChave[chave] = novo;
+          else delete state.bluesoftNfPorChave[chave];
+
+          idsChamadosDaChave(chave).forEach(function (id) { idsAlterados.add(id); });
+        });
+
+        if (idsAlterados.size) agendarAtualizacaoLinhasParciais(Array.from(idsAlterados));
+      }, function (falha) {
+        state.bluesoftFalhaEm = Date.now();
+        console.warn(PREFIXO, "Listener Firebase Bluesoft interrompido.", falha);
+      });
+
+      listeners.push(cancelar);
+    }
+
+    state.bluesoftListeners = listeners;
+    state.bluesoftFalhaEm = 0;
+  }
+
+  function visualStatusBluesoft(status) {
+    const original = texto(status);
+    const n = normalizar(original);
+
+    // MAPEAMENTO_STATUS_ICONES_BLUESOFT — CTRL + F: MAPEAMENTO_STATUS_ICONES_BLUESOFT
+    // Usa exatamente os mesmos ícones mostrados na consulta de NF-e da Bluesoft.
+    if (!original) return { iconeUrl: BLUESOFT_ICONES.neutro, rotulo: "Status Bluesoft" };
+
+    // Divergência Fiscal, Comercial, Cadastro e de totais usam o mesmo warn.gif.
+    if (/diverg/.test(n)) return { iconeUrl: BLUESOFT_ICONES.divergencia, rotulo: original };
+
+    // Nota fechada usa o cadeado independentemente de ter sido recebida/cancelada.
+    if (/fechad|recebid|cancelad|cancel/.test(n)) return { iconeUrl: BLUESOFT_ICONES.fechado, rotulo: original };
+
+    if (/devolver|devolucao|devolução/.test(n)) return { iconeUrl: BLUESOFT_ICONES.devolver, rotulo: original };
+    if (/bloquead/.test(n)) return { iconeUrl: BLUESOFT_ICONES.fechado, rotulo: original };
+    if (/pendente/.test(n)) return { iconeUrl: BLUESOFT_ICONES.pendente, rotulo: original };
+    if (/receber/.test(n)) return { iconeUrl: BLUESOFT_ICONES.receber, rotulo: original };
+
+    // Qualquer status ainda não mapeado continua clicável para abrir o histórico.
+    return { iconeUrl: BLUESOFT_ICONES.neutro, rotulo: original };
+  }
+
+  function htmlBotoesBluesoft(item, chave) {
+    const registro = registroBluesoftDaChave(chave);
+    const nfKey = texto(registro?.nfKey || "").replace(/\D+/g, "");
+    if (!nfKey) return "";
+
+    const status = visualStatusBluesoft(registro.statusRecebimento || "");
+    const comprador = texto(registro.comprador || "");
+    const complementoComprador = comprador ? ` • Comprador: ${comprador}` : "";
+    const tituloStatus = `${status.rotulo || "Status Bluesoft"}${complementoComprador} • Abrir histórico`;
+
+    return [
+      `<a class="sigma-acao sigma-acao-bluesoft-exibir" href="${BLUESOFT_URL_RECEBIMENTO}${encodeURIComponent(nfKey)}" target="_blank" rel="noopener" title="Bluesoft • Exibir NF • nfKey ${escaparHtml(nfKey)}"><img src="${BLUESOFT_ICONES.exibir}" alt="Exibir NF"></a>`,
+      `<a class="sigma-acao sigma-acao-bluesoft-status" href="${BLUESOFT_URL_STATUS}${encodeURIComponent(nfKey)}" target="_blank" rel="noopener" title="${escaparHtml(tituloStatus)}"><img src="${status.iconeUrl}" alt="${escaparHtml(status.rotulo || "Status Bluesoft")}"></a>`,
+    ].join("");
+  }
+
+  // =========================================================
   // PAINEL_SEM_PISCAR
   // Para localizar depois, use CTRL + F e procure por:
   // PAINEL_SEM_PISCAR
@@ -2547,12 +2856,14 @@
 
   function assinaturaLinhaItem(item) {
     const responsavel = responsavelEfetivo(item);
+    const bluesoft = registroBluesoftDaChave(chaveAcessoValidaDoItem(item));
     return [
       item.id, item.statusId, item.statusNome, item.categoria, item.subcategoria, item.prioridade,
       item.nota, item.chaveNf, item.chaveNfTexto, item.fornecedor, item.representante,
       item.solicitante, item.atualizadoTexto, item.atualizadoPor, item.slaPercentual, item.slaTexto,
       responsavel.nome, responsavel.minha ? "1" : "0", responsavel.origem,
       state.capturandoIds[item.id] ? "1" : "0", item.podeCapturar ? "1" : "0",
+      bluesoft?.nfKey || "", bluesoft?.statusRecebimento || "", bluesoft?.comprador || "",
     ].map(texto).join("|");
   }
 
@@ -2674,6 +2985,7 @@
         atualizarContadores();
         atualizarSelecaoVisual();
         agendarSincronizacaoPonteVisivel();
+        agendarSincronizacaoBluesoftFirebase(220);
       });
     }, 90);
   }
@@ -3152,6 +3464,7 @@
     ajustarTabelaVaziaSemRedesenhar();
     atualizarSelecaoVisual();
     agendarSincronizacaoPonteVisivel();
+    agendarSincronizacaoBluesoftFirebase(220);
     if (idsNovos.length) agendarEspelhoIntegracoes(idsNovos);
   }
 
@@ -3166,12 +3479,14 @@
       corpo.innerHTML = '<tr><td colspan="11" class="sigma-vazio"><i class="fa-regular fa-folder-open"></i><br><br>Nenhum chamado encontrado com estes filtros.</td></tr>';
       agendarSincronizacaoPonteVisivel();
       atualizarSelecaoVisual();
+      agendarSincronizacaoBluesoftFirebase(220);
       return;
     }
 
     corpo.innerHTML = lista.map(htmlChamado).join("");
     atualizarSelecaoVisual();
     agendarSincronizacaoPonteVisivel();
+    agendarSincronizacaoBluesoftFirebase(220);
   }
 
   function atualizarContadores() {
@@ -3231,6 +3546,7 @@
     const podeCapturar = item.podeCapturar && !reservadaOutro && !capturando;
     const selecionado = !!state.selecionados[item.id];
     const assinatura = assinaturaLinhaItem(item);
+    const botoesBluesoft = chaveValida ? htmlBotoesBluesoft(item, chaveDigitos) : "";
 
     return `<tr class="${reservadaOutro ? "sigma-reservado-outro" : ""} ${selecionado ? "sigma-selecionado" : ""}" data-sigma-chamado-id="${item.id}" data-sigma-assinatura="${escaparHtml(assinatura)}">
       <td class="sigma-selecao-celula"><input class="sigma-check-lote sigma-check-item" type="checkbox" data-id="${item.id}" ${selecionado ? "checked" : ""} title="Selecionar chamado #${item.id}"></td>
@@ -3253,6 +3569,7 @@
       <td class="sigma-sla sigma-col-opcional"><div class="sigma-sla-barra"><span class="${classeSla}" style="width:${pct}%"></span></div><small>${pct}% ${escaparHtml(item.slaTexto || "")}</small></td>
       <td class="sigma-acoes-celula">
         <div class="sigma-acoes">
+          ${botoesBluesoft}
           <button class="sigma-acao" type="button" data-acao="detalhes" data-id="${item.id}" title="Abrir detalhes"><i class="fa-solid fa-eye"></i></button>
           ${mostrarIntegracoes ? `<button class="sigma-acao sigma-acao-integracao" type="button" data-acao="xabuia" data-id="${item.id}" title="Abrir Xabuia" ${chaveValida ? "" : "disabled"}><img src="${CONFIG.xabuiaIcone}" alt="Xabuia"></button><button class="sigma-acao sigma-acao-integracao" type="button" data-acao="comercial" data-id="${item.id}" title="Abrir Comercial" ${chaveValida ? "" : "disabled"}><img src="${CONFIG.comercialIcone}" alt="Comercial"></button>` : ""}
           <button class="sigma-acao" type="button" data-acao="feedback" data-id="${item.id}" title="Adicionar feedback"><i class="fa-solid fa-paper-plane"></i></button>
@@ -4785,6 +5102,8 @@
     if (state.filtrosObserver) state.filtrosObserver.disconnect();
     if (state.integracaoObserver) state.integracaoObserver.disconnect();
     if (state.complementoNfTimer) clearTimeout(state.complementoNfTimer);
+    if (state.bluesoftSyncTimer) clearTimeout(state.bluesoftSyncTimer);
+    cancelarListenersBluesoft(false);
     if (state.integracaoViewportTimer) clearTimeout(state.integracaoViewportTimer);
     const wrap = document.querySelector(".sigma-grade-wrap");
     if (wrap && state.integracaoScrollHandler) wrap.removeEventListener("scroll", state.integracaoScrollHandler);
@@ -6847,7 +7166,7 @@
     InfraDeskDoca.scheduleOrderPriorityTabs(350);
 
     setTimeout(function () {
-      console.info('[InfraDeskDoca] v4.0.1 unificado ativo: painel econômico, reserva expira após 1h e Firebase completo somente no clique.');
+      console.info('[InfraDeskDoca] v4.1.0 unificado ativo: painel econômico, reserva expira após 1h e Firebase completo somente no clique.');
     }, 600);
 
     window.addEventListener('beforeunload', function () {
