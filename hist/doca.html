@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraDesk Doca • Gráficos e IDs v10.1</title>
+  <title>InfraDesk • Doca + Recebimentos v11.0</title>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -670,6 +670,147 @@
       100% { transform: scale(1); }
     }
 
+
+    /* =========================================================
+       RECEBIMENTOS_V11
+       ========================================================= */
+    .reportSwitch {
+      flex: 0 0 auto;
+      display: inline-flex;
+      padding: 4px;
+      gap: 4px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #0f172a;
+    }
+
+    .reportSwitch button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 12px;
+      padding: 8px 13px;
+      background: transparent;
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .reportSwitch button.active {
+      background: #fff;
+      color: #0f172a;
+      box-shadow: 0 6px 15px rgba(15,23,42,.22);
+    }
+
+    .receiveStats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+
+    .receiveStat {
+      display: grid;
+      gap: 2px;
+      min-height: 62px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .receiveStat:hover,
+    .receiveStat.active {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    }
+
+    .receiveStat small {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .receiveStat strong {
+      color: #111827;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .receiveStat.finalizada { border-left: 5px solid #16a34a; }
+    .receiveStat.com_carga { border-left: 5px solid #f59e0b; }
+    .receiveStat.sem_carga { border-left: 5px solid #dc2626; }
+    .receiveStat.nao_sincronizada { border-left: 5px solid #64748b; }
+    .receiveStat.outro { border-left: 5px solid #7c3aed; }
+
+    .bsStatusIcon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      vertical-align: middle;
+    }
+
+    .bsStatusWrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 5px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #fff;
+    }
+
+    .loadCell {
+      min-width: 130px;
+      font-weight: 900;
+      color: #1f2937;
+    }
+
+    .loadCell a {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 950;
+    }
+
+    .loadCell a:hover { text-decoration: underline; }
+
+    .stateBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .stateBadge.finalizada { background:#dcfce7;color:#166534; }
+    .stateBadge.com_carga { background:#fef3c7;color:#92400e; }
+    .stateBadge.sem_carga { background:#fee2e2;color:#991b1b; }
+    .stateBadge.nao_sincronizada { background:#f1f5f9;color:#475569; }
+    .stateBadge.outro { background:#ede9fe;color:#5b21b6; }
+
+    .receiveNote {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 750;
+      line-height: 1.3;
+    }
+
+    body[data-report="recebimentos"] table { min-width: 1660px; }
+
+    @media print {
+      .toolbar,.chipsGrid,.main,.detailsTop,.toast,.tooltip { display:none!important; }
+    }
+
     @media (max-width: 1320px) {
       .main { grid-template-columns: 1fr; }
       .chipsGrid { grid-template-columns: 1fr; }
@@ -690,11 +831,21 @@
       .chipsBox { max-height: 120px; }
     }
   </style>
+
+  <!-- Firebase compartilhado da Bluesoft -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 </head>
 
 <body>
   <div class="app">
     <div class="toolbar">
+      <div class="reportSwitch" aria-label="Relatório">
+        <button id="reportRecebimentos" type="button" data-report="recebimentos" class="active">Recebimentos</button>
+        <button id="reportDoca" type="button" data-report="doca">Doca</button>
+      </div>
+
       <div class="segmented" aria-label="Período">
         <button id="modeWeek" type="button" data-mode="week" class="active">Semana</button>
         <button id="modeMonth" type="button" data-mode="month">Mês</button>
@@ -734,8 +885,20 @@
       </div>
 
       <div class="field small">
-        <label>Subcategoria</label>
+        <label id="categoryFilterLabel">Subcategoria</label>
         <select id="filterSubcategoria"><option value="">Todas</option></select>
+      </div>
+
+      <div id="receiveStatusField" class="field small">
+        <label>Situação</label>
+        <select id="filterReceiveStatus">
+          <option value="todos">Todas</option>
+          <option value="finalizada">Finalizadas</option>
+          <option value="com_carga">Com carga pendente</option>
+          <option value="sem_carga">Liberadas sem carga</option>
+          <option value="nao_sincronizada">Não sincronizadas</option>
+          <option value="outro">Outros status</option>
+        </select>
       </div>
 
       <div class="field small">
@@ -762,12 +925,13 @@
       <button id="clearBtn" class="actionBtn" type="button">Limpar</button>
       <button id="reloadBtn" class="actionBtn" type="button">Atualizar</button>
       <button id="summaryToggleBtn" class="actionBtn" type="button">Ocultar resumo</button>
+      <button id="printBtn" class="actionBtn" type="button">Imprimir relatório</button>
     </div>
 
     <div class="chipsGrid">
       <div class="chipsPanel">
         <div class="chipsHead">
-          <h3>Usuários</h3>
+          <h3 id="usersTitle">Responsáveis</h3>
           <span id="usersMeta" class="selectMeta">Todos</span>
         </div>
         <div id="usersBox" class="chipsBox"></div>
@@ -775,7 +939,7 @@
 
       <div class="chipsPanel">
         <div class="chipsHead">
-          <h3>Lojas</h3>
+          <h3 id="storesTitle">Lojas</h3>
           <span id="storesMeta" class="selectMeta">Todas</span>
         </div>
         <div id="storesBox" class="chipsBox"></div>
@@ -786,8 +950,8 @@
       <div class="panel">
         <div class="panelHead">
           <div>
-            <h2 id="chartTitle" class="panelTitle">Doca</h2>
-            <div id="chartHint" class="hint">Capturas por usuário.</div>
+            <h2 id="chartTitle" class="panelTitle">Recebimentos</h2>
+            <div id="chartHint" class="hint">Chamados por data de abertura no InfraDesk.</div>
           </div>
 
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
@@ -817,6 +981,7 @@
           <strong id="summaryTotal">0</strong>
         </div>
 
+        <div id="receiveStats" class="receiveStats"></div>
         <div id="ranking" class="rankList"></div>
       </div>
     </div>
@@ -824,7 +989,7 @@
     <div id="detailsPanel" class="panel detailsPanel hidden">
       <div class="detailsTop">
         <div>
-          <h2 class="panelTitle">IDs dos chamados</h2>
+          <h2 id="detailsTitle" class="panelTitle">Recebimentos</h2>
           <div id="detailsHint" class="hint">0 chamado(s).</div>
         </div>
 
@@ -834,7 +999,7 @@
       <div class="tableBox">
         <table>
           <thead>
-            <tr>
+            <tr id="detailsHeadRow">
               <th style="width:95px;">ID</th>
               <th style="width:110px;">Reservado</th>
               <th style="width:110px;">Aberto</th>
@@ -860,18 +1025,52 @@
 
     PainelDoca.FIREBASE_DB_URL = 'https://infra-doca-default-rtdb.firebaseio.com';
     PainelDoca.PATH = '/doca_capturas/by_id.json';
+    PainelDoca.HISTORY_PATH = '/infradesk_nfe/by_id.json';
+
+    PainelDoca.BLUESOFT_FIREBASE_CONFIG = Object.freeze({
+      apiKey: "AIzaSyBGqqtT6_cK-m3NqePOHgJP-ADYBcXnE6I",
+      authDomain: "compradores-c0537.firebaseapp.com",
+      projectId: "compradores-c0537",
+      storageBucket: "compradores-c0537.firebasestorage.app",
+      messagingSenderId: "886343500856",
+      appId: "1:886343500856:web:99aa530915f3f61b21d2cd"
+    });
+    PainelDoca.BLUESOFT_APP_NAME = 'cln-relatorio-recebimentos';
+    PainelDoca.BLUESOFT_COLLECTION = 'notas';
+    PainelDoca.BLUESOFT_LOADS_COLLECTION = 'cargas';
+    PainelDoca.BLUESOFT_BATCH = 30;
+    PainelDoca.BLUESOFT_URL_CARGA = 'https://erp.bluesoft.com.br/flex/erp-app/areas/estoques/recebimento-mercadoria/consultar-itens-nf/index.action#/estoques/recebimento-mercadoria/consultar-itens-nf/';
+    PainelDoca.BLUESOFT_ICONES = Object.freeze({
+      receber: 'https://cdn.bluesoft.com.br/commons/icons/icon_accept.gif',
+      pendente: 'https://cdn.bluesoft.com.br/commons/icons/clock_error.png',
+      devolver: 'https://cdn.bluesoft.com.br/commons/icons/stop.png',
+      divergencia: 'https://cdn.bluesoft.com.br/commons/icons/warn.gif',
+      fechado: 'https://cdn.bluesoft.com.br/commons/icons/lock.png',
+      neutro: 'https://cdn.bluesoft.com.br/commons/icons/info.gif'
+    });
 
     PainelDoca.GROUP_LABELS = {
       usuario: 'usuário',
       lojaTexto: 'loja',
       subcategoria: 'subcategoria',
       statusNome: 'status',
-      fornecedorNome: 'fornecedor'
+      fornecedorNome: 'fornecedor',
+      responsavelInfraDesk: 'responsável',
+      situacaoRecebimento: 'situação',
+      statusBluesoft: 'status Bluesoft'
     };
 
     PainelDoca.state = {
       byId: {},
+      reportMode: 'recebimentos',
       eventSource: null,
+      historyEventSource: null,
+      bluesoftFirestore: null,
+      bluesoftInit: null,
+      bluesoftByKey: {},
+      bluesoftListeners: [],
+      bluesoftSignature: '',
+      bluesoftSyncTimer: null,
       renderFrame: null,
       selectedUsers: new Set(),
       selectedStores: new Set(),
@@ -1002,6 +1201,37 @@
       return Number.isFinite(n) ? n : 0;
     };
 
+    PainelDoca.parseBrDateTime = function (value) {
+      value = PainelDoca.clean(value);
+      if (!value) return 0;
+      const match = value.match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+      if (!match) return 0;
+      const d = new Date(
+        Number(match[3]), Number(match[2]) - 1, Number(match[1]),
+        Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0), 0
+      );
+      const n = d.getTime();
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelDoca.openingMillis = function (raw) {
+      const direct = Number(raw.aberturaEm || raw.aberturaMs || raw.criadoEm || 0);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+      if (raw.aberturaISO) {
+        const n = new Date(raw.aberturaISO).getTime();
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return PainelDoca.parseBrDateTime(raw.aberturaTexto || raw.abertura || '');
+    };
+
+    PainelDoca.releaseMillis = function (raw) {
+      const direct = Number(raw.liberadoEm || raw.finalizadoEm || raw.liberacaoEm || 0);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+      return PainelDoca.parseBrDateTime(
+        raw.liberadoTexto || raw.finalizadoTexto || raw.liberacaoTexto || ''
+      );
+    };
+
     PainelDoca.toMillis = function (item) {
       const values = [item.capturadoEm, item.atualizadoEm, item.ts];
       for (const value of values) {
@@ -1130,17 +1360,26 @@
       const raw = item && typeof item === 'object' ? item : {};
       const id = PainelDoca.clean(raw.chamadoId || raw.id || key);
       const usuario = PainelDoca.clean(raw.usuario || raw.operador || raw.nome || 'Sem usuário');
-      const lojaTexto = PainelDoca.clean(raw.lojaTexto || raw.lojaNome || raw.solicitanteLojaTexto || 'Sem loja');
+      const responsavelInfraDesk = PainelDoca.clean(
+        raw.responsavelInfraDesk || raw.representante || raw.solicitanteNome || raw.solicitante || 'Sem responsável'
+      );
+      const lojaTexto = PainelDoca.clean(
+        raw.lojaTexto || raw.lojaNome || raw.solicitanteLojaTexto || raw.empresa || raw.empresaNome || 'Sem loja'
+      );
       const lojaCodigo = PainelDoca.clean(raw.lojaCodigo || '');
       const lojaNome = PainelDoca.clean(raw.lojaNome || '');
-      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || 'Sem fornecedor');
+      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || raw.fornecedor || 'Sem fornecedor');
       const subcategoria = PainelDoca.clean(raw.subcategoria || 'Sem subcategoria');
       const statusNome = PainelDoca.clean(raw.statusNome || raw.statusAntesNome || 'Sem status');
-      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || (raw.nfe && raw.nfe.chaveAcesso) || '');
+      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || raw.chaveNf || (raw.nfe && raw.nfe.chaveAcesso) || '');
       const cnpjEmitente = PainelDoca.onlyDigits(raw.cnpjEmitente || (raw.nfe && raw.nfe.cnpjEmitente) || (chaveAcesso.length === 44 ? chaveAcesso.slice(6, 20) : ''));
       const nfNumero = PainelDoca.onlyDigits(raw.nfNumero || raw.numeroNfChave || (raw.nfe && raw.nfe.numero) || (chaveAcesso.length === 44 ? chaveAcesso.slice(25, 34) : ''));
       const nfNumeroLimpo = String(Number(nfNumero || 0) || '');
       const ts = PainelDoca.toMillis(raw);
+      const aberturaTs = PainelDoca.openingMillis(raw);
+      const liberadoTs = PainelDoca.releaseMillis(raw);
+      const aberturaTexto = PainelDoca.clean(raw.aberturaTexto || raw.abertura || (aberturaTs ? PainelDoca.formatDateTimeFromTs(aberturaTs) : ''));
+      const liberadoTexto = PainelDoca.clean(raw.liberadoTexto || raw.finalizadoTexto || raw.liberacaoTexto || (liberadoTs ? PainelDoca.formatDateTimeFromTs(liberadoTs) : ''));
 
       if (!id) return null;
 
@@ -1148,6 +1387,7 @@
         ...raw,
         id,
         usuario,
+        responsavelInfraDesk,
         lojaTexto,
         lojaCodigo,
         lojaNome,
@@ -1160,8 +1400,13 @@
         nfNumero,
         nfNumeroLimpo,
         ts,
+        aberturaTs,
+        liberadoTs,
+        aberturaTexto,
+        liberadoTexto,
         reservaDataKey: PainelDoca.dateKeyFromTs(ts),
-        reservaDataTexto: PainelDoca.formatDateTimeFromTs(ts)
+        reservaDataTexto: PainelDoca.formatDateTimeFromTs(ts),
+        aberturaDataKey: PainelDoca.dateKeyFromTs(aberturaTs)
       };
     };
 
@@ -1183,7 +1428,8 @@
     };
 
     PainelDoca.getAllUsers = function () {
-      return PainelDoca.unique(PainelDoca.getItems().map(item => item.usuario));
+      const campo = PainelDoca.state.reportMode === 'recebimentos' ? 'responsavelInfraDesk' : 'usuario';
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item[campo]));
     };
 
     PainelDoca.getAllStores = function () {
@@ -1214,6 +1460,9 @@
       if (key === 'fornecedorNome') value = item.fornecedorNome;
       if (key === 'subcategoria') value = item.subcategoria;
       if (key === 'statusNome') value = item.statusNome;
+      if (key === 'responsavelInfraDesk') value = item.responsavelInfraDesk;
+      if (key === 'situacaoRecebimento') value = PainelDoca.receiveStateInfo(item).label;
+      if (key === 'statusBluesoft') value = PainelDoca.clean(PainelDoca.bluesoftForItem(item)?.statusRecebimento || 'Não sincronizada');
       return PainelDoca.clean(value || 'Sem informação');
     };
 
@@ -1228,6 +1477,7 @@
         nfLimpo: String(Number(nf || 0) || ''),
         cnpj: PainelDoca.onlyDigits(document.getElementById('searchCnpj').value),
         general: PainelDoca.norm(document.getElementById('searchGeneral').value),
+        receiveStatus: document.getElementById('filterReceiveStatus')?.value || 'todos',
         range: PainelDoca.currentRange()
       };
     };
@@ -1235,11 +1485,18 @@
     PainelDoca.matchesFilters = function (item, ctx) {
       ctx = ctx || PainelDoca.buildFilterContext();
 
-      if (item.usuario && !ctx.selectedUsers.has(item.usuario)) return false;
+      const usuarioFiltro = PainelDoca.state.reportMode === 'recebimentos'
+        ? item.responsavelInfraDesk
+        : item.usuario;
+
+      if (usuarioFiltro && !ctx.selectedUsers.has(usuarioFiltro)) return false;
       if (item.lojaTexto && !ctx.selectedStores.has(item.lojaTexto)) return false;
       if (ctx.subcategoria && item.subcategoria !== ctx.subcategoria) return false;
 
-      const itemDateKey = item.reservaDataKey || PainelDoca.dateKeyFromTs(item.ts);
+      const itemDateKey = PainelDoca.state.reportMode === 'recebimentos'
+        ? item.aberturaDataKey
+        : (item.reservaDataKey || PainelDoca.dateKeyFromTs(item.ts));
+
       if (PainelDoca.state.mode !== 'all') {
         if (ctx.range.startKey && (!itemDateKey || itemDateKey < ctx.range.startKey)) return false;
         if (ctx.range.endKey && (!itemDateKey || itemDateKey > ctx.range.endKey)) return false;
@@ -1259,10 +1516,16 @@
         if (!itemCnpj.includes(ctx.cnpj) && !chave.includes(ctx.cnpj)) return false;
       }
 
+      if (PainelDoca.state.reportMode === 'recebimentos' && ctx.receiveStatus !== 'todos') {
+        if (PainelDoca.receiveStateInfo(item).key !== ctx.receiveStatus) return false;
+      }
+
       if (ctx.general) {
+        const bs = PainelDoca.bluesoftForItem(item) || {};
         const text = PainelDoca.norm([
           item.id,
           item.usuario,
+          item.responsavelInfraDesk,
           item.lojaTexto,
           item.lojaNome,
           item.lojaCodigo,
@@ -1272,7 +1535,11 @@
           item.chaveAcesso,
           item.cnpjEmitente,
           item.nfNumero,
-          item.descricaoResumo
+          item.descricaoResumo,
+          bs.numeroCarga,
+          bs.cargaCriadaPor,
+          bs.statusCarga,
+          bs.statusRecebimento
         ].join(' '));
         if (!text.includes(ctx.general)) return false;
       }
@@ -1284,7 +1551,11 @@
       const ctx = PainelDoca.buildFilterContext();
       return PainelDoca.getItems()
         .filter(item => PainelDoca.matchesFilters(item, ctx))
-        .sort((a, b) => (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id), 'pt-BR'));
+        .sort((a, b) => {
+          const ta = PainelDoca.state.reportMode === 'recebimentos' ? (a.aberturaTs || 0) : (a.ts || 0);
+          const tb = PainelDoca.state.reportMode === 'recebimentos' ? (b.aberturaTs || 0) : (b.ts || 0);
+          return tb - ta || String(b.id).localeCompare(String(a.id), 'pt-BR');
+        });
     };
 
     PainelDoca.daysInRange = function (start, end) {
@@ -1299,7 +1570,7 @@
     };
 
     PainelDoca.getDayKeysFromItems = function (items) {
-      return [...new Set(items.map(item => PainelDoca.dateKeyFromTs(item.ts)).filter(Boolean))].sort();
+      return [...new Set(items.map(item => PainelDoca.state.reportMode === 'recebimentos' ? item.aberturaDataKey : PainelDoca.dateKeyFromTs(item.ts)).filter(Boolean))].sort();
     };
 
     PainelDoca.getChartDays = function (items) {
@@ -1326,7 +1597,7 @@
         for (const group of groups) data[day][group] = 0;
       }
       for (const item of items) {
-        const day = PainelDoca.dateKeyFromTs(item.ts);
+        const day = PainelDoca.state.reportMode === 'recebimentos' ? item.aberturaDataKey : PainelDoca.dateKeyFromTs(item.ts);
         const group = PainelDoca.groupNameFor(item);
         if (!day || !data[day]) continue;
         data[day][group] = (data[day][group] || 0) + 1;
@@ -1614,6 +1885,149 @@
       chart.appendChild(svg);
     };
 
+    // =========================================================
+    // RECEBIMENTOS • FIRESTORE BLUESOFT
+    // =========================================================
+    PainelDoca.bluesoftForItem = function (item) {
+      const chave = PainelDoca.onlyDigits(item?.chaveAcesso || '');
+      return chave.length === 44 ? (PainelDoca.state.bluesoftByKey[chave] || null) : null;
+    };
+
+    PainelDoca.visualStatusBluesoft = function (status) {
+      const original = PainelDoca.clean(status || 'Não sincronizada');
+      const n = PainelDoca.norm(original);
+      if (/fechad|recebid|finaliz/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.fechado, label: original };
+      if (/devolver|devolucao/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.devolver, label: original };
+      if (/cancel|bloquead/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.fechado, label: original };
+      if (/diverg/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.divergencia, label: original };
+      if (/pendente/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.pendente, label: original };
+      if (/receber/.test(n)) return { icon: PainelDoca.BLUESOFT_ICONES.receber, label: original };
+      return { icon: PainelDoca.BLUESOFT_ICONES.neutro, label: original };
+    };
+
+    PainelDoca.receiveStateInfo = function (item) {
+      const chave = PainelDoca.onlyDigits(item?.chaveAcesso || '');
+      if (chave.length !== 44) return { key: 'outro', label: 'Chave inválida' };
+      const bs = PainelDoca.bluesoftForItem(item);
+      if (!bs) return { key: 'nao_sincronizada', label: 'Não sincronizada' };
+      const status = PainelDoca.norm(bs.statusRecebimento || '');
+      if (/fechad|recebid|finaliz/.test(status)) return { key: 'finalizada', label: 'Finalizada' };
+      if (/cancel|devol/.test(status)) return { key: 'outro', label: bs.statusRecebimento || 'Outro status' };
+      if (Number(bs.numeroCarga || 0) > 0) return { key: 'com_carga', label: 'Com carga pendente' };
+      if (Number(bs.cargaVerificadaEmMs || 0) > 0 || bs.temCarga === false) return { key: 'sem_carga', label: 'Liberada sem carga' };
+      return { key: 'nao_sincronizada', label: 'Não sincronizada' };
+    };
+
+    PainelDoca.statusIconHtml = function (item) {
+      const bs = PainelDoca.bluesoftForItem(item);
+      const visual = PainelDoca.visualStatusBluesoft(bs?.statusRecebimento || 'Não sincronizada');
+      return `<span class="bsStatusWrap" title="${PainelDoca.escapeHTML(visual.label)}"><img class="bsStatusIcon" src="${visual.icon}" alt="${PainelDoca.escapeHTML(visual.label)}"></span>`;
+    };
+
+    PainelDoca.initBluesoftFirestore = async function () {
+      if (PainelDoca.state.bluesoftFirestore) return PainelDoca.state.bluesoftFirestore;
+      if (PainelDoca.state.bluesoftInit) return PainelDoca.state.bluesoftInit;
+      PainelDoca.state.bluesoftInit = (async function () {
+        if (!window.firebase?.initializeApp || !window.firebase?.firestore) throw new Error('SDK Firebase da Bluesoft não carregou.');
+        let app;
+        try { app = window.firebase.app(PainelDoca.BLUESOFT_APP_NAME); }
+        catch (_) { app = window.firebase.initializeApp(PainelDoca.BLUESOFT_FIREBASE_CONFIG, PainelDoca.BLUESOFT_APP_NAME); }
+        try {
+          if (app.auth && !app.auth().currentUser) await app.auth().signInAnonymously();
+        } catch (error) {
+          console.warn('Autenticação anônima Bluesoft:', error);
+        }
+        PainelDoca.state.bluesoftFirestore = app.firestore();
+        return PainelDoca.state.bluesoftFirestore;
+      })();
+      return PainelDoca.state.bluesoftInit;
+    };
+
+    PainelDoca.cancelBluesoftListeners = function () {
+      for (const cancel of PainelDoca.state.bluesoftListeners || []) {
+        try { cancel(); } catch (_) {}
+      }
+      PainelDoca.state.bluesoftListeners = [];
+      PainelDoca.state.bluesoftSignature = '';
+    };
+
+    PainelDoca.keysForCurrentReceiptRange = function () {
+      const ctx = PainelDoca.buildFilterContext();
+      const keys = new Set();
+      for (const item of PainelDoca.getItems()) {
+        const key = PainelDoca.onlyDigits(item.chaveAcesso || '');
+        if (key.length !== 44) continue;
+        const dateKey = item.aberturaDataKey;
+        if (PainelDoca.state.mode !== 'all') {
+          if (ctx.range.startKey && (!dateKey || dateKey < ctx.range.startKey)) continue;
+          if (ctx.range.endKey && (!dateKey || dateKey > ctx.range.endKey)) continue;
+        }
+        keys.add(key);
+      }
+      return [...keys].sort();
+    };
+
+    PainelDoca.mergeLoadDocs = async function (db, notes) {
+      const loads = [...new Set(Object.values(notes).map(v => Number(v?.numeroCarga || 0)).filter(v => v > 0).map(String))];
+      if (!loads.length) return;
+      for (let i = 0; i < loads.length; i += PainelDoca.BLUESOFT_BATCH) {
+        const part = loads.slice(i, i + PainelDoca.BLUESOFT_BATCH);
+        try {
+          const snap = await db.collection(PainelDoca.BLUESOFT_LOADS_COLLECTION)
+            .where(window.firebase.firestore.FieldPath.documentId(), 'in', part).get();
+          snap.forEach(doc => {
+            const load = doc.data() || {};
+            for (const value of Object.values(notes)) {
+              if (String(value.numeroCarga || '') !== doc.id) continue;
+              for (const [k, v] of Object.entries(load)) {
+                if ((value[k] === undefined || value[k] === null || value[k] === '') && v !== undefined) value[k] = v;
+              }
+            }
+          });
+        } catch (error) {
+          console.warn('Falha ao complementar cargas:', error);
+        }
+      }
+    };
+
+    PainelDoca.syncBluesoft = async function () {
+      if (PainelDoca.state.reportMode !== 'recebimentos') return;
+      const keys = PainelDoca.keysForCurrentReceiptRange();
+      const signature = keys.join('|');
+      if (signature === PainelDoca.state.bluesoftSignature && PainelDoca.state.bluesoftListeners.length) return;
+      PainelDoca.cancelBluesoftListeners();
+      PainelDoca.state.bluesoftSignature = signature;
+      PainelDoca.state.bluesoftByKey = {};
+      if (!keys.length) { PainelDoca.scheduleRender(); return; }
+      PainelDoca.setStatus(false, `Consultando Bluesoft • ${keys.length} NF(s)...`);
+      const db = await PainelDoca.initBluesoftFirestore();
+      const listeners = [];
+      const notes = PainelDoca.state.bluesoftByKey;
+      for (let i = 0; i < keys.length; i += PainelDoca.BLUESOFT_BATCH) {
+        const part = keys.slice(i, i + PainelDoca.BLUESOFT_BATCH);
+        const query = db.collection(PainelDoca.BLUESOFT_COLLECTION).where('chaveAcesso', 'in', part);
+        const cancel = query.onSnapshot(async function (snap) {
+          const found = new Set();
+          snap.forEach(doc => {
+            const d = doc.data() || {};
+            const key = PainelDoca.onlyDigits(d.chaveAcesso || '');
+            if (key.length !== 44) return;
+            found.add(key);
+            notes[key] = { ...d, nfKey: d.nfKey || doc.id, chaveAcesso: key };
+          });
+          for (const key of part) if (!found.has(key)) delete notes[key];
+          await PainelDoca.mergeLoadDocs(db, notes);
+          PainelDoca.setStatus(true, `Bluesoft online • ${Object.keys(notes).length}/${keys.length}`);
+          PainelDoca.scheduleRender();
+        }, function (error) {
+          console.warn('Listener Bluesoft:', error);
+          PainelDoca.setStatus(false, 'Bluesoft indisponível');
+        });
+        listeners.push(cancel);
+      }
+      PainelDoca.state.bluesoftListeners = listeners;
+    };
+
     PainelDoca.renderChart = function (items) {
       const mode = PainelDoca.getResolvedChartMode(items);
       if (mode === 'bar') return PainelDoca.renderBarChart(items);
@@ -1634,13 +2048,15 @@
       const items = PainelDoca.getVisibleItems();
       const chartMode = PainelDoca.getResolvedChartMode(items);
       for (const btn of document.querySelectorAll('.segmented button')) btn.classList.toggle('active', btn.dataset.mode === mode);
+      for (const btn of document.querySelectorAll('.reportSwitch button')) btn.classList.toggle('active', btn.dataset.report === PainelDoca.state.reportMode);
+      document.body.dataset.report = PainelDoca.state.reportMode;
       customRange.classList.toggle('hidden', mode !== 'custom');
 
       if (mode === 'week') {
         const range = PainelDoca.currentRange();
         const currentWeek = PainelDoca.startOfWeek(new Date());
         title.textContent = chartMode === 'line' ? `Semana por ${groupLabel} em linha` : chartMode === 'total' ? `Resumo da semana por ${groupLabel}` : `Semana por ${groupLabel}`;
-        hint.textContent = 'Domingo a sábado, com hoje em destaque.';
+        hint.textContent = PainelDoca.state.reportMode === 'recebimentos' ? 'Chamados por data de abertura no InfraDesk.' : 'Domingo a sábado, com hoje em destaque.';
         label.textContent = `${PainelDoca.shortDateLabel(range.startKey)} até ${PainelDoca.shortDateLabel(range.endKey)}`;
         prev.disabled = false;
         next.disabled = PainelDoca.toDateInput(PainelDoca.state.weekStart) >= PainelDoca.toDateInput(currentWeek);
@@ -1650,7 +2066,7 @@
       if (mode === 'month') {
         const currentMonth = PainelDoca.startOfMonth(new Date());
         title.textContent = chartMode === 'bar' ? `Mês por ${groupLabel} em barras` : chartMode === 'total' ? `Resumo do mês por ${groupLabel}` : `Mês por ${groupLabel} em linha`;
-        hint.textContent = 'Evolução diária das capturas no mês.';
+        hint.textContent = PainelDoca.state.reportMode === 'recebimentos' ? 'Evolução diária pelas aberturas no InfraDesk.' : 'Evolução diária das capturas no mês.';
         label.textContent = PainelDoca.monthName(PainelDoca.state.monthStart);
         prev.disabled = false;
         next.disabled = PainelDoca.toDateInput(PainelDoca.state.monthStart) >= PainelDoca.toDateInput(currentMonth);
@@ -1664,14 +2080,14 @@
         else if (range.startKey) label.textContent = `Desde ${PainelDoca.shortDateLabel(range.startKey)}`;
         else if (range.endKey) label.textContent = `Até ${PainelDoca.shortDateLabel(range.endKey)}`;
         else label.textContent = 'Personalizado';
-        hint.textContent = 'Use as datas para filtrar qualquer intervalo.';
+        hint.textContent = PainelDoca.state.reportMode === 'recebimentos' ? 'Período de abertura do chamado no InfraDesk.' : 'Use as datas para filtrar qualquer intervalo.';
         prev.disabled = true;
         next.disabled = true;
         return;
       }
 
       title.textContent = `Tudo por ${groupLabel}`;
-      hint.textContent = 'Todos os chamados carregados.';
+      hint.textContent = PainelDoca.state.reportMode === 'recebimentos' ? 'Todos os chamados históricos carregados.' : 'Todos os chamados carregados.';
       label.textContent = 'Todos os registros';
       prev.disabled = true;
       next.disabled = true;
@@ -1679,6 +2095,20 @@
 
     PainelDoca.renderRanking = function (items) {
       const box = document.getElementById('ranking');
+      const receiveStats = document.getElementById('receiveStats');
+      if (PainelDoca.state.reportMode === 'recebimentos') {
+        const statsCtx = PainelDoca.buildFilterContext();
+        statsCtx.receiveStatus = 'todos';
+        const statsItems = PainelDoca.getItems().filter(item => PainelDoca.matchesFilters(item, statsCtx));
+        const counts = { finalizada:0, com_carga:0, sem_carga:0, nao_sincronizada:0, outro:0 };
+        for (const item of statsItems) { const key = PainelDoca.receiveStateInfo(item).key; counts[key] = (counts[key] || 0) + 1; }
+        const labels = { finalizada:'Finalizadas', com_carga:'Com carga pendente', sem_carga:'Sem carga', nao_sincronizada:'Não sincronizadas', outro:'Outros' };
+        receiveStats.innerHTML = Object.entries(labels).map(([key,label]) => `<button type="button" class="receiveStat ${key} ${document.getElementById('filterReceiveStatus').value === key ? 'active' : ''}" data-receive-filter="${key}"><small>${label}</small><strong>${counts[key] || 0}</strong></button>`).join('');
+        receiveStats.classList.remove('hidden');
+      } else {
+        receiveStats.classList.add('hidden');
+        receiveStats.innerHTML = '';
+      }
       const totalEl = document.getElementById('summaryTotal');
       const totals = PainelDoca.groupTotal(items);
       const totalCount = totals.reduce((sum, [, count]) => sum + count, 0);
@@ -1753,7 +2183,7 @@
       ].join('');
     };
 
-    PainelDoca.buildTableRow = function (item) {
+    PainelDoca.buildDocaTableRow = function (item) {
       const tr = document.createElement('tr');
       const link = `https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}`;
       tr.innerHTML = `
@@ -1770,22 +2200,82 @@
       return tr;
     };
 
+    PainelDoca.buildReceiptTableRow = function (item) {
+      const tr = document.createElement('tr');
+      const link = `https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}`;
+      const bs = PainelDoca.bluesoftForItem(item) || {};
+      const state = PainelDoca.receiveStateInfo(item);
+      const carga = Number(bs.numeroCarga || 0);
+      const cargaUrl = carga > 0 ? `${PainelDoca.BLUESOFT_URL_CARGA}${carga}/cargas-pendentes` : '';
+      const cargaHtml = carga > 0
+        ? `<a href="${cargaUrl}" target="_blank" rel="noopener">${carga}</a><div class="receiveNote">${PainelDoca.escapeHTML([bs.statusCarga, bs.statusRomaneio].filter(Boolean).join(' • ') || 'Carga vinculada')}</div>`
+        : `<span class="muted">—</span><div class="receiveNote">${state.key === 'sem_carga' ? 'Verificada sem carga' : state.label}</div>`;
+      const nf = item.nfNumeroLimpo || item.nfNumero || '—';
+      const keySmall = item.chaveAcesso ? `<div class="muted" title="${PainelDoca.escapeHTML(item.chaveAcesso)}">${PainelDoca.escapeHTML(item.chaveAcesso.slice(0, 10))}…${PainelDoca.escapeHTML(item.chaveAcesso.slice(-6))}</div>` : '';
+      tr.innerHTML = `
+        <td><a class="idLink" href="${link}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a></td>
+        <td class="dateCell">${item.aberturaTexto ? PainelDoca.escapeHTML(item.aberturaTexto).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td class="dateCell">${item.liberadoTexto ? PainelDoca.escapeHTML(item.liberadoTexto).replace(' ', '<br>') : '<span class="muted" title="Ainda não gravado pelo histórico InfraDesk">—</span>'}</td>
+        <td><span class="userPill" title="${PainelDoca.escapeHTML(item.responsavelInfraDesk || '—')}" style="background:${PainelDoca.colorFor(item.responsavelInfraDesk)};color:${PainelDoca.textColorFor(item.responsavelInfraDesk)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.responsavelInfraDesk) || '—')}</span></td>
+        <td><strong>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</strong></td>
+        <td><strong>${PainelDoca.escapeHTML(nf)}</strong>${keySmall}</td>
+        <td><div class="supplier">${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</div>${item.cnpjEmitente ? `<div class="muted">${PainelDoca.escapeHTML(item.cnpjEmitenteFormatado)}</div>` : ''}</td>
+        <td class="loadCell">${cargaHtml}</td>
+        <td class="dateCell">${bs.cargaCriadaEm ? PainelDoca.escapeHTML(bs.cargaCriadaEm).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td>${PainelDoca.escapeHTML(bs.cargaCriadaPor || bs.geradoPorTela || '—')}</td>
+        <td>${PainelDoca.statusIconHtml(item)}<div><span class="stateBadge ${state.key}">${PainelDoca.escapeHTML(state.label)}</span></div></td>
+      `;
+      return tr;
+    };
+
+    PainelDoca.configureDetailsTable = function () {
+      const row = document.getElementById('detailsHeadRow');
+      const title = document.getElementById('detailsTitle');
+      if (PainelDoca.state.reportMode === 'recebimentos') {
+        title.textContent = 'Recebimentos • InfraDesk × Bluesoft';
+        row.innerHTML = `
+          <th style="width:85px">Chamado</th>
+          <th style="width:110px">Criado</th>
+          <th style="width:110px">Liberado</th>
+          <th style="width:155px">Responsável</th>
+          <th style="width:170px">Loja</th>
+          <th style="width:105px">NF</th>
+          <th style="width:250px">Fornecedor</th>
+          <th style="width:150px">Carga</th>
+          <th style="width:120px">Criação carga</th>
+          <th style="width:170px">Criada por</th>
+          <th style="width:105px">Bluesoft</th>`;
+      } else {
+        title.textContent = 'IDs dos chamados';
+        row.innerHTML = `
+          <th style="width:95px">ID</th><th style="width:110px">Reservado</th><th style="width:110px">Aberto</th>
+          <th style="width:180px">Loja</th><th>Fornecedor</th><th style="width:130px">Subcategoria</th>
+          <th style="width:130px">Status</th><th>Chave de acesso</th><th style="width:150px">Usuário</th>`;
+      }
+    };
+
     PainelDoca.renderTable = function (items) {
+      PainelDoca.configureDetailsTable();
       const body = document.getElementById('tableBody');
       const search = PainelDoca.norm(document.getElementById('searchInput').value);
       let rows = [...items];
       if (search) {
-        rows = rows.filter(item => PainelDoca.norm([
-          item.id, item.usuario, item.lojaTexto, item.fornecedorNome, item.subcategoria, item.statusNome, item.chaveAcesso, item.cnpjEmitente, item.nfNumero
-        ].join(' ')).includes(search));
+        rows = rows.filter(item => {
+          const bs = PainelDoca.bluesoftForItem(item) || {};
+          return PainelDoca.norm([
+            item.id, item.usuario, item.responsavelInfraDesk, item.lojaTexto, item.fornecedorNome,
+            item.subcategoria, item.statusNome, item.chaveAcesso, item.cnpjEmitente, item.nfNumero,
+            bs.numeroCarga, bs.cargaCriadaPor, bs.statusCarga, bs.statusRecebimento
+          ].join(' ')).includes(search);
+        });
       }
       document.getElementById('detailsHint').textContent = `${rows.length} chamado(s).`;
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="9" class="empty">Nenhum ID para mostrar.</td></tr>';
+        body.innerHTML = `<tr><td colspan="${PainelDoca.state.reportMode === 'recebimentos' ? 11 : 9}" class="empty">Nenhum registro para mostrar.</td></tr>`;
         return;
       }
       const frag = document.createDocumentFragment();
-      for (const item of rows) frag.appendChild(PainelDoca.buildTableRow(item));
+      for (const item of rows) frag.appendChild(PainelDoca.state.reportMode === 'recebimentos' ? PainelDoca.buildReceiptTableRow(item) : PainelDoca.buildDocaTableRow(item));
       body.innerHTML = '';
       body.appendChild(frag);
     };
@@ -1793,8 +2283,8 @@
     PainelDoca.renderChips = function (boxId, values, selectedSet, touchedName, colorByUser) {
       const box = document.getElementById(boxId);
       const meta = document.getElementById(boxId === 'usersBox' ? 'usersMeta' : 'storesMeta');
-      const singular = boxId === 'usersBox' ? 'usuário' : 'loja';
-      const plural = boxId === 'usersBox' ? 'usuários' : 'lojas';
+      const singular = boxId === 'usersBox' ? (PainelDoca.state.reportMode === 'recebimentos' ? 'responsável' : 'usuário') : 'loja';
+      const plural = boxId === 'usersBox' ? (PainelDoca.state.reportMode === 'recebimentos' ? 'responsáveis' : 'usuários') : 'lojas';
       if (!PainelDoca.state[touchedName]) {
         selectedSet.clear();
         values.forEach(v => selectedSet.add(v));
@@ -1834,8 +2324,14 @@
     };
 
     PainelDoca.renderFilterOptions = function () {
+      document.getElementById('usersTitle').textContent = PainelDoca.state.reportMode === 'recebimentos' ? 'Responsáveis' : 'Usuários';
+      document.getElementById('receiveStatusField').classList.toggle('hidden', PainelDoca.state.reportMode !== 'recebimentos');
+      document.getElementById('printBtn').classList.toggle('hidden', PainelDoca.state.reportMode !== 'recebimentos');
+      document.getElementById('categoryFilterLabel').textContent = 'Subcategoria';
+
       PainelDoca.renderChips('usersBox', PainelDoca.getAllUsers(), PainelDoca.state.selectedUsers, 'touchedUsers', true);
       PainelDoca.renderChips('storesBox', PainelDoca.getAllStores(), PainelDoca.state.selectedStores, 'touchedStores', false);
+
       const select = document.getElementById('filterSubcategoria');
       const current = select.value;
       const values = PainelDoca.getAllSubcategories();
@@ -1847,6 +2343,20 @@
         select.appendChild(option);
       }
       if (values.includes(current)) select.value = current;
+
+      const group = document.getElementById('groupBy');
+      const wanted = PainelDoca.state.reportMode === 'recebimentos'
+        ? [
+            ['responsavelInfraDesk','Responsável'], ['lojaTexto','Loja'], ['situacaoRecebimento','Situação'],
+            ['statusBluesoft','Status Bluesoft'], ['fornecedorNome','Fornecedor']
+          ]
+        : [
+            ['usuario','Usuário'], ['lojaTexto','Loja'], ['subcategoria','Subcategoria'], ['statusNome','Status'], ['fornecedorNome','Fornecedor']
+          ];
+      const oldGroup = group.value;
+      group.innerHTML = wanted.map(([v,t]) => `<option value="${v}">${t}</option>`).join('');
+      if (wanted.some(([v]) => v === oldGroup)) group.value = oldGroup;
+      else group.value = PainelDoca.state.reportMode === 'recebimentos' ? 'responsavelInfraDesk' : 'usuario';
     };
 
     PainelDoca.render = function () {
@@ -1856,6 +2366,10 @@
       PainelDoca.renderChart(items);
       PainelDoca.renderRanking(items);
       if (PainelDoca.state.detailsVisible) PainelDoca.renderTable(items);
+      if (PainelDoca.state.reportMode === 'recebimentos') {
+        clearTimeout(PainelDoca.state.bluesoftSyncTimer);
+        PainelDoca.state.bluesoftSyncTimer = setTimeout(() => PainelDoca.syncBluesoft().catch(err => console.warn(err)), 250);
+      }
     };
 
     PainelDoca.scheduleRender = function () {
@@ -1871,6 +2385,26 @@
       const statusText = document.getElementById('statusText');
       dot.className = 'dot ' + (ok ? 'ok' : 'err');
       statusText.textContent = text;
+    };
+
+    PainelDoca.fetchJson = async function (url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data || {};
+    };
+
+    PainelDoca.fetchReceiptsSnapshot = async function () {
+      const base = PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '');
+      const [captures, history] = await Promise.all([
+        PainelDoca.fetchJson(base + PainelDoca.PATH).catch(() => ({})),
+        PainelDoca.fetchJson(base + PainelDoca.HISTORY_PATH).catch(() => ({}))
+      ]);
+      const merged = { ...(captures || {}) };
+      for (const [id, item] of Object.entries(history || {})) {
+        merged[id] = { ...(merged[id] || {}), ...(item || {}) };
+      }
+      return merged;
     };
 
     PainelDoca.fetchSnapshot = async function (useServerDateFilter) {
@@ -1900,6 +2434,20 @@
       }
       PainelDoca.state.hasInitialLoad = false;
       try {
+        if (PainelDoca.state.reportMode === 'recebimentos') {
+          PainelDoca.cancelBluesoftListeners();
+          PainelDoca.setStatus(false, 'Carregando histórico InfraDesk...');
+          const data = await PainelDoca.fetchReceiptsSnapshot();
+          PainelDoca.state.queryMode = 'historico';
+          PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+          PainelDoca.state.hasInitialLoad = true;
+          PainelDoca.setStatus(true, `${Object.keys(PainelDoca.state.byId).length} chamado(s) InfraDesk`);
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+          PainelDoca.scheduleRender();
+          return;
+        }
+
         PainelDoca.setStatus(false, 'Carregando turbo...');
         const data = await PainelDoca.fetchSnapshot(true);
         PainelDoca.state.queryMode = 'turbo';
@@ -1997,6 +2545,21 @@
       PainelDoca.scheduleRender();
     };
 
+    PainelDoca.setReportMode = function (mode) {
+      if (!['doca','recebimentos'].includes(mode) || mode === PainelDoca.state.reportMode) return;
+      PainelDoca.state.reportMode = mode;
+      PainelDoca.state.touchedUsers = false;
+      PainelDoca.state.touchedStores = false;
+      PainelDoca.state.selectedUsers.clear();
+      PainelDoca.state.selectedStores.clear();
+      document.getElementById('filterReceiveStatus').value = 'todos';
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      if (mode === 'doca') PainelDoca.cancelBluesoftListeners();
+      PainelDoca.loadInitial();
+      PainelDoca.scheduleRender();
+    };
+
     PainelDoca.setMode = function (mode) {
       PainelDoca.state.mode = mode;
       PainelDoca.state.lastTotalCount = 0;
@@ -2034,7 +2597,7 @@
     PainelDoca.toggleDetails = function () {
       PainelDoca.state.detailsVisible = !PainelDoca.state.detailsVisible;
       document.getElementById('detailsPanel').classList.toggle('hidden', !PainelDoca.state.detailsVisible);
-      document.getElementById('toggleDetailsBtn').textContent = PainelDoca.state.detailsVisible ? 'Ocultar IDs' : 'Ver IDs';
+      document.getElementById('toggleDetailsBtn').textContent = PainelDoca.state.detailsVisible ? 'Ocultar detalhes' : 'Ver detalhes';
       if (PainelDoca.state.detailsVisible) PainelDoca.renderTable(PainelDoca.getVisibleItems());
     };
 
@@ -2052,6 +2615,7 @@
       document.getElementById('searchNf').value = '';
       document.getElementById('searchCnpj').value = '';
       document.getElementById('filterSubcategoria').value = '';
+      document.getElementById('filterReceiveStatus').value = 'todos';
       document.getElementById('searchInput').value = '';
       PainelDoca.state.touchedUsers = false;
       PainelDoca.state.touchedStores = false;
@@ -2087,25 +2651,60 @@
 
     PainelDoca.exportCsv = function () {
       const rows = PainelDoca.getVisibleItems();
-      const header = ['chamadoId', 'reservadoEm', 'aberturaTexto', 'lojaTexto', 'fornecedorNome', 'subcategoria', 'statusNome', 'chaveAcesso', 'cnpjEmitente', 'nfNumero', 'usuario'];
+      let header;
+      let valuesFor;
+      let filename;
+      if (PainelDoca.state.reportMode === 'recebimentos') {
+        header = ['chamadoId','aberturaInfraDesk','liberadoInfraDesk','responsavel','loja','fornecedor','chaveAcesso','cnpj','nf','situacao','statusBluesoft','numeroCarga','statusCarga','statusRomaneio','cargaCriadaEm','cargaCriadaPor','conferidoPor','dataFechamentoCarga'];
+        valuesFor = item => {
+          const bs = PainelDoca.bluesoftForItem(item) || {};
+          return [item.id,item.aberturaTexto,item.liberadoTexto,item.responsavelInfraDesk,item.lojaTexto,item.fornecedorNome,item.chaveAcesso,item.cnpjEmitente,item.nfNumeroLimpo || item.nfNumero,PainelDoca.receiveStateInfo(item).label,bs.statusRecebimento,bs.numeroCarga,bs.statusCarga,bs.statusRomaneio,bs.cargaCriadaEm,bs.cargaCriadaPor || bs.geradoPorTela,bs.conferidoPor,bs.dataFechamentoCarga];
+        };
+        filename = 'infradesk-recebimentos-bluesoft.csv';
+      } else {
+        header = ['chamadoId','reservadoEm','aberturaTexto','lojaTexto','fornecedorNome','subcategoria','statusNome','chaveAcesso','cnpjEmitente','nfNumero','usuario'];
+        valuesFor = item => [item.id,item.reservaDataTexto,item.aberturaTexto,item.lojaTexto,item.fornecedorNome,item.subcategoria,item.statusNome,item.chaveAcesso,item.cnpjEmitente,item.nfNumero,item.usuario];
+        filename = 'infra-doca-capturas-graficos.csv';
+      }
       const lines = [header.join(';')];
       for (const item of rows) {
-        const values = [item.id, item.reservaDataTexto, item.aberturaTexto, item.lojaTexto, item.fornecedorNome, item.subcategoria, item.statusNome, item.chaveAcesso, item.cnpjEmitente, item.nfNumero, item.usuario]
-          .map(value => '"' + PainelDoca.clean(value).replace(/"/g, '""') + '"');
+        const values = valuesFor(item).map(value => '"' + PainelDoca.clean(value).replace(/"/g, '""') + '"');
         lines.push(values.join(';'));
       }
-      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'infra-doca-capturas-graficos.csv';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     };
 
+    PainelDoca.printReceiptReport = function () {
+      const rows = PainelDoca.getVisibleItems();
+      const range = PainelDoca.currentRange();
+      const counts = { finalizada:0, com_carga:0, sem_carga:0, nao_sincronizada:0, outro:0 };
+      rows.forEach(item => { const k = PainelDoca.receiveStateInfo(item).key; counts[k] = (counts[k] || 0) + 1; });
+      const win = window.open('about:blank', '_blank');
+      if (!win) { PainelDoca.toast('O navegador bloqueou a janela do relatório.'); return; }
+      const period = PainelDoca.state.mode === 'all' ? 'Todos os registros' : `${PainelDoca.fullDateLabel(range.startKey || '')} a ${PainelDoca.fullDateLabel(range.endKey || '')}`;
+      const bodyRows = rows.map((item, i) => {
+        const bs = PainelDoca.bluesoftForItem(item) || {};
+        const state = PainelDoca.receiveStateInfo(item);
+        const visual = PainelDoca.visualStatusBluesoft(bs.statusRecebimento || 'Não sincronizada');
+        return `<tr><td>${i+1}</td><td>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</td><td>${PainelDoca.escapeHTML(item.nfNumeroLimpo || item.nfNumero || '—')}</td><td>${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</td><td>${PainelDoca.escapeHTML(item.responsavelInfraDesk || '—')}</td><td>${PainelDoca.escapeHTML(item.aberturaTexto || '—')}</td><td>${PainelDoca.escapeHTML(item.liberadoTexto || '—')}</td><td>${PainelDoca.escapeHTML(bs.numeroCarga || '—')}</td><td>${PainelDoca.escapeHTML(bs.cargaCriadaEm || '—')}</td><td>${PainelDoca.escapeHTML(bs.cargaCriadaPor || bs.geradoPorTela || '—')}</td><td><img src="${visual.icon}" title="${PainelDoca.escapeHTML(visual.label)}"><small>${PainelDoca.escapeHTML(state.label)}</small></td></tr>`;
+      }).join('');
+      win.document.open();
+      win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Recebimentos</title><style>@page{size:A4 landscape;margin:8mm}body{font-family:Arial,sans-serif;color:#222;margin:0}h1{font-size:22px;margin:0 0 8px}.meta{font-size:10px;border-bottom:3px solid #333;padding-bottom:8px;margin-bottom:10px}.summary{border:1px solid #bbb;padding:8px;margin-bottom:10px;font-size:10px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #aaa;padding:4px 5px;font-size:8.5px;vertical-align:top;overflow:hidden;text-overflow:ellipsis}th{background:#f3f4f6;font-weight:800}td img{width:14px;height:14px;vertical-align:middle}td small{display:block;margin-top:2px;font-size:7.5px;color:#555}</style></head><body><h1>Relatório de Recebimentos • InfraDesk × Bluesoft</h1><div class="meta"><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')} &nbsp; <strong>Período de abertura:</strong> ${period}</div><div class="summary"><strong>${rows.length}</strong> registro(s) • <strong>${counts.finalizada}</strong> finalizada(s) • <strong>${counts.com_carga}</strong> com carga pendente • <strong>${counts.sem_carga}</strong> sem carga • <strong>${counts.nao_sincronizada}</strong> não sincronizada(s)</div><table><thead><tr><th>#</th><th>Loja</th><th>NF</th><th>Fornecedor</th><th>Responsável</th><th>Criado InfraDesk</th><th>Liberado</th><th>Carga</th><th>Criação carga</th><th>Criada por</th><th>Bluesoft</th></tr></thead><tbody>${bodyRows}</tbody></table></body></html>`);
+      win.document.close();
+      setTimeout(() => { try { win.focus(); win.print(); } catch (_) {} }, 450);
+    };
+
     PainelDoca.bind = function () {
+      document.getElementById('reportRecebimentos').addEventListener('click', () => PainelDoca.setReportMode('recebimentos'));
+      document.getElementById('reportDoca').addEventListener('click', () => PainelDoca.setReportMode('doca'));
       document.getElementById('modeWeek').addEventListener('click', () => PainelDoca.setMode('week'));
       document.getElementById('modeMonth').addEventListener('click', () => PainelDoca.setMode('month'));
       document.getElementById('modeCustom').addEventListener('click', () => PainelDoca.setMode('custom'));
@@ -2114,7 +2713,7 @@
       document.getElementById('nextPeriodBtn').addEventListener('click', PainelDoca.nextPeriod);
       document.getElementById('dateFrom').addEventListener('change', PainelDoca.reloadForRange);
       document.getElementById('dateTo').addEventListener('change', PainelDoca.reloadForRange);
-      ['searchGeneral', 'searchChamado', 'searchNf', 'searchCnpj', 'filterSubcategoria', 'groupBy', 'chartMode'].forEach(id => {
+      ['searchGeneral', 'searchChamado', 'searchNf', 'searchCnpj', 'filterSubcategoria', 'filterReceiveStatus', 'groupBy', 'chartMode'].forEach(id => {
         const el = document.getElementById(id);
         el.addEventListener('input', function () {
           PainelDoca.state.lastTotalCount = 0;
@@ -2135,13 +2734,22 @@
       document.getElementById('toggleDetailsBtn').addEventListener('click', PainelDoca.toggleDetails);
       document.getElementById('summaryToggleBtn').addEventListener('click', PainelDoca.toggleSummary);
       document.getElementById('exportBtn').addEventListener('click', PainelDoca.exportCsv);
+      document.getElementById('printBtn').addEventListener('click', PainelDoca.printReceiptReport);
       document.addEventListener('click', function (event) {
+        const stat = event.target.closest('[data-receive-filter]');
+        if (stat) {
+          document.getElementById('filterReceiveStatus').value = stat.getAttribute('data-receive-filter') || 'todos';
+          PainelDoca.scheduleRender();
+          return;
+        }
         const btn = event.target.closest('[data-copy]');
         if (btn) PainelDoca.copyText(btn.getAttribute('data-copy') || '');
       });
       window.addEventListener('resize', PainelDoca.scheduleRender);
       window.addEventListener('beforeunload', function () {
         if (PainelDoca.state.eventSource) PainelDoca.state.eventSource.close();
+        if (PainelDoca.state.historyEventSource) PainelDoca.state.historyEventSource.close();
+        PainelDoca.cancelBluesoftListeners();
       });
     };
 
@@ -2152,6 +2760,9 @@
       const range = PainelDoca.currentRange();
       document.getElementById('dateFrom').value = range.startKey;
       document.getElementById('dateTo').value = range.endKey;
+      PainelDoca.state.detailsVisible = true;
+      document.getElementById('detailsPanel').classList.remove('hidden');
+      document.getElementById('toggleDetailsBtn').textContent = 'Ocultar detalhes';
       PainelDoca.bind();
       PainelDoca.render();
       PainelDoca.loadInitial();
