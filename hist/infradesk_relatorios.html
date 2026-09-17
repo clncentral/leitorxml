@@ -1,0 +1,5405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfraDesk • Fluxo de Recebimento NF-e v12.7 • Ícone Receber corrigido</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --soft: #f8fafc;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --green: #16a34a;
+      --red: #dc2626;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.075);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 32%),
+        radial-gradient(circle at top right, rgba(22, 163, 74, 0.09), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button, input, select { font-family: inherit; }
+
+    .app {
+      width: min(1880px, calc(100% - 18px));
+      margin: 0 auto;
+      padding: 10px 0 24px;
+    }
+
+    .toolbar {
+      position: relative;
+      z-index: 5000;
+      overflow: visible;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      margin-bottom: 10px;
+      backdrop-filter: blur(12px);
+    }
+
+    .segmented {
+      flex: 0 0 auto;
+      display: inline-flex;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 4px;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .segmented button,
+    .navBtn,
+    .actionBtn,
+    .idsBtn {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      color: #334155;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .segmented button.active {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+    }
+
+    .segmented button:not(.active):hover,
+    .navBtn:hover:not(:disabled),
+    .actionBtn:hover,
+    .idsBtn:hover {
+      background: #fff;
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .periodNav {
+      flex: 0 0 280px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) 38px;
+      gap: 6px;
+      align-items: center;
+      min-width: 240px;
+    }
+
+    .navBtn {
+      background: #fff;
+      border-color: var(--border);
+      padding: 8px;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .navBtn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .periodLabel {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 950;
+      color: #1f2937;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .customRange {
+      flex: 0 1 270px;
+      min-width: 250px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 7px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      flex: 1 1 180px;
+    }
+
+    .field.small { flex: 0 1 150px; }
+    .field.medium { flex: 1 1 220px; }
+
+    .field label,
+    .customRange label {
+      color: #374151;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+      display: grid;
+      gap: 4px;
+    }
+
+    .field input,
+    .field select,
+    .customRange input,
+    .detailsSearch {
+      width: 100%;
+      min-width: 0;
+      min-height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 8px 9px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .customRange input:focus,
+    .detailsSearch:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    .actionBtn,
+    .idsBtn {
+      background: #fff;
+      border-color: var(--border);
+      align-self: end;
+    }
+
+    .chipsGrid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .chipsPanel {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .chipsHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .chipsHead h3 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+
+    .selectMeta {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .chipsBox {
+      min-height: 42px;
+      max-height: 78px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 6px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 900;
+      color: #374151;
+      max-width: 100%;
+    }
+
+    .chip input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .chip span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 210px;
+    }
+
+    .chip.active {
+      border-color: #bfdbfe;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .main {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .main.noSummary { grid-template-columns: minmax(0, 1fr); }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .panelHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .panelTitle {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+      font-weight: 700;
+    }
+
+    .statusHint {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      background: #94a3b8;
+      box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
+    }
+
+    .dot.ok {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16);
+    }
+
+    .dot.err {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
+    }
+
+    .legend {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .legendItem {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      color: #374151;
+    }
+
+    .legendDot,
+    .colorDot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .chartWrap {
+      width: 100%;
+      overflow-x: auto;
+      padding: 4px 2px 7px;
+      border-radius: 18px;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(22, 163, 74, 0.14)) border-box;
+      border: 1px solid transparent;
+    }
+
+    .chart {
+      min-width: 720px;
+      height: clamp(430px, calc(100vh - 250px), 760px);
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      display: block;
+    }
+
+    .summaryBig {
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border: 1px solid #dbeafe;
+      border-radius: 17px;
+      padding: 12px;
+      margin-bottom: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .summaryBig span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .summaryBig strong {
+      color: var(--text);
+      font-size: 30px;
+      line-height: 1;
+      letter-spacing: -0.06em;
+    }
+
+    .rankList {
+      display: grid;
+      gap: 8px;
+    }
+
+    .rankItem {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      border: 1px solid var(--border);
+      background: var(--soft);
+      border-radius: 15px;
+      padding: 8px;
+    }
+
+    .rankName {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      font-weight: 950;
+      font-size: 12px;
+    }
+
+    .rankName span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rankValue {
+      font-weight: 950;
+      color: var(--blue);
+    }
+
+    .progressTrack {
+      grid-column: 1 / -1;
+      height: 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .progressFill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+    }
+
+    .detailsPanel { margin-top: 10px; }
+
+    .detailsTop {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 9px;
+    }
+
+    .detailsSearch { width: min(420px, 100%); font-size: 13px; }
+
+    .tableBox {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      min-width: 1260px;
+    }
+
+    th, td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 12px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f9fafb;
+      color: #4b5563;
+      font-weight: 950;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td { background: #f9fbff; }
+
+    .idLink {
+      color: var(--blue);
+      font-weight: 950;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .idLink:hover { text-decoration: underline; }
+
+    .muted {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .supplier {
+      font-weight: 900;
+      color: #1f2937;
+      max-width: 300px;
+    }
+
+    .subcat,
+    .statusPill,
+    .userPill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .subcat { background: #f1f5f9; color: #334155; }
+    .statusPill { background: #ecfdf5; color: #166534; }
+    .userPill { color: #fff; }
+
+    .keyWrap { display: grid; gap: 6px; min-width: 360px; }
+
+    .keyText {
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+      user-select: text;
+    }
+
+    .keyCnpj {
+      background: #fef3c7;
+      color: #92400e;
+      border-radius: 5px;
+      padding: 1px 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .keyNum {
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 5px;
+      padding: 1px 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .copyBtn {
+      min-height: 25px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #fff;
+      color: #334155;
+      padding: 4px 7px;
+      font-size: 11px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .copyBtn:hover { background: #f8fafc; border-color: #bfdbfe; }
+
+    .dateCell {
+      white-space: nowrap;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -115%);
+      background: #111827;
+      color: #fff;
+      padding: 9px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+      z-index: 40;
+      transition: opacity 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #111827;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: .18s ease;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, .25);
+      z-index: 50;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .empty {
+      text-align: center;
+      padding: 34px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .hidden { display: none !important; }
+
+    .pulse { animation: pulseValue 0.55s ease; }
+
+    @keyframes pulseValue {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.16); color: #16a34a; }
+      100% { transform: scale(1); }
+    }
+
+
+    /* =========================================================
+       FLUXO_NFE_V11_1 • MULTISELECT COMPACTO
+       ========================================================= */
+    .multiField {
+      position: relative;
+      z-index: 5001;
+      flex: 0 1 190px;
+      min-width: 165px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .multiField > label {
+      color: #374151;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .multiSelectBtn {
+      width: 100%;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      color: #1f2937;
+      padding: 7px 9px;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .multiSelectBtn:hover,
+    .multiSelectBtn.open {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37,99,235,.08);
+    }
+
+    .multiSelectBtn .multiValue {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .multiSelectBtn .multiArrow {
+      flex: 0 0 auto;
+      color: #64748b;
+      font-size: 10px;
+    }
+
+    .multiMenu {
+      position: absolute;
+      z-index: 9999;
+      left: 0;
+      top: calc(100% + 5px);
+      width: min(330px, calc(100vw - 28px));
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 18px 45px rgba(15,23,42,.18);
+    }
+
+    .multiMenuTop {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto auto;
+      gap: 5px;
+      margin-bottom: 7px;
+    }
+
+    .multiSearch {
+      width: 100%;
+      min-width: 0;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0 8px;
+      font-size: 11px;
+      outline: none;
+    }
+
+    .multiMiniBtn {
+      min-height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #f8fafc;
+      color: #334155;
+      padding: 0 8px;
+      font-size: 9px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .multiOptions {
+      max-height: 260px;
+      overflow: auto;
+      display: grid;
+      gap: 3px;
+    }
+
+    .multiOption {
+      display: grid;
+      grid-template-columns: 17px minmax(0,1fr);
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 5px 7px;
+      border-radius: 9px;
+      color: #334155;
+      font-size: 10.5px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .competenceHint {
+      margin-top: 5px;
+      color: #475569;
+      font-size: 10.5px;
+      font-weight: 900;
+    }
+
+    .keyMini {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .keyMini code {
+      max-width: 135px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #64748b;
+      font-size: 8.5px;
+    }
+
+    .keyMini button {
+      min-height: 21px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #fff;
+      color: #334155;
+      padding: 2px 6px;
+      font-size: 8px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .keyMini button:hover {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
+    .multiOption:hover { background: #f1f5f9; }
+    .multiOption input { width: 14px; height: 14px; margin: 0; accent-color: var(--blue); }
+    .multiOption span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* =========================================================
+       RECEBIMENTOS_V11
+       ========================================================= */
+
+    .receiveStats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+
+    .reportSelection {
+      display: grid;
+      gap: 4px;
+      margin: 8px 0 10px;
+      padding: 10px 11px;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      background: linear-gradient(135deg,#eff6ff 0%,#ffffff 100%);
+      box-shadow: inset 0 0 0 1px rgba(37,99,235,.03);
+    }
+
+    .reportSelection small {
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .reportSelection strong {
+      color: #0f172a;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .reportSelection span {
+      color: #475569;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .updateGuide {
+      margin-top: 5px;
+      padding: 7px 9px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 10px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .updateGuide strong { color:#0f172a; }
+
+    .detailsScope {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .detailsScope button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      color: #475569;
+      padding: 0 9px;
+      font-size: 9.5px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .detailsScope button:hover {
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+
+    .detailsScope button.active {
+      border-color: #2563eb;
+      background: #dbeafe;
+      color: #1d4ed8;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    }
+
+    .detailsScope button b {
+      min-width: 22px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.8);
+      color: inherit;
+      text-align: center;
+      font-size: 9px;
+    }
+
+    .summaryBig {
+      cursor: pointer;
+      transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+    }
+
+    .summaryBig:hover {
+      border-color: #93c5fd;
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.06);
+    }
+
+    .receiveStat {
+      display: grid;
+      gap: 2px;
+      min-height: 62px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .receiveStat:hover {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.06);
+    }
+
+    .receiveStat.active {
+      position: relative;
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: 0 0 0 4px rgba(37,99,235,.11);
+      transform: translateY(-1px);
+    }
+
+    .receiveStat.active::after {
+      content: "RELATÓRIO";
+      position: absolute;
+      right: 7px;
+      top: 6px;
+      padding: 2px 5px;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 7px;
+      font-weight: 950;
+      letter-spacing: .04em;
+    }
+
+    .receiveStat[data-receive-filter="cancelada_sefaz"].active::after {
+      content: "DIAGNÓSTICO";
+      background: #64748b;
+    }
+
+    .receiveStat[data-receive-filter="pendente_sync"].active::after {
+      content: "ATUALIZAR";
+      background: #2563eb;
+    }
+
+
+    .receiveStat small {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .receiveStat strong {
+      color: #111827;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .receiveStat.recebida { border-left: 5px solid #16a34a; }
+    .receiveStat.com_carga { border-left: 5px solid #f59e0b; }
+    .receiveStat.sem_carga { border-left: 5px solid #dc2626; }
+    .receiveStat.cancelada_sefaz { border-left: 5px solid #7c3aed; }
+    .receiveStat.pendente_sync { border-left: 5px solid #64748b; }
+
+    .bsRefreshOne {
+      appearance:none;
+      border:1px solid #dbe4ef;
+      background:#fff;
+      padding:4px;
+      border-radius:8px;
+      cursor:pointer;
+      line-height:1;
+    }
+
+    .bsRefreshOne:hover {
+      border-color:#60a5fa;
+      background:#eff6ff;
+    }
+
+    .bsRefreshOne:disabled {
+      cursor:wait;
+      opacity:.55;
+    }
+
+    .bsStatusIcon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      vertical-align: middle;
+    }
+
+    .bsStatusWrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 5px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #fff;
+    }
+
+    .loadCell {
+      min-width: 130px;
+      font-weight: 900;
+      color: #1f2937;
+    }
+
+    .loadCell a {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 950;
+    }
+
+    .loadCell a:hover { text-decoration: underline; }
+
+    .stateBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .stateBadge.recebida { background:#dcfce7;color:#166534; }
+    .stateBadge.com_carga { background:#fef3c7;color:#92400e; }
+    .stateBadge.sem_carga { background:#fee2e2;color:#991b1b; }
+    .stateBadge.cancelada_sefaz { background:#ede9fe;color:#5b21b6; }
+    .stateBadge.pendente_sync { background:#f1f5f9;color:#475569; }
+    .stateBadge.finalizada { background:#dcfce7;color:#166534; }
+
+    .receiveNote {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 750;
+      line-height: 1.3;
+    }
+
+    body[data-report="fluxo-nfe"] table { min-width: 1420px; }
+
+    /* V12.6 • tabela de recebimento mais enxuta */
+    #detailsHeadRow th:nth-child(7),
+    #tableBody td:nth-child(7) {
+      width: 165px;
+      max-width: 165px;
+    }
+
+    #detailsHeadRow th:last-child,
+    #tableBody td:last-child {
+      width: 68px;
+      max-width: 68px;
+      text-align: center;
+    }
+
+    #tableBody td:nth-child(7) > strong {
+      display: block;
+      max-width: 10ch;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #tableBody td:nth-child(7) .keyMini code {
+      max-width: 102px;
+    }
+
+    @media print {
+      .toolbar,.main,.detailsTop,.toast,.tooltip { display:none!important; }
+    }
+
+    @media (max-width: 1320px) {
+      .main { grid-template-columns: 1fr; }
+      .chipsGrid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .segmented { width: 100%; overflow-x: auto; }
+      .segmented button { flex: 1; }
+      .periodNav, .customRange, .field { flex: 1 1 100%; min-width: 0; }
+      .chart { min-width: 650px; height: 450px; }
+      .detailsTop { align-items: stretch; flex-direction: column; }
+    }
+
+    @media (max-width: 760px) {
+      .app { width: min(100% - 12px, 1880px); padding-top: 7px; }
+      .panelHead { flex-direction: column; }
+      .actionBtn, .idsBtn { width: 100%; }
+      .chipsBox { max-height: 120px; }
+    }
+  </style>
+
+  <!-- Firebase compartilhado da Bluesoft -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <div class="app">
+    <div class="toolbar">
+<div class="segmented" aria-label="Período">
+        <button id="modeToday" type="button" data-mode="today" class="active">Hoje</button>
+        <button id="modeWeek" type="button" data-mode="week">Semana</button>
+        <button id="modeMonth" type="button" data-mode="month">Mês</button>
+        <button id="modeCustom" type="button" data-mode="custom">Personalizado</button>
+        <button id="modeAll" type="button" data-mode="all">Tudo</button>
+      </div>
+
+      <div class="periodNav">
+        <button id="prevPeriodBtn" class="navBtn" type="button" aria-label="Período anterior">‹</button>
+        <div id="periodLabel" class="periodLabel">—</div>
+        <button id="nextPeriodBtn" class="navBtn" type="button" aria-label="Próximo período">›</button>
+      </div>
+
+      <div id="customRange" class="customRange hidden">
+        <label>Inicial <input id="dateFrom" type="date" /></label>
+        <label>Final <input id="dateTo" type="date" /></label>
+      </div>
+
+      <div class="field medium">
+        <label>Busca geral</label>
+        <input id="searchGeneral" type="text" placeholder="Fornecedor, representante, atendente, chave..." />
+      </div>
+
+      <div class="field small">
+        <label>Chamado</label>
+        <input id="searchChamado" type="text" placeholder="Ex.: 536621" />
+      </div>
+
+      <div class="field small">
+        <label>Nº NF</label>
+        <input id="searchNf" type="text" placeholder="Com ou sem zeros" />
+      </div>
+
+      <div class="field small">
+        <label>CNPJ</label>
+        <input id="searchCnpj" type="text" placeholder="Com ou sem máscara" />
+      </div>
+
+      <div class="field small">
+        <label id="categoryFilterLabel">Subcategoria</label>
+        <select id="filterSubcategoria"><option value="">Todas</option></select>
+      </div>
+
+      <div class="multiField" data-multi-root="competencia">
+        <label>Competência NF-e</label>
+        <button id="competenciaMultiBtn" class="multiSelectBtn" type="button" data-multi-toggle="competencia">
+          <span class="multiValue">Todas</span><span class="multiArrow">▼</span>
+        </button>
+        <div id="competenciaMultiMenu" class="multiMenu hidden">
+          <div class="multiMenuTop">
+            <input id="competenciaMultiSearch" class="multiSearch" type="text" placeholder="Ex.: 09/2026" />
+            <button class="multiMiniBtn" type="button" data-multi-all="competencia">Todos</button>
+            <button class="multiMiniBtn" type="button" data-multi-none="competencia">Limpar</button>
+          </div>
+          <div id="competenciaMultiOptions" class="multiOptions"></div>
+        </div>
+      </div>
+
+      <div class="multiField" data-multi-root="situacao">
+        <label>Situação Bluesoft</label>
+        <button id="situacaoMultiBtn" class="multiSelectBtn" type="button" data-multi-toggle="situacao">
+          <span class="multiValue">Todas</span><span class="multiArrow">▼</span>
+        </button>
+        <div id="situacaoMultiMenu" class="multiMenu hidden">
+          <div class="multiMenuTop">
+            <input id="situacaoMultiSearch" class="multiSearch" type="text" placeholder="Filtrar situações..." />
+            <button class="multiMiniBtn" type="button" data-multi-all="situacao">Todos</button>
+            <button class="multiMiniBtn" type="button" data-multi-none="situacao">Limpar</button>
+          </div>
+          <div id="situacaoMultiOptions" class="multiOptions"></div>
+        </div>
+      </div>
+
+      <div class="multiField" data-multi-root="representante">
+        <label>Representante</label>
+        <button id="representanteMultiBtn" class="multiSelectBtn" type="button" data-multi-toggle="representante">
+          <span class="multiValue">Todos</span><span class="multiArrow">▼</span>
+        </button>
+        <div id="representanteMultiMenu" class="multiMenu hidden">
+          <div class="multiMenuTop">
+            <input id="representanteMultiSearch" class="multiSearch" type="text" placeholder="Buscar representante..." />
+            <button class="multiMiniBtn" type="button" data-multi-all="representante">Todos</button>
+            <button class="multiMiniBtn" type="button" data-multi-none="representante">Limpar</button>
+          </div>
+          <div id="representanteMultiOptions" class="multiOptions"></div>
+        </div>
+      </div>
+
+      <div class="multiField" data-multi-root="atendente">
+        <label>Atendente</label>
+        <button id="atendenteMultiBtn" class="multiSelectBtn" type="button" data-multi-toggle="atendente">
+          <span class="multiValue">Todos</span><span class="multiArrow">▼</span>
+        </button>
+        <div id="atendenteMultiMenu" class="multiMenu hidden">
+          <div class="multiMenuTop">
+            <input id="atendenteMultiSearch" class="multiSearch" type="text" placeholder="Buscar atendente..." />
+            <button class="multiMiniBtn" type="button" data-multi-all="atendente">Todos</button>
+            <button class="multiMiniBtn" type="button" data-multi-none="atendente">Limpar</button>
+          </div>
+          <div id="atendenteMultiOptions" class="multiOptions"></div>
+        </div>
+      </div>
+
+      <div class="field small">
+        <label>Agrupar por</label>
+        <select id="groupBy">
+          <option value="representante">Representante</option>
+          <option value="atendente" selected>Atendente</option>
+          <option value="situacaoRecebimento">Situação</option>
+          <option value="statusBluesoft">Status Bluesoft</option>
+          <option value="subcategoria">Subcategoria</option>
+          <option value="statusNome">Status InfraDesk</option>
+          <option value="fornecedorNome">Fornecedor</option>
+        </select>
+      </div>
+
+      <div class="field small">
+        <label>Gráfico</label>
+        <select id="chartMode">
+          <option value="auto" selected>Automático</option>
+          <option value="bar">Barras por dia</option>
+          <option value="line">Linha por dia</option>
+          <option value="total">Resumo total</option>
+        </select>
+      </div>
+
+      <button id="clearBtn" class="actionBtn" type="button">Limpar</button>
+      <button id="reloadBtn" class="actionBtn" type="button">Atualizar InfraDesk</button>
+      <button id="summaryToggleBtn" class="actionBtn" type="button">Ocultar resumo</button>
+      <button id="printBtn" class="actionBtn" type="button">Imprimir relatório selecionado</button>
+    </div>
+
+    <div id="mainGrid" class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="chartTitle" class="panelTitle">Fluxo de recebimento NF-e</h2>
+            <div id="chartHint" class="hint">Chamados por data de abertura no InfraDesk.</div>
+            <div id="competenceHint" class="competenceHint">Competências NF-e no período: —</div>
+            <div id="updateGuide" class="updateGuide">Pista para atualizar a Bluesoft: —</div>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+            <span class="statusHint"><span id="statusDot" class="dot"></span><span id="statusText">Carregando...</span></span>
+            <button id="syncBluesoftBtn" class="idsBtn" type="button">Atualizar status Bluesoft</button>
+            <button id="toggleDetailsBtn" class="idsBtn" type="button">Ocultar tabela</button>
+            <button id="copyKeysBtn" class="idsBtn" type="button">Copiar chaves do relatório</button>
+            <button id="copyPendingJsonBtn" class="idsBtn" type="button">Copiar JSON • Seleção</button>
+            <button id="exportBtn" class="idsBtn" type="button">Exportar relatório</button>
+          </div>
+        </div>
+
+        <div id="legend" class="legend"></div>
+
+        <div class="chartWrap">
+          <div id="chart" class="chart"></div>
+        </div>
+      </div>
+
+      <div id="summaryPanel" class="panel summaryPanel">
+        <div class="panelHead">
+          <div>
+            <h2 class="panelTitle">Resumo • Finalizados InfraDesk</h2>
+            <div id="summaryMeta" class="hint">0 grupo(s)</div>
+          </div>
+        </div>
+
+        <div id="flowSummary" class="reportSelection">
+          <small>Fluxo do período</small>
+          <strong id="flowSummaryTitle">0 chamados no período</strong>
+          <span id="flowSummaryMeta">0 Finalizados • 0 ainda não Finalizados</span>
+        </div>
+
+        <div class="summaryBig" id="summaryAllFinalized" title="Clique para ver todos os chamados Finalizados no InfraDesk">
+          <span>Finalizados InfraDesk no filtro</span>
+          <strong id="summaryTotal">0</strong>
+        </div>
+
+        <div id="reportSelection" class="reportSelection">
+          <small>Relatório selecionado</small>
+          <strong id="reportSelectionTitle">Com carga + Sem carga confirmada</strong>
+          <span id="reportSelectionMeta">0 chamado(s) prontos para relatório.</span>
+        </div>
+
+        <div id="receiveStats" class="receiveStats"></div>
+        <div id="ranking" class="rankList"></div>
+      </div>
+    </div>
+
+    <div id="detailsPanel" class="panel detailsPanel hidden">
+      <div class="detailsTop">
+        <div>
+          <h2 id="detailsTitle" class="panelTitle">Consulta • todos os chamados do período</h2>
+          <div id="detailsHint" class="hint">0 chamado(s).</div>
+          <div id="detailsScope" class="detailsScope">
+            <button type="button" data-details-scope="todos" class="active">Todos do período <b id="scopeCountTodos">0</b></button>
+            <button type="button" data-details-scope="nao_finalizados">Ainda no InfraDesk <b id="scopeCountNaoFinalizados">0</b></button>
+            <button type="button" data-details-scope="finalizados">Finalizados InfraDesk <b id="scopeCountFinalizados">0</b></button>
+            <button type="button" data-details-scope="relatorio">Relatório atual <b id="scopeCountRelatorio">0</b></button>
+            <button type="button" data-details-scope="canceladas">Canceladas SEFAZ <b id="scopeCountCanceladas">0</b></button>
+            <button type="button" data-details-scope="pendente">Falta atualizar Bluesoft <b id="scopeCountPendente">0</b></button>
+          </div>
+        </div>
+
+        <input id="searchInput" class="detailsSearch" type="text" placeholder="Buscar: chamado, representante, atendente, fornecedor, NF, carga..." />
+      </div>
+
+      <div class="tableBox">
+        <table>
+          <thead>
+            <tr id="detailsHeadRow">
+              <th style="width:82px">Chamado</th>
+              <th style="width:108px">Criado</th>
+              <th style="width:108px">Finalizado InfraDesk</th>
+              <th style="width:145px">Representante</th>
+              <th style="width:145px">Atendente</th>
+              <th style="width:125px">Status InfraDesk</th>
+              <th style="width:165px">NF / chave</th>
+              <th style="width:235px">Fornecedor</th>
+              <th style="width:145px">Carga</th>
+              <th style="width:68px;text-align:center">Bluesoft</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip"></div>
+  <div id="toast" class="toast">Copiado</div>
+
+  <script>
+    const PainelDoca = {};
+
+    PainelDoca.FIREBASE_DB_URL = 'https://infra-doca-default-rtdb.firebaseio.com';
+    PainelDoca.PATH = '/doca_capturas/by_id.json';
+    PainelDoca.HISTORY_PATH = '/infradesk_nfe/by_id.json';
+
+    PainelDoca.BLUESOFT_FIREBASE_CONFIG = Object.freeze({
+      apiKey: "AIzaSyBGqqtT6_cK-m3NqePOHgJP-ADYBcXnE6I",
+      authDomain: "compradores-c0537.firebaseapp.com",
+      projectId: "compradores-c0537",
+      storageBucket: "compradores-c0537.firebasestorage.app",
+      messagingSenderId: "886343500856",
+      appId: "1:886343500856:web:99aa530915f3f61b21d2cd"
+    });
+    PainelDoca.BLUESOFT_APP_NAME = 'cln-relatorio-recebimentos';
+    PainelDoca.BLUESOFT_COLLECTION = 'notas';
+    PainelDoca.BLUESOFT_LOADS_COLLECTION = 'cargas';
+    PainelDoca.BLUESOFT_BATCH = 30;
+
+    // CACHE_LEVE_V11_3
+    // Evita reler Firebase/Firestore sempre que a página é aberta ou o período muda.
+    PainelDoca.INFRA_CACHE_KEY = 'infradesk-relatorios:infra:v11.3';
+    PainelDoca.INFRA_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+    PainelDoca.BLUESOFT_CACHE_KEY = 'infradesk-relatorios:bluesoft:v12.5';
+    PainelDoca.BLUESOFT_CACHE_TTL_MS = 30 * 60 * 1000;
+    PainelDoca.BLUESOFT_URL_CARGA = 'https://erp.bluesoft.com.br/flex/erp-app/areas/estoques/recebimento-mercadoria/consultar-itens-nf/index.action#/estoques/recebimento-mercadoria/consultar-itens-nf/';
+    PainelDoca.BLUESOFT_ICONES = Object.freeze({
+      receber: 'https://cdn.bluesoft.com.br/commons/icons/icon_accept.gif',
+      pendente: 'https://cdn.bluesoft.com.br/commons/icons/clock_error.png',
+      devolver: 'https://cdn.bluesoft.com.br/commons/icons/stop.png',
+      divergencia: 'https://cdn.bluesoft.com.br/commons/icons/warn.gif',
+      fechado: 'https://cdn.bluesoft.com.br/commons/icons/lock.png',
+      neutro: 'https://cdn.bluesoft.com.br/commons/icons/info.gif'
+    });
+
+    PainelDoca.GROUP_LABELS = {
+      representante: 'representante',
+      atendente: 'atendente',
+      subcategoria: 'subcategoria',
+      statusNome: 'status InfraDesk',
+      fornecedorNome: 'fornecedor',
+      situacaoRecebimento: 'situação',
+      statusBluesoft: 'status Bluesoft'
+    };
+
+    PainelDoca.state = {
+      byId: {},
+      eventSource: null,
+      historyEventSource: null,
+      bluesoftFirestore: null,
+      bluesoftInit: null,
+      bluesoftByKey: {},
+      bluesoftListeners: [],
+      bluesoftSignature: '',
+      bluesoftSyncTimer: null,
+      renderFrame: null,
+      selectedRepresentantes: new Set(),
+      selectedAtendentes: new Set(),
+      selectedCompetencias: new Set(),
+      selectedSituacoes: new Set(),
+      touchedRepresentantes: false,
+      touchedAtendentes: false,
+      touchedCompetencias: false,
+      touchedSituacoes: false,
+      filtersReady: false,
+      inputRenderTimer: null,
+      syncBluesoftExecutando: false,
+      reportType: 'recebida',
+      detailsScope: 'todos',
+      bluesoftCache: {},
+      bluesoftCacheLoaded: false,
+      infraCacheLoaded: false,
+      mode: 'today',
+      weekStart: null,
+      monthStart: null,
+      lastTotalCount: 0,
+      lastTotals: new Map(),
+      detailsVisible: false,
+      summaryVisible: true,
+      queryMode: 'turbo',
+      hasInitialLoad: false,
+      reloadTimer: null
+    };
+
+    PainelDoca.clean = function (value) {
+      return String(value ?? '').replace(/\s+/g, ' ').trim();
+    };
+
+    PainelDoca.shortUserName = function (value) {
+      value = PainelDoca.clean(value);
+      if (!value) return '';
+      const parts = value.split(' ').filter(Boolean);
+      return parts.length <= 2 ? value : parts[0] + ' ' + parts[1];
+    };
+
+    PainelDoca.onlyDigits = function (value) {
+      return String(value ?? '').replace(/\D+/g, '');
+    };
+
+    PainelDoca.norm = function (value) {
+      return PainelDoca.clean(value)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    PainelDoca.escapeHTML = function (value) {
+      return PainelDoca.clean(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    PainelDoca.pad = function (n) {
+      return String(n).padStart(2, '0');
+    };
+
+    PainelDoca.formatCnpj = function (cnpj) {
+      cnpj = PainelDoca.onlyDigits(cnpj);
+      if (cnpj.length !== 14) return cnpj;
+      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    };
+
+    PainelDoca.toDateInput = function (date) {
+      return `${date.getFullYear()}-${PainelDoca.pad(date.getMonth() + 1)}-${PainelDoca.pad(date.getDate())}`;
+    };
+
+    PainelDoca.dateFromKey = function (key) {
+      const d = new Date(String(key || '') + 'T00:00:00');
+      return String(d) === 'Invalid Date' ? null : d;
+    };
+
+    PainelDoca.cloneDate = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+
+    PainelDoca.addDays = function (date, days) {
+      const d = PainelDoca.cloneDate(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
+    PainelDoca.addMonths = function (date, months) {
+      return new Date(date.getFullYear(), date.getMonth() + months, 1);
+    };
+
+    PainelDoca.startOfWeek = function (date) {
+      const d = PainelDoca.cloneDate(date);
+      d.setDate(d.getDate() - d.getDay());
+      return d;
+    };
+
+    PainelDoca.startOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    };
+
+    PainelDoca.endOfMonth = function (date) {
+      return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    };
+
+    PainelDoca.shortDateLabel = function (key) {
+      const p = String(key || '').split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}` : key || '—';
+    };
+
+    PainelDoca.fullDateLabel = function (key) {
+      const p = String(key || '').split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : key || '—';
+    };
+
+    PainelDoca.weekdayLabel = function (key) {
+      const d = PainelDoca.dateFromKey(key);
+      const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      return d ? names[d.getDay()] : '';
+    };
+
+    PainelDoca.monthName = function (date) {
+      return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    };
+
+    PainelDoca.todayKey = function () {
+      return PainelDoca.toDateInput(new Date());
+    };
+
+    PainelDoca.inputDateToMs = function (value, endOfDay) {
+      value = PainelDoca.clean(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 0;
+      const parts = value.split('-').map(Number);
+      const d = endOfDay
+        ? new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999)
+        : new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+      const n = d.getTime();
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelDoca.parseBrDateTime = function (value) {
+      value = PainelDoca.clean(value);
+      if (!value) return 0;
+      const match = value.match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+      if (!match) return 0;
+      const d = new Date(
+        Number(match[3]), Number(match[2]) - 1, Number(match[1]),
+        Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0), 0
+      );
+      const n = d.getTime();
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    PainelDoca.openingMillis = function (raw) {
+      const direct = Number(raw.aberturaEm || raw.aberturaMs || raw.criadoEm || 0);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+      if (raw.aberturaISO) {
+        const n = new Date(raw.aberturaISO).getTime();
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return PainelDoca.parseBrDateTime(raw.aberturaTexto || raw.abertura || '');
+    };
+
+    PainelDoca.releaseMillis = function (raw) {
+      const direct = Number(raw.liberadoEm || raw.finalizadoEm || raw.liberacaoEm || 0);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+      return PainelDoca.parseBrDateTime(
+        raw.liberadoTexto || raw.finalizadoTexto || raw.liberacaoTexto || ''
+      );
+    };
+
+    PainelDoca.toMillis = function (item) {
+      const values = [item.capturadoEm, item.atualizadoEm, item.ts];
+      for (const value of values) {
+        const n = Number(value || 0);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      if (item.aberturaISO) {
+        const n = new Date(item.aberturaISO).getTime();
+        if (Number.isFinite(n)) return n;
+      }
+      return 0;
+    };
+
+    PainelDoca.dateKeyFromTs = function (ts) {
+      const n = Number(ts || 0);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '';
+      return PainelDoca.toDateInput(d);
+    };
+
+    PainelDoca.formatDateTimeFromTs = function (ts) {
+      const n = Number(ts || 0);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      const d = new Date(n);
+      if (String(d) === 'Invalid Date') return '';
+      return `${PainelDoca.pad(d.getDate())}/${PainelDoca.pad(d.getMonth() + 1)}/${d.getFullYear()} ${PainelDoca.pad(d.getHours())}:${PainelDoca.pad(d.getMinutes())}`;
+    };
+
+    PainelDoca.firebaseBaseUrl = function () {
+      return PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelDoca.PATH;
+    };
+
+    PainelDoca.currentRange = function () {
+      if (PainelDoca.state.mode === 'today') {
+        const now = new Date();
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+
+        return {
+          start,
+          end: PainelDoca.cloneDate(start),
+          startKey: PainelDoca.toDateInput(start),
+          endKey: PainelDoca.toDateInput(start)
+        };
+      }
+
+      if (PainelDoca.state.mode === 'week') {
+        const start = PainelDoca.cloneDate(PainelDoca.state.weekStart);
+        const end = PainelDoca.addDays(start, 6);
+        return { start, end, startKey: PainelDoca.toDateInput(start), endKey: PainelDoca.toDateInput(end) };
+      }
+
+      if (PainelDoca.state.mode === 'month') {
+        const start = PainelDoca.cloneDate(PainelDoca.state.monthStart);
+        const end = PainelDoca.endOfMonth(start);
+        return { start, end, startKey: PainelDoca.toDateInput(start), endKey: PainelDoca.toDateInput(end) };
+      }
+
+      if (PainelDoca.state.mode === 'custom') {
+        const fromInput = document.getElementById('dateFrom');
+        const toInput = document.getElementById('dateTo');
+        if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
+          const old = fromInput.value;
+          fromInput.value = toInput.value;
+          toInput.value = old;
+        }
+        return {
+          start: fromInput.value ? PainelDoca.dateFromKey(fromInput.value) : null,
+          end: toInput.value ? PainelDoca.dateFromKey(toInput.value) : null,
+          startKey: fromInput.value || '',
+          endKey: toInput.value || ''
+        };
+      }
+
+      return { start: null, end: null, startKey: '', endKey: '' };
+    };
+
+    PainelDoca.firebaseQueryString = function (useServerDateFilter) {
+      if (useServerDateFilter === false || PainelDoca.state.mode === 'all') return '';
+      const range = PainelDoca.currentRange();
+      const params = new URLSearchParams();
+      params.set('orderBy', JSON.stringify('capturadoEm'));
+      const startMs = range.startKey ? PainelDoca.inputDateToMs(range.startKey, false) : 0;
+      const endMs = range.endKey ? PainelDoca.inputDateToMs(range.endKey, true) : 0;
+      if (startMs) params.set('startAt', String(startMs));
+      if (endMs) params.set('endAt', String(endMs));
+      const query = params.toString();
+      return query ? '?' + query : '';
+    };
+
+    PainelDoca.firebaseUrl = function (useServerDateFilter) {
+      return PainelDoca.firebaseBaseUrl() + PainelDoca.firebaseQueryString(useServerDateFilter !== false);
+    };
+
+    PainelDoca.hashHue = function (str) {
+      let h = 0;
+      str = PainelDoca.norm(str || 'grupo');
+      for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+      return Math.abs(h) % 360;
+    };
+
+    PainelDoca.CORES_FIXAS_POR_USUARIO = {
+      'Elias Araujo': '#0324ff',
+      'Camily Assis': '#e6cff2',
+      'Elia Maria': '#962bcc',
+      'Elia Oliveira': '#962bcc',
+      'Maria Assis': '#ff8e03',
+      'Marcia': '#6a0e9c',
+      'Helena': '#8c1223'
+    };
+
+    PainelDoca.fixedColorFor = function (name) {
+      const key = PainelDoca.norm(name);
+      for (const [fixedName, color] of Object.entries(PainelDoca.CORES_FIXAS_POR_USUARIO)) {
+        const fixedKey = PainelDoca.norm(fixedName);
+        if (key === fixedKey || key.includes(fixedKey) || fixedKey.includes(key)) return color;
+      }
+      return '';
+    };
+
+    PainelDoca.colorFor = function (name) {
+      return PainelDoca.fixedColorFor(name) || `hsl(${PainelDoca.hashHue(name)} 72% 46%)`;
+    };
+
+    PainelDoca.textColorFor = function (name) {
+      const color = PainelDoca.colorFor(name);
+      const match = String(color || '').match(/^#([0-9a-f]{6})$/i);
+      if (!match) return '#ffffff';
+      const hex = match[1];
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.62 ? '#111827' : '#ffffff';
+    };
+
+    PainelDoca.competenciaDaChave = function (value) {
+      const chave = PainelDoca.onlyDigits(value);
+
+      if (chave.length !== 44) return '';
+
+      const aa = chave.slice(2, 4);
+      const mm = chave.slice(4, 6);
+      const mes = Number(mm);
+
+      if (!/^\d{2}$/.test(aa) || mes < 1 || mes > 12) return '';
+
+      return `20${aa}-${mm}`;
+    };
+
+    PainelDoca.competenciaLabel = function (value) {
+      const match = String(value || '').match(/^(\d{4})-(\d{2})$/);
+      return match ? `${match[2]}/${match[1]}` : String(value || '');
+    };
+
+    PainelDoca.isInfraDeskFinalizado = function (item) {
+      const statusId = String(item?.statusId || item?.status_id || '');
+      const status = PainelDoca.norm(item?.statusNome || '');
+
+      return (
+        statusId === '4' ||
+        status.includes('finaliz') ||
+        Number(item?.liberadoTs || 0) > 0 ||
+        Number(item?.finalizadoEm || 0) > 0
+      );
+    };
+
+    PainelDoca.normalizeItem = function (key, item) {
+      const raw = item && typeof item === 'object' ? item : {};
+      const id = PainelDoca.clean(raw.chamadoId || raw.id || key);
+      // Representante = quem criou o chamado / identificação da loja
+      // (ex.: Recebimento 01). Atendente = quem reservou e tratou o chamado.
+      const representante = PainelDoca.clean(
+        raw.representante || raw.responsavelInfraDesk || raw.solicitanteNome || raw.solicitante || 'Sem representante'
+      );
+      const atendente = PainelDoca.clean(
+        raw.atendente || raw.usuario || raw.operador || raw.nome || 'Sem atendente'
+      );
+
+      // aliases internos mantidos para compatibilidade com funções antigas.
+      const usuario = atendente;
+      const responsavelInfraDesk = representante;
+      const lojaTexto = PainelDoca.clean(
+        raw.lojaTexto || raw.lojaNome || raw.solicitanteLojaTexto || raw.empresa || raw.empresaNome || 'Sem loja'
+      );
+      const lojaCodigo = PainelDoca.clean(raw.lojaCodigo || '');
+      const lojaNome = PainelDoca.clean(raw.lojaNome || '');
+      const fornecedorNome = PainelDoca.clean(raw.fornecedorNome || raw.fornecedorTexto || raw.fornecedor || 'Sem fornecedor');
+      const subcategoria = PainelDoca.clean(raw.subcategoria || 'Sem subcategoria');
+      const statusNome = PainelDoca.clean(raw.statusNome || raw.statusAntesNome || 'Sem status');
+      const chaveAcesso = PainelDoca.onlyDigits(raw.chaveAcesso || raw.chaveNf || (raw.nfe && raw.nfe.chaveAcesso) || '');
+      const cnpjEmitente = PainelDoca.onlyDigits(raw.cnpjEmitente || (raw.nfe && raw.nfe.cnpjEmitente) || (chaveAcesso.length === 44 ? chaveAcesso.slice(6, 20) : ''));
+      const nfNumero = PainelDoca.onlyDigits(raw.nfNumero || raw.numeroNfChave || (raw.nfe && raw.nfe.numero) || (chaveAcesso.length === 44 ? chaveAcesso.slice(25, 34) : ''));
+      const nfNumeroLimpo = String(Number(nfNumero || 0) || '');
+      const competenciaNfe = PainelDoca.competenciaDaChave(chaveAcesso);
+      const ts = PainelDoca.toMillis(raw);
+      const aberturaTs = PainelDoca.openingMillis(raw);
+      const liberadoTs = PainelDoca.releaseMillis(raw);
+      const aberturaTexto = PainelDoca.clean(raw.aberturaTexto || raw.abertura || (aberturaTs ? PainelDoca.formatDateTimeFromTs(aberturaTs) : ''));
+      const liberadoTexto = PainelDoca.clean(raw.liberadoTexto || raw.finalizadoTexto || raw.liberacaoTexto || (liberadoTs ? PainelDoca.formatDateTimeFromTs(liberadoTs) : ''));
+
+      if (!id) return null;
+
+      return {
+        ...raw,
+        id,
+        usuario,
+        responsavelInfraDesk,
+        representante,
+        atendente,
+        lojaTexto,
+        lojaCodigo,
+        lojaNome,
+        fornecedorNome,
+        subcategoria,
+        statusNome,
+        chaveAcesso,
+        cnpjEmitente,
+        cnpjEmitenteFormatado: raw.cnpjEmitenteFormatado || (raw.nfe && raw.nfe.cnpjEmitenteFormatado) || PainelDoca.formatCnpj(cnpjEmitente),
+        nfNumero,
+        nfNumeroLimpo,
+        competenciaNfe,
+        ts,
+        aberturaTs,
+        liberadoTs,
+        aberturaTexto,
+        liberadoTexto,
+        reservaDataKey: PainelDoca.dateKeyFromTs(ts),
+        reservaDataTexto: PainelDoca.formatDateTimeFromTs(ts),
+        aberturaDataKey: PainelDoca.dateKeyFromTs(aberturaTs)
+      };
+    };
+
+    PainelDoca.normalizeSnapshot = function (data) {
+      const out = {};
+      for (const [key, item] of Object.entries(data || {})) {
+        const normalized = PainelDoca.normalizeItem(key, item);
+        if (normalized) out[normalized.id] = normalized;
+      }
+      return out;
+    };
+
+    // PERF_V11_2
+    // byId já recebe objetos normalizados em normalizeSnapshot/applyRemoteItem.
+    // Não normalizar milhares de registros de novo a cada clique/filtro.
+    PainelDoca.getItems = function () {
+      return Object.values(PainelDoca.state.byId || {});
+    };
+
+    PainelDoca.unique = function (arr) {
+      return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    };
+
+    PainelDoca.getAllRepresentantes = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.representante));
+    };
+
+    PainelDoca.getAllAtendentes = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.atendente));
+    };
+
+    PainelDoca.getAllCompetencias = function () {
+      return PainelDoca.unique(
+        PainelDoca.getItems()
+          .map(item => item.competenciaNfe)
+          .filter(Boolean)
+      );
+    };
+
+    PainelDoca.SITUACOES = Object.freeze([
+      ['recebida', 'Recebida / fechada'],
+      ['com_carga', 'Com carga'],
+      ['sem_carga', 'Sem carga'],
+      ['cancelada_sefaz', 'Cancelada SEFAZ'],
+      ['pendente_sync', 'Falta atualizar Bluesoft']
+    ]);
+
+    PainelDoca.getAllSituacoes = function () {
+      return PainelDoca.SITUACOES.map(([key]) => key);
+    };
+
+    PainelDoca.getAllSubcategories = function () {
+      return PainelDoca.unique(PainelDoca.getItems().map(item => item.subcategoria));
+    };
+
+    PainelDoca.getSelectedRepresentantes = function () {
+      const all = PainelDoca.getAllRepresentantes();
+      if (!PainelDoca.state.touchedRepresentantes) return all;
+      return all.filter(value => PainelDoca.state.selectedRepresentantes.has(value));
+    };
+
+    PainelDoca.getSelectedAtendentes = function () {
+      const all = PainelDoca.getAllAtendentes();
+      if (!PainelDoca.state.touchedAtendentes) return all;
+      return all.filter(value => PainelDoca.state.selectedAtendentes.has(value));
+    };
+
+    PainelDoca.getSelectedCompetencias = function () {
+      const all = PainelDoca.getAllCompetencias();
+
+      if (!PainelDoca.state.touchedCompetencias) return all;
+
+      return all.filter(value =>
+        PainelDoca.state.selectedCompetencias.has(value)
+      );
+    };
+
+    PainelDoca.getSelectedSituacoes = function () {
+      const all = PainelDoca.getAllSituacoes();
+
+      if (!PainelDoca.state.touchedSituacoes) {
+        return all;
+      }
+
+      return all.filter(value =>
+        PainelDoca.state.selectedSituacoes.has(value)
+      );
+    };
+
+
+    PainelDoca.groupNameFor = function (item) {
+      const key = document.getElementById('groupBy').value || 'atendente';
+      let value = item[key];
+
+      if (key === 'representante') value = item.representante;
+      if (key === 'atendente') value = item.atendente;
+      if (key === 'fornecedorNome') value = item.fornecedorNome;
+      if (key === 'subcategoria') value = item.subcategoria;
+      if (key === 'statusNome') value = item.statusNome;
+      if (key === 'situacaoRecebimento') value = PainelDoca.receiveStateInfo(item).label;
+      if (key === 'statusBluesoft') value = PainelDoca.clean(PainelDoca.bluesoftForItem(item)?.statusRecebimento || 'Não sincronizada');
+
+      return PainelDoca.clean(value || 'Sem informação');
+    };
+
+    PainelDoca.buildFilterContext = function () {
+      const nf = PainelDoca.onlyDigits(
+        document.getElementById('searchNf').value
+      );
+
+      return {
+        selectedRepresentantes: new Set(
+          PainelDoca.getSelectedRepresentantes()
+        ),
+        selectedAtendentes: new Set(
+          PainelDoca.getSelectedAtendentes()
+        ),
+        selectedCompetencias: new Set(
+          PainelDoca.getSelectedCompetencias()
+        ),
+        selectedSituacoes: new Set(
+          PainelDoca.getSelectedSituacoes()
+        ),
+        subcategoria:
+          document.getElementById('filterSubcategoria').value,
+        chamado: PainelDoca.onlyDigits(
+          document.getElementById('searchChamado').value
+        ),
+        nf,
+        nfLimpo: String(Number(nf || 0) || ''),
+        cnpj: PainelDoca.onlyDigits(
+          document.getElementById('searchCnpj').value
+        ),
+        general: PainelDoca.norm(
+          document.getElementById('searchGeneral').value
+        ),
+        range: PainelDoca.currentRange()
+      };
+    };
+
+    // Filtros gerais usados pelo gráfico. Não filtra status InfraDesk:
+    // o gráfico continua mostrando todo o trabalho do atendente.
+    PainelDoca.matchesFilters = function (item, ctx) {
+      ctx = ctx || PainelDoca.buildFilterContext();
+
+      if (
+        item.representante &&
+        !ctx.selectedRepresentantes.has(item.representante)
+      ) return false;
+
+      if (
+        item.atendente &&
+        !ctx.selectedAtendentes.has(item.atendente)
+      ) return false;
+
+      if (
+        item.competenciaNfe &&
+        !ctx.selectedCompetencias.has(item.competenciaNfe)
+      ) return false;
+
+      if (
+        PainelDoca.state.touchedCompetencias &&
+        !item.competenciaNfe
+      ) return false;
+
+      if (
+        ctx.subcategoria &&
+        item.subcategoria !== ctx.subcategoria
+      ) return false;
+
+      const itemDateKey = item.aberturaDataKey;
+
+      if (PainelDoca.state.mode !== 'all') {
+        if (
+          ctx.range.startKey &&
+          (!itemDateKey || itemDateKey < ctx.range.startKey)
+        ) return false;
+
+        if (
+          ctx.range.endKey &&
+          (!itemDateKey || itemDateKey > ctx.range.endKey)
+        ) return false;
+      }
+
+      if (
+        ctx.chamado &&
+        !PainelDoca.onlyDigits(item.id).includes(ctx.chamado)
+      ) return false;
+
+      if (ctx.nf) {
+        const itemNf = PainelDoca.onlyDigits(item.nfNumero);
+        const itemNfLimpo = String(Number(itemNf || 0) || '');
+
+        if (
+          !itemNf.includes(ctx.nf) &&
+          itemNfLimpo !== ctx.nfLimpo &&
+          !itemNfLimpo.includes(ctx.nfLimpo)
+        ) return false;
+      }
+
+      if (ctx.cnpj) {
+        const itemCnpj =
+          PainelDoca.onlyDigits(item.cnpjEmitente);
+        const chave =
+          PainelDoca.onlyDigits(item.chaveAcesso);
+
+        if (
+          !itemCnpj.includes(ctx.cnpj) &&
+          !chave.includes(ctx.cnpj)
+        ) return false;
+      }
+
+      if (ctx.general) {
+        const bs = PainelDoca.bluesoftForItem(item) || {};
+
+        const text = PainelDoca.norm([
+          item.id,
+          item.representante,
+          item.atendente,
+          item.fornecedorNome,
+          item.subcategoria,
+          item.statusNome,
+          item.chaveAcesso,
+          item.cnpjEmitente,
+          item.nfNumero,
+          PainelDoca.competenciaLabel(item.competenciaNfe),
+          item.descricaoResumo,
+          bs.numeroCarga,
+          bs.statusCarga,
+          bs.statusRomaneio,
+          bs.statusRecebimento,
+          bs.cargaCriadaPor,
+          bs.conferidoPor
+        ].join(' '));
+
+        if (!text.includes(ctx.general)) return false;
+      }
+
+      return true;
+    };
+
+    PainelDoca.getVisibleItems = function () {
+      const ctx = PainelDoca.buildFilterContext();
+
+      return PainelDoca.getItems()
+        .filter(item => PainelDoca.matchesFilters(item, ctx))
+        .sort(
+          (a, b) =>
+            (b.aberturaTs || 0) - (a.aberturaTs || 0) ||
+            String(b.id).localeCompare(String(a.id), 'pt-BR')
+        );
+    };
+
+    PainelDoca.getFinalizedBaseItems = function () {
+      return PainelDoca.getVisibleItems()
+        .filter(item =>
+          PainelDoca.isInfraDeskFinalizado(item)
+        );
+    };
+
+    PainelDoca.getPendingBluesoftItems = function () {
+      return PainelDoca.getFinalizedBaseItems()
+        .filter(item =>
+          PainelDoca.receiveStateInfo(item).key ===
+          'pendente_sync'
+        );
+    };
+
+    PainelDoca.getCanceledBluesoftItems = function () {
+      return PainelDoca.getFinalizedBaseItems()
+        .filter(item =>
+          PainelDoca.receiveStateInfo(item).key ===
+          'cancelada_sefaz'
+        );
+    };
+
+    PainelDoca.getReportItems = function () {
+      const finalizados =
+        PainelDoca.getFinalizedBaseItems();
+
+      const tipo =
+        PainelDoca.state.reportType;
+
+      if (
+        [
+          'recebida',
+          'com_carga',
+          'sem_carga',
+          'pendente_sync'
+        ].includes(tipo)
+      ) {
+        return finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === tipo
+        );
+      }
+
+      // Compatibilidade: "todos_confirmados" = tudo classificado
+      // apto a relatório normal, sem canceladas.
+      return finalizados.filter(item =>
+        ['recebida', 'com_carga', 'sem_carga']
+          .includes(
+            PainelDoca.receiveStateInfo(item).key
+          )
+      );
+    };
+
+    PainelDoca.getDetailsItems = function () {
+      if (PainelDoca.state.detailsScope === 'nao_finalizados') {
+        return PainelDoca.getVisibleItems().filter(
+          item => !PainelDoca.isInfraDeskFinalizado(item)
+        );
+      }
+
+      if (PainelDoca.state.detailsScope === 'finalizados') {
+        return PainelDoca.getFinalizedBaseItems();
+      }
+
+      if (PainelDoca.state.detailsScope === 'relatorio') {
+        return PainelDoca.getReportItems();
+      }
+
+      if (PainelDoca.state.detailsScope === 'canceladas') {
+        return PainelDoca.getCanceledBluesoftItems();
+      }
+
+      if (PainelDoca.state.detailsScope === 'pendente') {
+        return PainelDoca.getPendingBluesoftItems();
+      }
+
+      return PainelDoca.getVisibleItems();
+    };
+
+    PainelDoca.daysInRange = function (start, end) {
+      const days = [];
+      if (!start || !end || end < start) return days;
+      const current = PainelDoca.cloneDate(start);
+      while (current <= end) {
+        days.push(PainelDoca.toDateInput(current));
+        current.setDate(current.getDate() + 1);
+      }
+      return days;
+    };
+
+    PainelDoca.getDayKeysFromItems = function (items) {
+      return [...new Set(items.map(item => item.aberturaDataKey).filter(Boolean))].sort();
+    };
+
+    PainelDoca.getChartDays = function (items) {
+      const mode = PainelDoca.state.mode;
+      const range = PainelDoca.currentRange();
+      if (mode === 'today' || mode === 'week' || mode === 'month') {
+        return PainelDoca.daysInRange(range.start, range.end);
+      }
+      const itemDays = PainelDoca.getDayKeysFromItems(items);
+      if (mode === 'custom') {
+        let startKey = range.startKey;
+        let endKey = range.endKey;
+        if (!startKey && itemDays.length) startKey = itemDays[0];
+        if (!endKey && itemDays.length) endKey = itemDays[itemDays.length - 1];
+        if (startKey && endKey) return PainelDoca.daysInRange(PainelDoca.dateFromKey(startKey), PainelDoca.dateFromKey(endKey));
+      }
+      return itemDays;
+    };
+
+    PainelDoca.groupDaily = function (items) {
+      const days = PainelDoca.getChartDays(items);
+      const groups = PainelDoca.unique(items.map(item => PainelDoca.groupNameFor(item)));
+      const data = {};
+      for (const day of days) {
+        data[day] = {};
+        for (const group of groups) data[day][group] = 0;
+      }
+      for (const item of items) {
+        const day = item.aberturaDataKey;
+        const group = PainelDoca.groupNameFor(item);
+        if (!day || !data[day]) continue;
+        data[day][group] = (data[day][group] || 0) + 1;
+      }
+      return { days, groups, data };
+    };
+
+    PainelDoca.groupTotal = function (items) {
+      const totals = {};
+      for (const item of items) {
+        const group = PainelDoca.groupNameFor(item);
+        totals[group] = (totals[group] || 0) + 1;
+      }
+      return Object.entries(totals).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+    };
+
+    PainelDoca.svg = function (tag, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+      return el;
+    };
+
+    PainelDoca.showTooltip = function (event, html) {
+      const t = document.getElementById('tooltip');
+      t.innerHTML = html;
+      t.style.left = event.clientX + 'px';
+      t.style.top = event.clientY + 'px';
+      t.style.opacity = '1';
+    };
+
+    PainelDoca.hideTooltip = function () {
+      document.getElementById('tooltip').style.opacity = '0';
+    };
+
+    PainelDoca.niceTicks = function (max) {
+      max = Math.max(1, max);
+      const step = Math.ceil(max / 4);
+      const ticks = [];
+      for (let i = 0; i <= 4; i++) ticks.push(step * i);
+      return ticks;
+    };
+
+    PainelDoca.drawGrid = function (svg, width, height, margin, max) {
+      const plotH = height - margin.top - margin.bottom;
+      const ticks = PainelDoca.niceTicks(max);
+      const tickMax = Math.max(...ticks);
+      for (const value of ticks) {
+        const y = margin.top + plotH - (value / tickMax) * plotH;
+        svg.appendChild(PainelDoca.svg('line', { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: '#e5e7eb', 'stroke-width': 1 }));
+        const txt = PainelDoca.svg('text', { x: margin.left - 10, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#6b7280' });
+        txt.textContent = value;
+        svg.appendChild(txt);
+      }
+    };
+
+    PainelDoca.renderLegend = function (groups) {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      const limited = groups.slice(0, 28);
+      for (const group of limited) {
+        const item = document.createElement('div');
+        item.className = 'legendItem';
+        const dot = document.createElement('span');
+        dot.className = 'legendDot';
+        dot.style.background = PainelDoca.colorFor(group);
+        const txt = document.createElement('span');
+        txt.textContent = ['representante','atendente'].includes(document.getElementById('groupBy').value) ? PainelDoca.shortUserName(group) : group;
+        txt.title = group;
+        item.appendChild(dot);
+        item.appendChild(txt);
+        legend.appendChild(item);
+      }
+      if (groups.length > limited.length) {
+        const more = document.createElement('div');
+        more.className = 'legendItem';
+        more.textContent = `+ ${groups.length - limited.length} grupo(s)`;
+        legend.appendChild(more);
+      }
+    };
+
+    PainelDoca.getResolvedChartMode = function (items) {
+      const selected = document.getElementById('chartMode').value;
+      if (selected !== 'auto') return selected;
+      if (PainelDoca.state.mode === 'today') return 'bar';
+      if (PainelDoca.state.mode === 'week') return 'bar';
+      if (PainelDoca.state.mode === 'month') return 'line';
+      if (PainelDoca.state.mode === 'all') return 'total';
+      const days = PainelDoca.getChartDays(items).length;
+      if (days <= 10) return 'bar';
+      if (days <= 120) return 'line';
+      return 'total';
+    };
+
+    PainelDoca.renderBarChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelDoca.groupDaily(items);
+      const days = grouped.days;
+      const groups = grouped.groups;
+      const today = PainelDoca.todayKey();
+      chart.innerHTML = '';
+      if (!groups.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelDoca.renderLegend([]);
+        return;
+      }
+      PainelDoca.renderLegend(groups);
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 10;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const groupMin = manyDays ? Math.max(38, groups.length * 13) : Math.max(92, groups.length * 30);
+      const width = Math.max(availableWidth, days.length * groupMin);
+      const height = Math.max(430, chart.clientHeight || 450);
+      const margin = { top: 28, right: 28, bottom: manyDays ? 72 : 58, left: 46 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => groups.map(group => grouped.data[day]?.[group] || 0)));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      PainelDoca.drawGrid(svg, width, height, margin, max);
+      const groupW = plotW / days.length;
+      const gap = manyDays ? 7 : 12;
+      const innerW = Math.max(10, groupW - gap);
+      const barGap = manyDays ? 3 : 5;
+
+      days.forEach((day, dayIndex) => {
+        if (day !== today) return;
+        const x = margin.left + dayIndex * groupW + 3;
+        svg.appendChild(PainelDoca.svg('rect', { x, y: margin.top - 12, width: Math.max(18, groupW - 6), height: plotH + 22, rx: 15, fill: '#dbeafe', opacity: 0.72 }));
+      });
+
+      days.forEach((day, dayIndex) => {
+        const groupX = margin.left + dayIndex * groupW + gap / 2;
+
+        // v10.1: compacta as barras por dia.
+        // Antes a posição era baseada em todos os grupos do período; se um usuário não tinha chamado no dia,
+        // o "slot" dele ficava vazio e criava aquele espaço gigante entre as barras.
+        const presentGroups = groups.filter(group => (grouped.data[day]?.[group] || 0) > 0);
+        const dayBarCount = Math.max(1, presentGroups.length);
+        const dayBarW = Math.max(5, Math.min(manyDays ? 18 : 34, (innerW - (dayBarCount - 1) * barGap) / dayBarCount));
+        const totalBarsW = presentGroups.length ? presentGroups.length * dayBarW + (presentGroups.length - 1) * barGap : 0;
+        const startX = groupX + (innerW - totalBarsW) / 2;
+
+        presentGroups.forEach((group, groupIndex) => {
+          const value = grouped.data[day]?.[group] || 0;
+          const h = Math.max(4, (value / max) * plotH);
+          const x = startX + groupIndex * (dayBarW + barGap);
+          const y = margin.top + plotH - h;
+          const rect = PainelDoca.svg('rect', { x, y, width: dayBarW, height: h, rx: manyDays ? 5 : 8, fill: PainelDoca.colorFor(group) });
+          rect.addEventListener('mousemove', function (event) {
+            PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${PainelDoca.fullDateLabel(day)} • ${value} chamado(s)`);
+          });
+          rect.addEventListener('mouseleave', PainelDoca.hideTooltip);
+          svg.appendChild(rect);
+          if (!manyDays) {
+            const txt = PainelDoca.svg('text', { x: x + dayBarW / 2, y: y - 7, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 950, fill: '#111827' });
+            txt.textContent = value;
+            svg.appendChild(txt);
+          }
+        });
+        const isToday = day === today;
+        const labelX = groupX + innerW / 2;
+        const labelY = height - (manyDays ? 34 : 28);
+        const label = PainelDoca.svg('text', { x: labelX, y: labelY, 'text-anchor': 'middle', 'font-size': manyDays ? 10 : 11, 'font-weight': isToday ? 950 : 500, fill: isToday ? '#2563eb' : '#6b7280' });
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${labelX} ${labelY})`);
+          label.textContent = isToday ? 'Hoje' : PainelDoca.shortDateLabel(day);
+        } else {
+          label.textContent = isToday ? 'Hoje' : `${PainelDoca.weekdayLabel(day)} ${PainelDoca.shortDateLabel(day)}`;
+        }
+        svg.appendChild(label);
+      });
+      chart.appendChild(svg);
+    };
+
+    PainelDoca.renderLineChart = function (items) {
+      const chart = document.getElementById('chart');
+      const grouped = PainelDoca.groupDaily(items);
+      const days = grouped.days;
+      const groups = grouped.groups;
+      const today = PainelDoca.todayKey();
+      chart.innerHTML = '';
+      if (!groups.length || !days.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado neste período.</div>';
+        PainelDoca.renderLegend([]);
+        return;
+      }
+      PainelDoca.renderLegend(groups);
+      const wrap = chart.parentElement;
+      const manyDays = days.length > 18;
+      const veryManyDays = days.length > 60;
+      const availableWidth = Math.max(720, wrap.clientWidth - 8);
+      const dayW = veryManyDays ? 18 : manyDays ? 36 : 76;
+      const width = Math.max(availableWidth, days.length * dayW);
+      const height = Math.max(430, chart.clientHeight || 450);
+      const margin = { top: 30, right: 36, bottom: manyDays ? 72 : 58, left: 46 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const max = Math.max(1, ...days.flatMap(day => groups.map(group => grouped.data[day]?.[group] || 0)));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      PainelDoca.drawGrid(svg, width, height, margin, max);
+      const xFor = function (index) { return days.length === 1 ? margin.left + plotW / 2 : margin.left + (index / (days.length - 1)) * plotW; };
+      const yFor = function (value) { return margin.top + plotH - (value / max) * plotH; };
+      days.forEach((day, index) => {
+        if (day !== today) return;
+        const x = xFor(index);
+        svg.appendChild(PainelDoca.svg('line', { x1: x, y1: margin.top - 12, x2: x, y2: margin.top + plotH + 8, stroke: '#2563eb', 'stroke-width': 2, 'stroke-dasharray': '6 6', opacity: 0.48 }));
+      });
+      for (const group of groups) {
+        const points = days.map((day, index) => ({ day, x: xFor(index), y: yFor(grouped.data[day]?.[group] || 0), value: grouped.data[day]?.[group] || 0 }));
+        let d = '';
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+          if (i === 0) d += `M ${p.x} ${p.y}`;
+          else {
+            const prev = points[i - 1];
+            const cx1 = prev.x + (p.x - prev.x) * 0.45;
+            const cy1 = prev.y;
+            const cx2 = prev.x + (p.x - prev.x) * 0.55;
+            const cy2 = p.y;
+            d += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`;
+          }
+        }
+        svg.appendChild(PainelDoca.svg('path', { d, fill: 'none', stroke: PainelDoca.colorFor(group), 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+        for (const p of points) {
+          if (!p.value && veryManyDays) continue;
+          const circle = PainelDoca.svg('circle', { cx: p.x, cy: p.y, r: manyDays ? 4 : 6, fill: '#fff', stroke: PainelDoca.colorFor(group), 'stroke-width': manyDays ? 3 : 4 });
+          circle.addEventListener('mousemove', function (event) {
+            PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${PainelDoca.fullDateLabel(p.day)} • ${p.value} chamado(s)`);
+          });
+          circle.addEventListener('mouseleave', PainelDoca.hideTooltip);
+          svg.appendChild(circle);
+          if (p.value && !manyDays) {
+            const txt = PainelDoca.svg('text', { x: p.x, y: p.y - 12, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 950, fill: '#111827' });
+            txt.textContent = p.value;
+            svg.appendChild(txt);
+          }
+        }
+      }
+      days.forEach((day, index) => {
+        const isToday = day === today;
+        const x = xFor(index);
+        const y = height - (manyDays ? 34 : 28);
+        const label = PainelDoca.svg('text', { x, y, 'text-anchor': 'middle', 'font-size': manyDays ? 10 : 11, 'font-weight': isToday ? 950 : 500, fill: isToday ? '#2563eb' : '#6b7280' });
+        if (manyDays) {
+          label.setAttribute('transform', `rotate(-45 ${x} ${y})`);
+          label.textContent = isToday ? 'Hoje' : PainelDoca.shortDateLabel(day);
+        } else {
+          label.textContent = isToday ? 'Hoje' : `${PainelDoca.weekdayLabel(day)} ${PainelDoca.shortDateLabel(day)}`;
+        }
+        svg.appendChild(label);
+      });
+      chart.appendChild(svg);
+    };
+
+    PainelDoca.renderTotalChart = function (items) {
+      const chart = document.getElementById('chart');
+      const totals = PainelDoca.groupTotal(items);
+      chart.innerHTML = '';
+      PainelDoca.renderLegend(totals.map(([group]) => group));
+      if (!totals.length) {
+        chart.innerHTML = '<div class="empty">Nenhum chamado para mostrar.</div>';
+        return;
+      }
+      const wrap = chart.parentElement;
+      const width = Math.max(760, wrap.clientWidth - 8);
+      const height = Math.max(430, Math.min(860, totals.length * 54 + 80, chart.clientHeight || 450));
+      const margin = { top: 28, right: 55, bottom: 34, left: 190 };
+      const plotW = width - margin.left - margin.right;
+      const rowH = Math.min(54, (height - margin.top - margin.bottom) / totals.length);
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const svg = PainelDoca.svg('svg', { viewBox: `0 0 ${width} ${height}` });
+      totals.forEach(([group, count], index) => {
+        const y = margin.top + index * rowH + 8;
+        const w = Math.max(10, (count / max) * plotW);
+        const label = PainelDoca.svg('text', { x: margin.left - 12, y: y + 22, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 950, fill: '#374151' });
+        label.textContent = ['representante','atendente'].includes(document.getElementById('groupBy').value) ? PainelDoca.shortUserName(group) : group;
+        svg.appendChild(label);
+        svg.appendChild(PainelDoca.svg('rect', { x: margin.left, y, width: plotW, height: 28, rx: 14, fill: '#eef2f7' }));
+        const rect = PainelDoca.svg('rect', { x: margin.left, y, width: w, height: 28, rx: 14, fill: PainelDoca.colorFor(group) });
+        rect.addEventListener('mousemove', function (event) { PainelDoca.showTooltip(event, `<strong>${PainelDoca.escapeHTML(group)}</strong><br>${count} chamado(s)`); });
+        rect.addEventListener('mouseleave', PainelDoca.hideTooltip);
+        svg.appendChild(rect);
+        const value = PainelDoca.svg('text', { x: Math.min(margin.left + w + 9, width - margin.right + 8), y: y + 20, 'font-size': 12, 'font-weight': 950, fill: '#111827' });
+        value.textContent = count;
+        svg.appendChild(value);
+      });
+      chart.appendChild(svg);
+    };
+
+    // =========================================================
+    // RECEBIMENTOS • FIRESTORE BLUESOFT
+    // =========================================================
+    PainelDoca.bluesoftForItem = function (item) {
+      const chave = PainelDoca.onlyDigits(item?.chaveAcesso || '');
+      return chave.length === 44 ? (PainelDoca.state.bluesoftByKey[chave] || null) : null;
+    };
+
+    PainelDoca.visualStatusBluesoft = function (status) {
+      const original =
+        PainelDoca.clean(
+          status || 'Não sincronizada'
+        );
+
+      const n =
+        PainelDoca.norm(original);
+
+      // CANCELADA precisa vir antes de FECHADA.
+      // Uma cancelada pode também carregar o texto "Nota fiscal fechada".
+      if (/cancel|bloquead/.test(n)) {
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.divergencia,
+          label: original
+        };
+      }
+
+      if (/fechad|recebid|finaliz/.test(n)) {
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.fechado,
+          label: original
+        };
+      }
+
+      if (/devolver|devolucao/.test(n)) {
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.devolver,
+          label: original
+        };
+      }
+
+      if (/diverg/.test(n)) {
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.divergencia,
+          label: original
+        };
+      }
+
+      if (/pendente/.test(n)) {
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.pendente,
+          label: original
+        };
+      }
+
+      if (/receber/.test(n)) {
+        // ÍCONE_RECEBER_ORIGINAL
+        //
+        // Na própria Bluesoft, o status "Receber" usa:
+        // /flex/Images/Icons/icon_accept.gif
+        //
+        // Importante:
+        // isto corrige SOMENTE o ícone visual.
+        // "Receber" continua sendo uma NF aberta/não recebida;
+        // recebimento confirmado continua dependendo de
+        // notaFechada / recebimentoConfirmado / "Nota fiscal fechada".
+        return {
+          icon: PainelDoca.BLUESOFT_ICONES.receber,
+          label: original
+        };
+      }
+
+      return {
+        icon: PainelDoca.BLUESOFT_ICONES.neutro,
+        label: original
+      };
+    };
+
+    PainelDoca.receiveStateInfo = function (item) {
+      const chave = PainelDoca.onlyDigits(
+        item?.chaveAcesso || ''
+      );
+
+      const bs =
+        PainelDoca.bluesoftForItem(item);
+
+      const numeroCarga =
+        Number(bs?.numeroCarga || 0);
+
+      const statusTexto =
+        PainelDoca.norm(
+          bs?.statusRecebimento || ''
+        );
+
+      const estadoDerivado =
+        PainelDoca.norm(
+          bs?.estadoRecebimentoDerivado || ''
+        );
+
+      // 1) CANCELADA sempre ganha prioridade.
+      const cancelada =
+        bs?.canceladaSefaz === true ||
+        estadoDerivado.includes('cancelada_sefaz') ||
+        (
+          statusTexto.includes('cancelada') &&
+          statusTexto.includes('sefaz')
+        );
+
+      if (cancelada) {
+        return {
+          key: 'cancelada_sefaz',
+          label: 'Cancelada SEFAZ'
+        };
+      }
+
+      // 2) RECEBIDA = NF fechada e NÃO cancelada.
+      //
+      // CORREÇÃO v11.6:
+      // O relatório já consegue exibir o cadeado a partir de
+      // statusRecebimento = "Nota fiscal fechada".
+      // Portanto esse MESMO texto precisa valer como prova de recebimento,
+      // mesmo em documentos antigos que ainda não tenham os campos
+      // recebimentoConfirmado / estadoBluesoftSchema do script v0.4.1.
+      //
+      // Se houver qualquer indicação de cancelamento, a regra 1 acima
+      // já retirou a NF desta categoria.
+      const recebeuExplicito =
+        bs?.recebimentoConfirmado === true ||
+        estadoDerivado === 'recebida' ||
+        (
+          bs?.notaFechada === true &&
+          bs?.canceladaSefaz !== true
+        );
+
+      const recebeuPeloStatus =
+        /nota fiscal fechada|recebid|finaliz/.test(
+          statusTexto
+        ) &&
+        !/cancel|bloquead/.test(statusTexto);
+
+      const recebida =
+        Boolean(bs) &&
+        (
+          recebeuExplicito ||
+          recebeuPeloStatus
+        );
+
+      if (recebida) {
+        return {
+          key: 'recebida',
+          label:
+            numeroCarga > 0
+              ? 'Recebida • com carga'
+              : 'Recebida • sem carga'
+        };
+      }
+
+      // 3) As OUTRAS com número de carga ficam em "Com carga".
+      if (numeroCarga > 0) {
+        return {
+          key: 'com_carga',
+          label: 'Com carga'
+        };
+      }
+
+      // 4) As OUTRAS sem carga só entram quando a Bluesoft
+      // realmente verificou a NF.
+      const verificada =
+        Boolean(bs) &&
+        (
+          Number(bs?.cargaVerificadaEmMs || 0) > 0 ||
+          bs?.temCarga === false ||
+          Number(bs?.estadoBluesoftVerificadoEmMs || 0) > 0
+        );
+
+      if (verificada) {
+        return {
+          key: 'sem_carga',
+          label: 'Sem carga'
+        };
+      }
+
+      // 5) Ainda não temos informação suficiente.
+      if (chave.length !== 44) {
+        return {
+          key: 'pendente_sync',
+          label:
+            'Chave inválida / falta atualizar Bluesoft'
+        };
+      }
+
+      return {
+        key: 'pendente_sync',
+        label: 'Falta atualizar Bluesoft'
+      };
+    };
+
+    PainelDoca.statusIconHtml = function (item) {
+      const chave =
+        PainelDoca.onlyDigits(
+          item?.chaveAcesso || ''
+        );
+
+      const bs =
+        PainelDoca.bluesoftForItem(item);
+
+      const visual =
+        PainelDoca.visualStatusBluesoft(
+          bs?.statusRecebimento ||
+          'Não sincronizada'
+        );
+
+      const titulo =
+        `${visual.label} • Clique para recomparar somente esta NF`;
+
+      return `
+        <button type="button"
+                class="bsStatusWrap bsRefreshOne"
+                data-bs-refresh-key="${PainelDoca.escapeHTML(chave)}"
+                title="${PainelDoca.escapeHTML(titulo)}">
+          <img class="bsStatusIcon"
+               src="${visual.icon}"
+               alt="${PainelDoca.escapeHTML(visual.label)}">
+        </button>`;
+    };
+
+    PainelDoca.loadBluesoftCache = function () {
+      if (PainelDoca.state.bluesoftCacheLoaded) return;
+
+      try {
+        const raw = JSON.parse(
+          localStorage.getItem(
+            PainelDoca.BLUESOFT_CACHE_KEY
+          ) || '{}'
+        );
+
+        PainelDoca.state.bluesoftCache =
+          raw && typeof raw === 'object'
+            ? raw
+            : {};
+      } catch (_) {
+        PainelDoca.state.bluesoftCache = {};
+      }
+
+      PainelDoca.state.bluesoftCacheLoaded = true;
+    };
+
+    PainelDoca.saveBluesoftCache = function () {
+      try {
+        const entries = Object.entries(
+          PainelDoca.state.bluesoftCache || {}
+        )
+          .sort(
+            (a, b) =>
+              Number(b[1]?.salvoEm || 0) -
+              Number(a[1]?.salvoEm || 0)
+          )
+          .slice(0, 5000);
+
+        PainelDoca.state.bluesoftCache =
+          Object.fromEntries(entries);
+
+        localStorage.setItem(
+          PainelDoca.BLUESOFT_CACHE_KEY,
+          JSON.stringify(
+            PainelDoca.state.bluesoftCache
+          )
+        );
+      } catch (_) {}
+    };
+
+    PainelDoca.registroBluesoftEhTerminal = function (registro) {
+      if (!registro) return false;
+
+      if (
+        registro.recebimentoConfirmado === true ||
+        registro.notaFechada === true ||
+        registro.canceladaSefaz === true
+      ) {
+        return true;
+      }
+
+      const estado =
+        PainelDoca.norm(
+          [
+            registro.statusRecebimento,
+            registro.estadoRecebimentoDerivado
+          ].filter(Boolean).join(' ')
+        );
+
+      return /nota fiscal fechada|recebid|cancelad/.test(estado);
+    };
+
+    PainelDoca.applyCachedBluesoft = function (keys) {
+      PainelDoca.loadBluesoftCache();
+
+      let usados = 0;
+
+      for (const key of keys || []) {
+        const registro =
+          PainelDoca.state.bluesoftCache[key];
+
+        if (!registro) continue;
+
+        // V12: cache é apenas fotografia local.
+        // Não dispara leitura Firebase por idade; atualização é manual.
+        if (registro.data) {
+          PainelDoca.state.bluesoftByKey[key] =
+            registro.data;
+        } else {
+          delete PainelDoca.state.bluesoftByKey[key];
+        }
+
+        usados++;
+      }
+
+      return usados;
+    };
+
+    PainelDoca.initBluesoftFirestore = async function () {
+      if (PainelDoca.state.bluesoftFirestore) return PainelDoca.state.bluesoftFirestore;
+      if (PainelDoca.state.bluesoftInit) return PainelDoca.state.bluesoftInit;
+      PainelDoca.state.bluesoftInit = (async function () {
+        if (!window.firebase?.initializeApp || !window.firebase?.firestore) throw new Error('SDK Firebase da Bluesoft não carregou.');
+        let app;
+        try { app = window.firebase.app(PainelDoca.BLUESOFT_APP_NAME); }
+        catch (_) { app = window.firebase.initializeApp(PainelDoca.BLUESOFT_FIREBASE_CONFIG, PainelDoca.BLUESOFT_APP_NAME); }
+        try {
+          if (app.auth && !app.auth().currentUser) await app.auth().signInAnonymously();
+        } catch (error) {
+          console.warn('Autenticação anônima Bluesoft:', error);
+        }
+        PainelDoca.state.bluesoftFirestore = app.firestore();
+        return PainelDoca.state.bluesoftFirestore;
+      })();
+      return PainelDoca.state.bluesoftInit;
+    };
+
+    PainelDoca.cancelBluesoftListeners = function () {
+      for (const cancel of PainelDoca.state.bluesoftListeners || []) {
+        try { cancel(); } catch (_) {}
+      }
+      PainelDoca.state.bluesoftListeners = [];
+      PainelDoca.state.bluesoftSignature = '';
+    };
+
+    // =====================================================
+    // ESCOPO_MANUAL_JSON — CTRL + F: ESCOPO_MANUAL_JSON
+    //
+    // A seleção dos botões acima da tabela controla:
+    // 1) o que aparece na tabela;
+    // 2) o JSON que será copiado;
+    // 3) quais NFs serão recomparadas manualmente no Firestore.
+    // =====================================================
+    PainelDoca.detailsScopeLabel = function (scope) {
+      const labels = {
+        todos: 'Todos do período',
+        nao_finalizados: 'Ainda no InfraDesk',
+        finalizados: 'Finalizados InfraDesk',
+        relatorio: 'Relatório atual',
+        canceladas: 'Canceladas SEFAZ',
+        pendente: 'Falta atualizar Bluesoft'
+      };
+
+      return labels[scope] || 'Todos do período';
+    };
+
+    PainelDoca.getJsonScopeItems = function () {
+      return PainelDoca.getDetailsItems();
+    };
+
+    PainelDoca.keysForJsonScope = function () {
+      const keys = new Set();
+
+      for (const item of PainelDoca.getJsonScopeItems()) {
+        const key =
+          PainelDoca.onlyDigits(
+            item.chaveAcesso || ''
+          );
+
+        if (key.length === 44) {
+          keys.add(key);
+        }
+      }
+
+      return [...keys].sort();
+    };
+
+    PainelDoca.keysForCurrentReport = function () {
+      const keys = new Set();
+
+      for (const item of PainelDoca.getReportItems()) {
+        const key =
+          PainelDoca.onlyDigits(
+            item.chaveAcesso || ''
+          );
+
+        if (key.length === 44) {
+          keys.add(key);
+        }
+      }
+
+      return [...keys].sort();
+    };
+
+    PainelDoca.keysForManualBluesoftRefresh = function () {
+      // V12.5:
+      // atualização é 100% manual, então quando clicar queremos uma
+      // fotografia correta de TODAS as Finalizadas do período.
+      // Nenhum realtime existe entre os cliques.
+      return PainelDoca.keysForCurrentReceiptRange();
+    };
+
+    PainelDoca.keysForCurrentReceiptRange = function () {
+      const keys = new Set();
+
+      for (
+        const item of
+        PainelDoca.getFinalizedBaseItems()
+      ) {
+        const key = PainelDoca.onlyDigits(
+          item.chaveAcesso || ''
+        );
+
+        if (key.length === 44) {
+          keys.add(key);
+        }
+      }
+
+      return [...keys].sort();
+    };
+
+    PainelDoca.mergeLoadDocs = async function (db, notes) {
+      const notesByLoad = new Map();
+
+      for (const note of Object.values(notes)) {
+        const load = Number(note?.numeroCarga || 0);
+        if (load <= 0) continue;
+
+        const key = String(load);
+        if (!notesByLoad.has(key)) notesByLoad.set(key, []);
+        notesByLoad.get(key).push(note);
+      }
+
+      const loads = [...notesByLoad.keys()];
+      if (!loads.length) return;
+
+      for (
+        let i = 0;
+        i < loads.length;
+        i += PainelDoca.BLUESOFT_BATCH
+      ) {
+        const part = loads.slice(
+          i,
+          i + PainelDoca.BLUESOFT_BATCH
+        );
+
+        try {
+          const snap = await db
+            .collection(
+              PainelDoca.BLUESOFT_LOADS_COLLECTION
+            )
+            .where(
+              window.firebase.firestore.FieldPath.documentId(),
+              'in',
+              part
+            )
+            .get();
+
+          snap.forEach(doc => {
+            const load = doc.data() || {};
+
+            for (
+              const note of notesByLoad.get(doc.id) || []
+            ) {
+              for (
+                const [k, v] of Object.entries(load)
+              ) {
+                if (
+                  (
+                    note[k] === undefined ||
+                    note[k] === null ||
+                    note[k] === ''
+                  ) &&
+                  v !== undefined
+                ) {
+                  note[k] = v;
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.warn(
+            'Falha ao complementar cargas:',
+            error
+          );
+        }
+      }
+    };
+
+    // =========================================================
+    // FIRESTORE_DIRETO_V12_5
+    //
+    // Sem realtime, sem coleção cargas, sem depender de cache para atualizar.
+    // Quando force=true, consulta DIRETAMENTE "notas" para todas as chaves
+    // informadas, em lotes de até 30, como o diagnóstico que confirmou
+    // 130 notas fechadas.
+    // =========================================================
+    PainelDoca.syncBluesoft = async function (
+      force = false,
+      keysOverride = null
+    ) {
+      if (
+        PainelDoca.state.syncBluesoftExecutando
+      ) {
+        return;
+      }
+
+      const keys =
+        Array.isArray(keysOverride)
+          ? [...new Set(
+              keysOverride
+                .map(PainelDoca.onlyDigits)
+                .filter(key => key.length === 44)
+            )].sort()
+          : PainelDoca.keysForCurrentReceiptRange();
+
+      PainelDoca.state.syncBluesoftExecutando = true;
+
+      try {
+        PainelDoca.cancelBluesoftListeners();
+        PainelDoca.loadBluesoftCache();
+
+        if (!keys.length) {
+          PainelDoca.setStatus(
+            true,
+            'Sem NF-e para comparar neste período/filtro'
+          );
+          PainelDoca.scheduleRender();
+          return;
+        }
+
+        // Atualização manual = fotografia NOVA.
+        // Não conserva registro antigo das chaves consultadas.
+        const mapaNovo =
+          new Map();
+
+        const scoreRegistro = dados =>
+          Math.max(
+            Number(dados?.estadoBluesoftVerificadoEmMs || 0),
+            Number(dados?.statusRecebimentoAtualizadoEmMs || 0),
+            Number(dados?.cargaVerificadaEmMs || 0),
+            Number(dados?.cargaDetalhesAtualizadosEmMs || 0),
+            Number(dados?.metadadosLinhaAtualizadosEmMs || 0),
+            Number(dados?.atualizadoEmMs || 0)
+          );
+
+        PainelDoca.setStatus(
+          false,
+          `Firestore direto • consultando ${keys.length} NF-e...`
+        );
+
+        const db =
+          await PainelDoca.initBluesoftFirestore();
+
+        let documentosLidos = 0;
+
+        for (
+          let i = 0;
+          i < keys.length;
+          i += PainelDoca.BLUESOFT_BATCH
+        ) {
+          const part =
+            keys.slice(
+              i,
+              i + PainelDoca.BLUESOFT_BATCH
+            );
+
+          const snap =
+            await db
+              .collection(
+                PainelDoca.BLUESOFT_COLLECTION
+              )
+              .where(
+                'chaveAcesso',
+                'in',
+                part
+              )
+              .get();
+
+          documentosLidos += snap.size;
+
+          snap.forEach(doc => {
+            const d =
+              doc.data() || {};
+
+            const key =
+              PainelDoca.onlyDigits(
+                d.chaveAcesso || ''
+              );
+
+            if (
+              key.length !== 44 ||
+              !part.includes(key)
+            ) {
+              return;
+            }
+
+            const registro = {
+              ...d,
+              nfKey:
+                d.nfKey || doc.id,
+              chaveAcesso:
+                key,
+              _documentId:
+                doc.id
+            };
+
+            const anterior =
+              mapaNovo.get(key);
+
+            if (
+              !anterior ||
+              scoreRegistro(registro) >=
+                scoreRegistro(anterior)
+            ) {
+              mapaNovo.set(
+                key,
+                registro
+              );
+            }
+          });
+
+          const feitos =
+            Math.min(
+              i + PainelDoca.BLUESOFT_BATCH,
+              keys.length
+            );
+
+          PainelDoca.setStatus(
+            false,
+            `Firestore direto • ${feitos}/${keys.length} NF-e`
+          );
+
+          // Respira entre lotes para não travar a tela.
+          await new Promise(
+            resolve =>
+              setTimeout(resolve, 20)
+          );
+        }
+
+        // Mantém dados fora deste conjunto, mas SUBSTITUI integralmente
+        // as chaves desta comparação pela fotografia recém-lida.
+        const novoState = {
+          ...(PainelDoca.state.bluesoftByKey || {})
+        };
+
+        for (const key of keys) {
+          const registro =
+            mapaNovo.get(key);
+
+          if (registro) {
+            novoState[key] =
+              registro;
+
+            PainelDoca.state.bluesoftCache[key] = {
+              data:
+                registro,
+              salvoEm:
+                Date.now()
+            };
+          } else {
+            delete novoState[key];
+
+            PainelDoca.state.bluesoftCache[key] = {
+              data:
+                null,
+              salvoEm:
+                Date.now()
+            };
+          }
+        }
+
+        PainelDoca.state.bluesoftByKey =
+          novoState;
+
+        PainelDoca.saveBluesoftCache();
+
+        let fechadas = 0;
+        let canceladas = 0;
+        let comCargaAbertas = 0;
+        let semCargaAbertas = 0;
+        let pendentes = 0;
+        let encontrados = 0;
+
+        for (const key of keys) {
+          const registro =
+            mapaNovo.get(key);
+
+          if (!registro) {
+            continue;
+          }
+
+          encontrados++;
+
+          const textoStatus =
+            PainelDoca.norm(
+              [
+                registro.statusRecebimento,
+                registro.estadoRecebimentoDerivado
+              ].filter(Boolean).join(' ')
+            );
+
+          const cancelada =
+            registro.canceladaSefaz === true ||
+            /cancel/.test(textoStatus);
+
+          const fechada =
+            !cancelada &&
+            (
+              registro.recebimentoConfirmado === true ||
+              registro.notaFechada === true ||
+              /nota fiscal fechada|recebid/.test(textoStatus)
+            );
+
+          if (cancelada) {
+            canceladas++;
+          } else if (fechada) {
+            fechadas++;
+          } else if (
+            Number(registro.numeroCarga || 0) > 0
+          ) {
+            comCargaAbertas++;
+          } else if (
+            registro.temCarga === false ||
+            Number(
+              registro.cargaVerificadaEmMs || 0
+            ) > 0
+          ) {
+            semCargaAbertas++;
+          } else {
+            pendentes++;
+          }
+        }
+
+        const semRegistro =
+          Math.max(
+            0,
+            keys.length - encontrados
+          );
+
+        PainelDoca.setStatus(
+          true,
+          `Firestore direto • ${fechadas} fechada(s) • ` +
+          `${canceladas} cancelada(s) • ` +
+          `${comCargaAbertas} com carga aberta(s) • ` +
+          `${semCargaAbertas} sem carga aberta(s) • ` +
+          `${pendentes} pendente(s) • ` +
+          `${semRegistro} sem registro`
+        );
+
+        PainelDoca.toast(
+          `Firestore: ${documentosLidos} documento(s) lido(s) • ` +
+          `${fechadas} fechada(s) encontradas.`
+        );
+
+        // Render completo porque a classificação dos cards depende
+        // diretamente deste novo mapa.
+        PainelDoca.render();
+      } catch (error) {
+        console.error(
+          'Consulta Firestore Bluesoft:',
+          error
+        );
+
+        PainelDoca.setStatus(
+          false,
+          'Erro ao comparar Firestore Bluesoft'
+        );
+
+        PainelDoca.toast(
+          `Falha Firestore: ${
+            PainelDoca.clean(
+              error?.message || error
+            )
+          }`
+        );
+      } finally {
+        PainelDoca.state.syncBluesoftExecutando =
+          false;
+      }
+    };
+
+    PainelDoca.renderChart = function (items) {
+      const mode = PainelDoca.getResolvedChartMode(items);
+      if (mode === 'bar') return PainelDoca.renderBarChart(items);
+      if (mode === 'line') return PainelDoca.renderLineChart(items);
+      PainelDoca.renderTotalChart(items);
+    };
+
+    PainelDoca.renderHeader = function () {
+      const mode = PainelDoca.state.mode;
+      const label = document.getElementById('periodLabel');
+      const title = document.getElementById('chartTitle');
+      const hint = document.getElementById('chartHint');
+      const prev = document.getElementById('prevPeriodBtn');
+      const next = document.getElementById('nextPeriodBtn');
+      const customRange = document.getElementById('customRange');
+      const groupBy = document.getElementById('groupBy').value;
+      const groupLabel = PainelDoca.GROUP_LABELS[groupBy] || 'grupo';
+      const items = PainelDoca.getVisibleItems();
+      const chartMode = PainelDoca.getResolvedChartMode(items);
+      for (const btn of document.querySelectorAll('.segmented button')) btn.classList.toggle('active', btn.dataset.mode === mode);
+      document.body.dataset.report = 'fluxo-nfe';
+      customRange.classList.toggle('hidden', mode !== 'custom');
+
+      if (mode === 'today') {
+        const range = PainelDoca.currentRange();
+
+        title.textContent =
+          chartMode === 'total'
+            ? `Resumo de hoje por ${groupLabel}`
+            : `Hoje por ${groupLabel} em barras`;
+
+        hint.textContent =
+          'Somente chamados abertos hoje no InfraDesk.';
+
+        label.textContent =
+          `Hoje • ${PainelDoca.fullDateLabel(range.startKey)}`;
+
+        prev.disabled = true;
+        next.disabled = true;
+        return;
+      }
+
+      if (mode === 'week') {
+        const range = PainelDoca.currentRange();
+        const currentWeek = PainelDoca.startOfWeek(new Date());
+        title.textContent = chartMode === 'line' ? `Semana por ${groupLabel} em linha` : chartMode === 'total' ? `Resumo da semana por ${groupLabel}` : `Semana por ${groupLabel}`;
+        hint.textContent = 'Chamados por data de abertura no InfraDesk.';
+        label.textContent = `${PainelDoca.shortDateLabel(range.startKey)} até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        prev.disabled = false;
+        next.disabled = PainelDoca.toDateInput(PainelDoca.state.weekStart) >= PainelDoca.toDateInput(currentWeek);
+        return;
+      }
+
+      if (mode === 'month') {
+        const currentMonth = PainelDoca.startOfMonth(new Date());
+        title.textContent = chartMode === 'bar' ? `Mês por ${groupLabel} em barras` : chartMode === 'total' ? `Resumo do mês por ${groupLabel}` : `Mês por ${groupLabel} em linha`;
+        hint.textContent = 'Evolução diária pelas aberturas no InfraDesk.';
+        label.textContent = PainelDoca.monthName(PainelDoca.state.monthStart);
+        prev.disabled = false;
+        next.disabled = PainelDoca.toDateInput(PainelDoca.state.monthStart) >= PainelDoca.toDateInput(currentMonth);
+        return;
+      }
+
+      if (mode === 'custom') {
+        const range = PainelDoca.currentRange();
+        title.textContent = chartMode === 'bar' ? `Período por ${groupLabel} em barras` : chartMode === 'total' ? `Resumo do período por ${groupLabel}` : `Período por ${groupLabel} em linha`;
+        if (range.startKey && range.endKey) label.textContent = `${PainelDoca.shortDateLabel(range.startKey)} até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        else if (range.startKey) label.textContent = `Desde ${PainelDoca.shortDateLabel(range.startKey)}`;
+        else if (range.endKey) label.textContent = `Até ${PainelDoca.shortDateLabel(range.endKey)}`;
+        else label.textContent = 'Personalizado';
+        hint.textContent = 'Período de abertura do chamado no InfraDesk.';
+        prev.disabled = true;
+        next.disabled = true;
+        return;
+      }
+
+      title.textContent = `Tudo por ${groupLabel}`;
+      hint.textContent = 'Todos os chamados históricos carregados.';
+      label.textContent = 'Todos os registros';
+      prev.disabled = true;
+      next.disabled = true;
+    };
+
+    PainelDoca.competenciaFaixaLabel = function (value) {
+      const m = String(value || '').match(/^(\d{4})-(\d{2})$/);
+      if (!m) return '';
+
+      const ano = Number(m[1]);
+      const mes = Number(m[2]);
+      const ultimo = new Date(ano, mes, 0).getDate();
+
+      return `${PainelDoca.pad(mes)}/${ano}: 01/${PainelDoca.pad(mes)}/${ano}–${PainelDoca.pad(ultimo)}/${PainelDoca.pad(mes)}/${ano}`;
+    };
+
+    PainelDoca.renderCompetenceHint = function (items) {
+      const el = document.getElementById('competenceHint');
+      const guide = document.getElementById('updateGuide');
+
+      if (!el || !guide) return;
+
+      // A pista para Bluesoft deve considerar o que PODE entrar no relatório:
+      // chamados Finalizados no InfraDesk, não todos os chamados do gráfico.
+      const finalizados =
+        PainelDoca.getFinalizedBaseItems();
+
+      const values = PainelDoca.unique(
+        finalizados
+          .map(item => item.competenciaNfe)
+          .filter(Boolean)
+      );
+
+      el.textContent = values.length
+        ? `Competências NF-e dos Finalizados: ${values
+            .map(PainelDoca.competenciaLabel)
+            .join(' • ')}`
+        : 'Competências NF-e dos Finalizados: nenhuma chave válida';
+
+      const finalizadosCount = finalizados.length;
+      const chaves = new Set(
+        finalizados
+          .map(item => PainelDoca.onlyDigits(item.chaveAcesso))
+          .filter(key => key.length === 44)
+      );
+
+      const recebidas =
+        finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === 'recebida'
+        ).length;
+
+      const comCarga =
+        finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === 'com_carga'
+        ).length;
+
+      const semCarga =
+        finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === 'sem_carga'
+        ).length;
+
+      const canceladas =
+        finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === 'cancelada_sefaz'
+        ).length;
+
+      const pendentes =
+        finalizados.filter(item =>
+          PainelDoca.receiveStateInfo(item).key === 'pendente_sync'
+        ).length;
+
+      const faixas = values
+        .map(PainelDoca.competenciaFaixaLabel)
+        .filter(Boolean);
+
+      const rangeAtual = PainelDoca.currentRange();
+      const aberturaLabel =
+        rangeAtual.startKey && rangeAtual.endKey
+          ? (
+              rangeAtual.startKey === rangeAtual.endKey
+                ? PainelDoca.fullDateLabel(rangeAtual.startKey)
+                : `${PainelDoca.fullDateLabel(rangeAtual.startKey)} a ${PainelDoca.fullDateLabel(rangeAtual.endKey)}`
+            )
+          : 'período atual';
+
+      guide.innerHTML = values.length
+        ? `<strong>Abertura InfraDesk considerada:</strong> ${aberturaLabel}
+           <br><strong>Pista para atualizar na Bluesoft:</strong> ${faixas.join(' • ')}
+           <br><strong>${finalizadosCount}</strong> chamado(s) Finalizado(s) •
+           <strong>${chaves.size}</strong> chave(s) NF-e única(s)
+           <br><strong>${recebidas}</strong> recebida(s)/fechada(s) •
+           <strong>${comCarga}</strong> com carga (ainda não recebida) •
+           <strong>${semCarga}</strong> sem carga •
+           <strong>${canceladas}</strong> cancelada(s) SEFAZ •
+           <strong>${pendentes}</strong> falta atualizar Bluesoft.`
+        : `<strong>Pista para atualizar na Bluesoft:</strong> ainda não há competência válida nos Finalizados filtrados.`;
+    };
+
+    PainelDoca.renderRanking = function () {
+      const box =
+        document.getElementById('ranking');
+
+      const receiveStats =
+        document.getElementById('receiveStats');
+
+      const finalizados =
+        PainelDoca.getFinalizedBaseItems();
+
+      const reportItems =
+        PainelDoca.getReportItems();
+
+      const counts = {
+        recebida: 0,
+        com_carga: 0,
+        sem_carga: 0,
+        cancelada_sefaz: 0,
+        pendente_sync: 0
+      };
+
+      for (const item of finalizados) {
+        const state =
+          PainelDoca.receiveStateInfo(item);
+
+        counts[state.key] =
+          (counts[state.key] || 0) + 1;
+      }
+
+      const labels = {
+        recebida: 'Recebidas / fechadas',
+        com_carga: 'Com carga',
+        sem_carga: 'Sem carga',
+        cancelada_sefaz: 'Canceladas SEFAZ',
+        pendente_sync: 'Falta atualizar Bluesoft'
+      };
+
+      receiveStats.innerHTML =
+        Object.entries(labels)
+          .map(([key, label]) => {
+            const ativo =
+              PainelDoca.state.reportType === key;
+
+            return `
+              <button type="button"
+                      class="receiveStat ${key} ${ativo ? 'active' : ''}"
+                      data-receive-filter="${key}">
+                <small>${label}</small>
+                <strong>${counts[key] || 0}</strong>
+              </button>`;
+          })
+          .join('');
+
+      receiveStats.classList.remove('hidden');
+
+      const nomesRelatorio = {
+        recebida: 'Recebidas / fechadas',
+        com_carga: 'Com carga • ainda não recebidas',
+        sem_carga: 'Sem carga • ainda não recebidas',
+        pendente_sync: 'Falta atualizar Bluesoft • consulta manual'
+      };
+
+      const reportTitle =
+        nomesRelatorio[PainelDoca.state.reportType] ||
+        'Classificadas';
+
+      document.getElementById(
+        'reportSelectionTitle'
+      ).textContent = reportTitle;
+
+      document.getElementById(
+        'reportSelectionMeta'
+      ).textContent =
+        PainelDoca.state.reportType === 'pendente_sync'
+          ? `${reportItems.length} chamado(s) estão na fila de atualização manual • copie o JSON para consultar 1 por 1 na Bluesoft.`
+          : (
+              `${reportItems.length} chamado(s) entrarão no PDF/CSV • ` +
+              `${counts.cancelada_sefaz || 0} cancelada(s) SEFAZ • ` +
+              `${counts.pendente_sync || 0} ainda precisam de atualização Bluesoft.`
+            );
+
+      const items = reportItems;
+      const totalEl = document.getElementById('summaryTotal');
+      const totals = PainelDoca.groupTotal(items);
+      const totalCount = finalizados.length;
+      const max = Math.max(1, ...totals.map(([, count]) => count));
+      const groupBy = document.getElementById('groupBy').value;
+      const groupLabel = PainelDoca.GROUP_LABELS[groupBy] || 'grupo';
+      document.getElementById('summaryMeta').textContent =
+        `${finalizados.length} Finalizado(s) = ` +
+        `${counts.recebida || 0} recebida(s) + ` +
+        `${counts.com_carga || 0} com carga + ` +
+        `${counts.sem_carga || 0} sem carga + ` +
+        `${counts.cancelada_sefaz || 0} cancelada(s) + ` +
+        `${counts.pendente_sync || 0} falta atualizar`;
+      if (PainelDoca.state.lastTotalCount < totalCount) {
+        totalEl.classList.remove('pulse');
+        void totalEl.offsetWidth;
+        totalEl.classList.add('pulse');
+      }
+      totalEl.textContent = totalCount;
+      if (!totals.length) {
+        box.innerHTML = '<div class="empty">Sem dados.</div>';
+        PainelDoca.state.lastTotals = new Map();
+        PainelDoca.state.lastTotalCount = totalCount;
+        return;
+      }
+      const previousTotals = PainelDoca.state.lastTotals;
+      const nextTotals = new Map(totals);
+      const frag = document.createDocumentFragment();
+      for (const [group, count] of totals) {
+        const item = document.createElement('div');
+        item.className = 'rankItem';
+        const name = document.createElement('div');
+        name.className = 'rankName';
+        const dot = document.createElement('span');
+        dot.className = 'colorDot';
+        dot.style.background = PainelDoca.colorFor(group);
+        const text = document.createElement('span');
+        text.textContent = ['representante','atendente'].includes(groupBy) ? PainelDoca.shortUserName(group) : group;
+        text.title = group;
+        name.appendChild(dot);
+        name.appendChild(text);
+        const value = document.createElement('div');
+        value.className = 'rankValue';
+        if ((previousTotals.get(group) || 0) < count) value.classList.add('pulse');
+        value.textContent = count;
+        const track = document.createElement('div');
+        track.className = 'progressTrack';
+        const fill = document.createElement('div');
+        fill.className = 'progressFill';
+        fill.style.background = PainelDoca.colorFor(group);
+        fill.style.width = `${(count / max) * 100}%`;
+        track.appendChild(fill);
+        item.appendChild(name);
+        item.appendChild(value);
+        item.appendChild(track);
+        frag.appendChild(item);
+      }
+      box.innerHTML = '';
+      box.appendChild(frag);
+      PainelDoca.state.lastTotals = nextTotals;
+      PainelDoca.state.lastTotalCount = totalCount;
+    };
+
+    PainelDoca.highlightAccessKey = function (key) {
+      key = PainelDoca.onlyDigits(key);
+      if (key.length !== 44) return PainelDoca.escapeHTML(key || '—');
+      const p1 = key.slice(0, 6);
+      const cnpj = key.slice(6, 20);
+      const p2 = key.slice(20, 25);
+      const numero = key.slice(25, 34);
+      const p3 = key.slice(34);
+      return [
+        PainelDoca.escapeHTML(p1),
+        '<span class="keyCnpj" title="CNPJ emitente">' + PainelDoca.escapeHTML(cnpj) + '</span>',
+        PainelDoca.escapeHTML(p2),
+        '<span class="keyNum" title="Número da NF">' + PainelDoca.escapeHTML(numero) + '</span>',
+        PainelDoca.escapeHTML(p3)
+      ].join('');
+    };
+
+    PainelDoca.buildDocaTableRow = function (item) {
+      const tr = document.createElement('tr');
+      const link = `https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}`;
+      tr.innerHTML = `
+        <td><a class="idLink" href="${link}" target="_blank" rel="noopener">${PainelDoca.escapeHTML(item.id)}</a></td>
+        <td class="dateCell">${item.reservaDataTexto ? PainelDoca.escapeHTML(item.reservaDataTexto).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td class="dateCell">${item.aberturaTexto ? PainelDoca.escapeHTML(item.aberturaTexto).replace(' ', '<br>') : '<span class="muted">—</span>'}</td>
+        <td><strong>${PainelDoca.escapeHTML(item.lojaTexto || '—')}</strong>${item.lojaCodigo ? '<div class="muted">Loja ' + PainelDoca.escapeHTML(item.lojaCodigo) + '</div>' : ''}</td>
+        <td><div class="supplier">${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</div>${item.cnpjEmitente ? '<div class="muted">CNPJ: ' + PainelDoca.escapeHTML(item.cnpjEmitenteFormatado || PainelDoca.formatCnpj(item.cnpjEmitente)) + '</div>' : ''}${item.nfNumero ? '<div class="muted">NF: ' + PainelDoca.escapeHTML(item.nfNumero) + '</div>' : ''}</td>
+        <td><span class="subcat">${PainelDoca.escapeHTML(item.subcategoria || '—')}</span></td>
+        <td><span class="statusPill">${PainelDoca.escapeHTML(item.statusNome || '—')}</span></td>
+        <td><div class="keyWrap"><div class="keyText">${PainelDoca.highlightAccessKey(item.chaveAcesso)}</div><button class="copyBtn" type="button" data-copy="${PainelDoca.escapeHTML(item.chaveAcesso || '')}">Copiar chave</button></div></td>
+        <td><span class="userPill" title="${PainelDoca.escapeHTML(item.usuario || '—')}" style="background:${PainelDoca.colorFor(item.usuario)};color:${PainelDoca.textColorFor(item.usuario)};">${PainelDoca.escapeHTML(PainelDoca.shortUserName(item.usuario) || '—')}</span></td>
+      `;
+      return tr;
+    };
+
+    PainelDoca.buildReceiptTableRow = function (item) {
+      const tr = document.createElement('tr');
+      const link =
+        `https://asp.infradesk.app/backend/chamados/detalhes/${encodeURIComponent(item.id)}`;
+      const bs =
+        PainelDoca.bluesoftForItem(item) || {};
+      const state =
+        PainelDoca.receiveStateInfo(item);
+      const carga =
+        Number(bs.numeroCarga || 0);
+
+      const cargaUrl =
+        carga > 0
+          ? `${PainelDoca.BLUESOFT_URL_CARGA}${carga}/cargas-pendentes`
+          : '';
+
+      const cargaHtml =
+        carga > 0
+          ? (
+              `<a href="${cargaUrl}" target="_blank" rel="noopener">${carga}</a>` +
+              `<div class="receiveNote">${
+                PainelDoca.escapeHTML(
+                  [
+                    bs.statusCarga,
+                    bs.statusRomaneio
+                  ].filter(Boolean).join(' • ') ||
+                  'Carga vinculada'
+                )
+              }</div>`
+            )
+          : (
+              `<span class="muted">—</span>` +
+              `<div class="receiveNote">${
+                PainelDoca.escapeHTML(state.label)
+              }</div>`
+            );
+
+      const nf =
+        item.nfNumeroLimpo ||
+        item.nfNumero ||
+        '—';
+
+      const chave =
+        PainelDoca.onlyDigits(
+          item.chaveAcesso || ''
+        );
+
+      const keyHtml = chave
+        ? `<div class="keyMini">
+             <code title="${PainelDoca.escapeHTML(chave)}">${PainelDoca.escapeHTML(chave)}</code>
+             <button type="button"
+                     data-copy="${PainelDoca.escapeHTML(chave)}"
+                     title="Copiar chave de acesso">Copiar</button>
+           </div>`
+        : `<div class="muted">Sem chave válida</div>`;
+
+      tr.innerHTML = `
+        <td>
+          <a class="idLink"
+             href="${link}"
+             target="_blank"
+             rel="noopener">${PainelDoca.escapeHTML(item.id)}</a>
+        </td>
+
+        <td class="dateCell">
+          ${
+            item.aberturaTexto
+              ? PainelDoca.escapeHTML(
+                  item.aberturaTexto
+                ).replace(' ', '<br>')
+              : '<span class="muted">—</span>'
+          }
+        </td>
+
+        <td class="dateCell">
+          ${
+            item.liberadoTexto
+              ? PainelDoca.escapeHTML(
+                  item.liberadoTexto
+                ).replace(' ', '<br>')
+              : '<span class="muted">—</span>'
+          }
+        </td>
+
+        <td>
+          <span class="userPill"
+                title="${PainelDoca.escapeHTML(item.representante || '—')}"
+                style="background:${PainelDoca.colorFor(item.representante)};
+                       color:${PainelDoca.textColorFor(item.representante)};">
+            ${PainelDoca.escapeHTML(
+              PainelDoca.shortUserName(item.representante) || '—'
+            )}
+          </span>
+        </td>
+
+        <td>
+          <span class="userPill"
+                title="${PainelDoca.escapeHTML(item.atendente || '—')}"
+                style="background:${PainelDoca.colorFor(item.atendente)};
+                       color:${PainelDoca.textColorFor(item.atendente)};">
+            ${PainelDoca.escapeHTML(
+              PainelDoca.shortUserName(item.atendente) || '—'
+            )}
+          </span>
+        </td>
+
+        <td>
+          <span class="statusPill">
+            ${PainelDoca.escapeHTML(item.statusNome || 'Finalizado')}
+          </span>
+        </td>
+
+        <td>
+          <strong>${PainelDoca.escapeHTML(nf)}</strong>
+          ${keyHtml}
+        </td>
+
+        <td>
+          <div class="supplier">
+            ${PainelDoca.escapeHTML(item.fornecedorNome || '—')}
+          </div>
+          ${
+            item.cnpjEmitente
+              ? `<div class="muted">${PainelDoca.escapeHTML(item.cnpjEmitenteFormatado)}</div>`
+              : ''
+          }
+        </td>
+
+        <td class="loadCell">
+          ${cargaHtml}
+          <div class="stateBadge ${state.key}">
+            ${PainelDoca.escapeHTML(state.label)}
+          </div>
+        </td>
+
+        <td style="text-align:center">
+          ${PainelDoca.statusIconHtml(item)}
+        </td>
+      `;
+
+      return tr;
+    };
+
+    PainelDoca.configureDetailsTable = function () {
+      const row =
+        document.getElementById('detailsHeadRow');
+
+      row.innerHTML = `
+        <th style="width:82px">Chamado</th>
+        <th style="width:108px">Criado</th>
+        <th style="width:108px">Finalizado InfraDesk</th>
+        <th style="width:145px">Representante</th>
+        <th style="width:145px">Atendente</th>
+        <th style="width:125px">Status InfraDesk</th>
+        <th style="width:165px">NF / chave</th>
+        <th style="width:235px">Fornecedor</th>
+        <th style="width:145px">Carga</th>
+        <th style="width:68px;text-align:center">Bluesoft</th>`;
+    };
+
+    PainelDoca.renderTable = function (items) {
+      PainelDoca.configureDetailsTable();
+
+      const body =
+        document.getElementById('tableBody');
+
+      const search =
+        PainelDoca.norm(
+          document.getElementById(
+            'searchInput'
+          ).value
+        );
+
+      let rows = [...items];
+
+      if (search) {
+        rows = rows.filter(item => {
+          const bs =
+            PainelDoca.bluesoftForItem(item) || {};
+
+          return PainelDoca.norm([
+            item.id,
+            item.representante,
+            item.atendente,
+            item.fornecedorNome,
+            item.subcategoria,
+            item.statusNome,
+            item.chaveAcesso,
+            item.cnpjEmitente,
+            item.nfNumero,
+            item.aberturaTexto,
+            item.liberadoTexto,
+            bs.numeroCarga,
+            bs.cargaCriadaPor,
+            bs.statusCarga,
+            bs.statusRecebimento
+          ].join(' ')).includes(search);
+        });
+      }
+
+      const scopeLabels = {
+        todos: 'Consulta • todos os chamados do período',
+        nao_finalizados: 'Consulta • chamados ainda não Finalizados no InfraDesk',
+        finalizados: 'Consulta • chamados Finalizados no InfraDesk',
+        relatorio: 'Relatório atual • exatamente o que será exportado',
+        canceladas: 'Diagnóstico • canceladas na SEFAZ',
+        pendente: 'Diagnóstico • falta atualizar na Bluesoft'
+      };
+
+      document.getElementById(
+        'detailsTitle'
+      ).textContent =
+        scopeLabels[
+          PainelDoca.state.detailsScope
+        ] || scopeLabels.todos;
+
+      document.getElementById(
+        'detailsHint'
+      ).textContent =
+        `${rows.length} chamado(s) nesta tabela.`;
+
+      if (!rows.length) {
+        body.innerHTML =
+          `<tr><td colspan="12" class="empty">Nenhum chamado encontrado neste escopo.</td></tr>`;
+        return;
+      }
+
+      const frag =
+        document.createDocumentFragment();
+
+      for (const item of rows) {
+        frag.appendChild(
+          PainelDoca.buildReceiptTableRow(item)
+        );
+      }
+
+      body.innerHTML = '';
+      body.appendChild(frag);
+    };
+
+    PainelDoca.multiConfig = function (name) {
+      if (name === 'representante') {
+        return {
+          values: PainelDoca.getAllRepresentantes(),
+          selected:
+            PainelDoca.state.selectedRepresentantes,
+          touched: 'touchedRepresentantes',
+          labels: null,
+          empty: 'Sem representantes'
+        };
+      }
+
+      if (name === 'atendente') {
+        return {
+          values: PainelDoca.getAllAtendentes(),
+          selected:
+            PainelDoca.state.selectedAtendentes,
+          touched: 'touchedAtendentes',
+          labels: null,
+          empty: 'Sem atendentes'
+        };
+      }
+
+      if (name === 'competencia') {
+        const values =
+          PainelDoca.getAllCompetencias();
+
+        return {
+          values,
+          selected:
+            PainelDoca.state.selectedCompetencias,
+          touched: 'touchedCompetencias',
+          labels: Object.fromEntries(
+            values.map(value => [
+              value,
+              PainelDoca.competenciaLabel(value)
+            ])
+          ),
+          empty: 'Sem competências'
+        };
+      }
+
+      return {
+        values: PainelDoca.getAllSituacoes(),
+        selected:
+          PainelDoca.state.selectedSituacoes,
+        touched: 'touchedSituacoes',
+        labels:
+          Object.fromEntries(PainelDoca.SITUACOES),
+        empty: 'Sem situações'
+      };
+    };
+
+    PainelDoca.renderMultiSelect = function (name) {
+      const cfg = PainelDoca.multiConfig(name);
+      const menu = document.getElementById(`${name}MultiMenu`);
+      const button = document.getElementById(`${name}MultiBtn`);
+      const box = document.getElementById(`${name}MultiOptions`);
+      const search = document.getElementById(`${name}MultiSearch`);
+
+      if (!menu || !button || !box || !search) return;
+
+      const wasOpen = !menu.classList.contains('hidden');
+      const searchValue = search.value || '';
+
+      if (!PainelDoca.state[cfg.touched]) {
+        cfg.selected.clear();
+        cfg.values.forEach(v => cfg.selected.add(v));
+      }
+
+      for (const value of [...cfg.selected]) {
+        if (!cfg.values.includes(value)) cfg.selected.delete(value);
+      }
+
+      const selectedCount = cfg.values.filter(v => cfg.selected.has(v)).length;
+      const valueLabel = button.querySelector('.multiValue');
+
+      if (!cfg.values.length) valueLabel.textContent = cfg.empty;
+      else if (selectedCount === cfg.values.length) valueLabel.textContent = `Todos (${cfg.values.length})`;
+      else if (selectedCount === 0) valueLabel.textContent = 'Nenhum';
+      else valueLabel.textContent = `${selectedCount} selecionado(s)`;
+
+      const filtro = PainelDoca.norm(searchValue);
+      box.innerHTML = '';
+
+      for (const value of cfg.values) {
+        const labelText = cfg.labels?.[value] || value;
+
+        if (filtro && !PainelDoca.norm(labelText).includes(filtro)) continue;
+
+        const label = document.createElement('label');
+        label.className = 'multiOption';
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = cfg.selected.has(value);
+
+        input.addEventListener('change', function () {
+          PainelDoca.state[cfg.touched] = true;
+
+          if (input.checked) cfg.selected.add(value);
+          else cfg.selected.delete(value);
+
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+
+          PainelDoca.renderMultiSelect(name);
+          PainelDoca.scheduleRender();
+        });
+
+        const text = document.createElement('span');
+        text.textContent = labelText;
+        text.title = labelText;
+
+        label.appendChild(input);
+        label.appendChild(text);
+        box.appendChild(label);
+      }
+
+      search.value = searchValue;
+
+      if (wasOpen) {
+        menu.classList.remove('hidden');
+        button.classList.add('open');
+      }
+    };
+
+    PainelDoca.closeMultiMenus = function (exceptName) {
+      for (const name of ['competencia', 'situacao', 'representante', 'atendente']) {
+        if (name === exceptName) continue;
+
+        document.getElementById(`${name}MultiMenu`)?.classList.add('hidden');
+        document.getElementById(`${name}MultiBtn`)?.classList.remove('open');
+      }
+    };
+
+    PainelDoca.toggleMultiMenu = function (name) {
+      const menu = document.getElementById(`${name}MultiMenu`);
+      const button = document.getElementById(`${name}MultiBtn`);
+
+      if (!menu || !button) return;
+
+      const abrir = menu.classList.contains('hidden');
+
+      PainelDoca.closeMultiMenus(name);
+      menu.classList.toggle('hidden', !abrir);
+      button.classList.toggle('open', abrir);
+
+      if (abrir) {
+        setTimeout(() => document.getElementById(`${name}MultiSearch`)?.focus(), 0);
+      }
+    };
+
+    PainelDoca.setMultiAll = function (name, selected) {
+      const cfg = PainelDoca.multiConfig(name);
+
+      PainelDoca.state[cfg.touched] = true;
+      cfg.selected.clear();
+
+      if (selected) cfg.values.forEach(v => cfg.selected.add(v));
+
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+
+      PainelDoca.renderMultiSelect(name);
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.renderFilterOptions = function () {
+      document.getElementById('categoryFilterLabel').textContent = 'Subcategoria';
+
+      PainelDoca.renderMultiSelect('competencia');
+      PainelDoca.renderMultiSelect('situacao');
+      PainelDoca.renderMultiSelect('representante');
+      PainelDoca.renderMultiSelect('atendente');
+
+      const select = document.getElementById('filterSubcategoria');
+      const current = select.value;
+      const values = PainelDoca.getAllSubcategories();
+
+      select.innerHTML = '<option value="">Todas</option>';
+
+      for (const value of values) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      }
+
+      if (values.includes(current)) select.value = current;
+
+      const group = document.getElementById('groupBy');
+      const wanted = [
+        ['representante', 'Representante'],
+        ['atendente', 'Atendente'],
+        ['situacaoRecebimento', 'Situação'],
+        ['statusBluesoft', 'Status Bluesoft'],
+        ['subcategoria', 'Subcategoria'],
+        ['statusNome', 'Status InfraDesk'],
+        ['fornecedorNome', 'Fornecedor']
+      ];
+
+      const oldGroup = group.value;
+
+      group.innerHTML = wanted
+        .map(([v, t]) => `<option value="${v}">${t}</option>`)
+        .join('');
+
+      if (wanted.some(([v]) => v === oldGroup)) group.value = oldGroup;
+      else group.value = 'atendente';
+    };
+
+    PainelDoca.render = function () {
+      if (!PainelDoca.state.filtersReady) {
+        PainelDoca.renderFilterOptions();
+        PainelDoca.state.filtersReady = true;
+      }
+
+      PainelDoca.renderHeader();
+
+      const items = PainelDoca.getVisibleItems();
+
+      PainelDoca.renderCompetenceHint(items);
+      PainelDoca.renderChart(items);
+      PainelDoca.renderRanking();
+
+      const finalizados =
+        PainelDoca.getFinalizedBaseItems();
+      const naoFinalizados =
+        items.filter(
+          item => !PainelDoca.isInfraDeskFinalizado(item)
+        );
+      const relatorio =
+        PainelDoca.getReportItems();
+      const canceladas =
+        PainelDoca.getCanceledBluesoftItems();
+      const pendentes =
+        PainelDoca.getPendingBluesoftItems();
+
+      document.getElementById(
+        'flowSummaryTitle'
+      ).textContent =
+        `${items.length} chamado(s) no período`;
+
+      document.getElementById(
+        'flowSummaryMeta'
+      ).textContent =
+        `${finalizados.length} Finalizado(s) InfraDesk • ` +
+        `${naoFinalizados.length} ainda não Finalizado(s) • ` +
+        `${finalizados.length} + ${naoFinalizados.length} = ${items.length}`;
+
+      document.getElementById(
+        'scopeCountTodos'
+      ).textContent = String(items.length);
+
+      document.getElementById(
+        'scopeCountNaoFinalizados'
+      ).textContent = String(naoFinalizados.length);
+
+      document.getElementById(
+        'scopeCountFinalizados'
+      ).textContent = String(finalizados.length);
+
+      document.getElementById(
+        'scopeCountRelatorio'
+      ).textContent = String(relatorio.length);
+
+      document.getElementById(
+        'scopeCountCanceladas'
+      ).textContent = String(canceladas.length);
+
+      document.getElementById(
+        'scopeCountPendente'
+      ).textContent = String(pendentes.length);
+
+      const copyPendingJsonBtn =
+        document.getElementById(
+          'copyPendingJsonBtn'
+        );
+
+      if (copyPendingJsonBtn) {
+        const chavesEscopo =
+          PainelDoca.keysForJsonScope();
+
+        const nomeEscopo =
+          PainelDoca.detailsScopeLabel(
+            PainelDoca.state.detailsScope
+          );
+
+        copyPendingJsonBtn.disabled =
+          chavesEscopo.length === 0;
+
+        copyPendingJsonBtn.textContent =
+          chavesEscopo.length
+            ? `Copiar JSON • ${nomeEscopo} (${chavesEscopo.length})`
+            : `Copiar JSON • ${nomeEscopo}`;
+      }
+
+      const syncBluesoftBtn =
+        document.getElementById(
+          'syncBluesoftBtn'
+        );
+
+      if (syncBluesoftBtn) {
+        const totalFinalizadas =
+          PainelDoca.keysForCurrentReceiptRange().length;
+
+        const atualizar =
+          PainelDoca
+            .keysForManualBluesoftRefresh()
+            .length;
+
+        syncBluesoftBtn.disabled =
+          totalFinalizadas === 0;
+
+        syncBluesoftBtn.textContent =
+          `Atualizar status Bluesoft (${atualizar})`;
+
+        syncBluesoftBtn.title =
+          'Consulta manual direta no Firestore das NFs Finalizadas do período. Zero realtime.';
+      }
+
+      document
+        .querySelectorAll(
+          '[data-details-scope]'
+        )
+        .forEach(btn => {
+          btn.classList.toggle(
+            'active',
+            btn.dataset.detailsScope ===
+              PainelDoca.state.detailsScope
+          );
+        });
+
+      if (PainelDoca.state.detailsVisible) {
+        PainelDoca.renderTable(
+          PainelDoca.getDetailsItems()
+        );
+      }
+    };
+
+    PainelDoca.scheduleRender = function (delayMs = 0) {
+      if (PainelDoca.state.inputRenderTimer) {
+        clearTimeout(
+          PainelDoca.state.inputRenderTimer
+        );
+      }
+
+      const executar = function () {
+        if (PainelDoca.state.renderFrame) {
+          cancelAnimationFrame(
+            PainelDoca.state.renderFrame
+          );
+        }
+
+        PainelDoca.state.renderFrame =
+          requestAnimationFrame(function () {
+            PainelDoca.state.renderFrame = null;
+            PainelDoca.render();
+          });
+      };
+
+      if (delayMs > 0) {
+        PainelDoca.state.inputRenderTimer =
+          setTimeout(function () {
+            PainelDoca.state.inputRenderTimer = null;
+            executar();
+          }, delayMs);
+      } else {
+        executar();
+      }
+    };
+
+    PainelDoca.setStatus = function (ok, text) {
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      dot.className = 'dot ' + (ok ? 'ok' : 'err');
+      statusText.textContent = text;
+    };
+
+    PainelDoca.fetchJson = async function (url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data || {};
+    };
+
+    PainelDoca.loadInfraCache = function () {
+      try {
+        const cached = JSON.parse(
+          localStorage.getItem(
+            PainelDoca.INFRA_CACHE_KEY
+          ) || 'null'
+        );
+
+        if (
+          !cached ||
+          !cached.salvoEm ||
+          !cached.data
+        ) {
+          return null;
+        }
+
+        return cached;
+      } catch (_) {
+        return null;
+      }
+    };
+
+    PainelDoca.saveInfraCache = function (data) {
+      try {
+        localStorage.setItem(
+          PainelDoca.INFRA_CACHE_KEY,
+          JSON.stringify({
+            salvoEm: Date.now(),
+            data
+          })
+        );
+      } catch (_) {}
+    };
+
+    PainelDoca.fetchReceiptsSnapshot = async function () {
+      const base = PainelDoca.FIREBASE_DB_URL.replace(/\/+$/, '');
+      const [captures, history] = await Promise.all([
+        PainelDoca.fetchJson(base + PainelDoca.PATH).catch(() => ({})),
+        PainelDoca.fetchJson(base + PainelDoca.HISTORY_PATH).catch(() => ({}))
+      ]);
+      const merged = { ...(captures || {}) };
+      for (const [id, item] of Object.entries(history || {})) {
+        merged[id] = { ...(merged[id] || {}), ...(item || {}) };
+      }
+      return merged;
+    };
+
+    PainelDoca.fetchSnapshot = async function (useServerDateFilter) {
+      const res = await fetch(PainelDoca.firebaseUrl(useServerDateFilter), { cache: 'no-store' });
+      let data = null;
+      try { data = await res.json(); }
+      catch (_) { throw new Error(`Resposta inválida do Firebase. HTTP ${res.status}`); }
+      if (!res.ok || (data && data.error)) {
+        const message = (data && data.error) || `HTTP ${res.status}`;
+        const error = new Error(message);
+        error.status = res.status;
+        error.firebasePayload = data;
+        throw error;
+      }
+      return data || {};
+    };
+
+    PainelDoca.showLoadError = function (error) {
+      document.getElementById('chart').innerHTML = `<div class="empty">Não consegui carregar o Firebase.<br><span class="muted">${PainelDoca.escapeHTML(error && error.message ? error.message : 'Erro desconhecido')}</span></div>`;
+      document.getElementById('tableBody').innerHTML = '<tr><td colspan="12" class="empty">Erro ao carregar dados.</td></tr>';
+    };
+
+    PainelDoca.loadInitial = async function (force = false) {
+      if (PainelDoca.state.eventSource) {
+        PainelDoca.state.eventSource.close();
+        PainelDoca.state.eventSource = null;
+      }
+
+      PainelDoca.state.hasInitialLoad = false;
+
+      try {
+        PainelDoca.cancelBluesoftListeners();
+
+        let data = null;
+        let usouCache = false;
+
+        if (!force) {
+          const cache =
+            PainelDoca.loadInfraCache();
+
+          if (
+            cache &&
+            Date.now() -
+              Number(cache.salvoEm || 0) <
+              PainelDoca.INFRA_CACHE_TTL_MS
+          ) {
+            data = cache.data;
+            usouCache = true;
+          }
+        }
+
+        if (!data) {
+          PainelDoca.setStatus(
+            false,
+            'Atualizando InfraDesk...'
+          );
+
+          data =
+            await PainelDoca.fetchReceiptsSnapshot();
+
+          PainelDoca.saveInfraCache(data);
+        }
+
+        PainelDoca.state.queryMode = 'historico';
+        PainelDoca.state.byId =
+          PainelDoca.normalizeSnapshot(data || {});
+        PainelDoca.state.hasInitialLoad = true;
+        PainelDoca.state.filtersReady = false;
+        PainelDoca.state.bluesoftSignature = '';
+
+        PainelDoca.setStatus(
+          true,
+          usouCache
+            ? `${Object.keys(PainelDoca.state.byId).length} chamado(s) • cache InfraDesk`
+            : `${Object.keys(PainelDoca.state.byId).length} chamado(s) • InfraDesk atualizado`
+        );
+
+        PainelDoca.state.lastTotalCount = 0;
+        PainelDoca.state.lastTotals =
+          new Map();
+
+        PainelDoca.loadBluesoftCache();
+
+        const chavesVisiveis =
+          PainelDoca.keysForCurrentReceiptRange();
+
+        const cacheBluesoft =
+          PainelDoca.applyCachedBluesoft(
+            chavesVisiveis
+          );
+
+        PainelDoca.setStatus(
+          true,
+          `${Object.keys(PainelDoca.state.byId).length} chamado(s) • ` +
+          `Bluesoft local ${cacheBluesoft}/${chavesVisiveis.length} • atualização manual`
+        );
+
+        PainelDoca.scheduleRender();
+      } catch (error) {
+        console.error(
+          'Erro ao carregar histórico:',
+          error
+        );
+
+        PainelDoca.state.byId = {};
+        PainelDoca.setStatus(false, 'Erro');
+        PainelDoca.showLoadError(error);
+      }
+    };
+
+    PainelDoca.applyRemoteItem = function (id, item) {
+      const normalized =
+        PainelDoca.normalizeItem(id, item);
+      PainelDoca.state.filtersReady = false;
+      if (!normalized) delete PainelDoca.state.byId[id];
+      else PainelDoca.state.byId[normalized.id] = normalized;
+    };
+
+    PainelDoca.handleFirebaseEvent = function (raw, eventType) {
+      let payload;
+      try { payload = JSON.parse(raw || '{}'); }
+      catch (_) { return; }
+      const path = String(payload.path || '/');
+      const data = payload.data;
+      const parts = path.replace(/^\/+/, '').split('/').filter(Boolean);
+      if ((path === '/' || path === '') && eventType === 'put') {
+        if (!PainelDoca.state.hasInitialLoad) {
+          PainelDoca.state.byId = PainelDoca.normalizeSnapshot(data || {});
+          PainelDoca.state.hasInitialLoad = true;
+          PainelDoca.setStatus(true, 'Online');
+          PainelDoca.scheduleRender();
+        }
+        return;
+      }
+      if ((path === '/' || path === '') && eventType === 'patch') {
+        for (const [childId, childData] of Object.entries(data || {})) {
+          if (childData === null) delete PainelDoca.state.byId[childId];
+          else PainelDoca.applyRemoteItem(childId, childData);
+        }
+        PainelDoca.setStatus(true, 'Online');
+        PainelDoca.scheduleRender();
+        return;
+      }
+      const id = PainelDoca.clean(parts[0]);
+      if (!id) return;
+      if (data === null) delete PainelDoca.state.byId[id];
+      else if (parts.length === 1) PainelDoca.applyRemoteItem(id, data);
+      else {
+        const current = Object.assign({}, PainelDoca.state.byId[id] || { chamadoId: id });
+        current[parts[1]] = data;
+        PainelDoca.applyRemoteItem(id, current);
+      }
+      PainelDoca.setStatus(true, 'Online');
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.connectRealtime = function () {
+      // V12_MANUAL_SEM_REALTIME
+      // Realtime propositalmente desativado para economizar downloads.
+      return false;
+    };
+
+    PainelDoca.refreshRange = function () {
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      PainelDoca.state.bluesoftSignature = '';
+
+      // Trocar período/filtro NÃO consulta Firebase.
+      // Reaproveita apenas o cache local; o botão manual decide quando ler.
+      const keys =
+        PainelDoca.keysForCurrentReceiptRange();
+
+      PainelDoca.applyCachedBluesoft(keys);
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.reloadForRange = function () {
+      clearTimeout(PainelDoca.state.reloadTimer);
+
+      PainelDoca.state.reloadTimer =
+        setTimeout(
+          PainelDoca.refreshRange,
+          120
+        );
+    };
+
+    PainelDoca.setMode = function (mode) {
+      PainelDoca.state.mode = mode;
+      PainelDoca.refreshRange();
+    };
+
+    PainelDoca.prevPeriod = function () {
+      if (PainelDoca.state.mode === 'week') {
+        PainelDoca.state.weekStart =
+          PainelDoca.addDays(
+            PainelDoca.state.weekStart,
+            -7
+          );
+      }
+
+      if (PainelDoca.state.mode === 'month') {
+        PainelDoca.state.monthStart =
+          PainelDoca.addMonths(
+            PainelDoca.state.monthStart,
+            -1
+          );
+      }
+
+      PainelDoca.refreshRange();
+    };
+
+    PainelDoca.nextPeriod = function () {
+      if (PainelDoca.state.mode === 'week') {
+        const currentWeek =
+          PainelDoca.startOfWeek(new Date());
+
+        const next =
+          PainelDoca.addDays(
+            PainelDoca.state.weekStart,
+            7
+          );
+
+        if (
+          PainelDoca.toDateInput(next) <=
+          PainelDoca.toDateInput(currentWeek)
+        ) {
+          PainelDoca.state.weekStart = next;
+        }
+      }
+
+      if (PainelDoca.state.mode === 'month') {
+        const currentMonth =
+          PainelDoca.startOfMonth(new Date());
+
+        const next =
+          PainelDoca.addMonths(
+            PainelDoca.state.monthStart,
+            1
+          );
+
+        if (
+          PainelDoca.toDateInput(next) <=
+          PainelDoca.toDateInput(currentMonth)
+        ) {
+          PainelDoca.state.monthStart = next;
+        }
+      }
+
+      PainelDoca.refreshRange();
+    };
+
+    PainelDoca.toggleDetails = function () {
+      PainelDoca.state.detailsVisible = !PainelDoca.state.detailsVisible;
+      document.getElementById('detailsPanel').classList.toggle('hidden', !PainelDoca.state.detailsVisible);
+      document.getElementById('toggleDetailsBtn').textContent =
+        PainelDoca.state.detailsVisible
+          ? 'Ocultar tabela'
+          : 'Mostrar tabela';
+
+      if (PainelDoca.state.detailsVisible) {
+        PainelDoca.renderTable(
+          PainelDoca.getDetailsItems()
+        );
+      }
+    };
+
+    PainelDoca.toggleSummary = function () {
+      PainelDoca.state.summaryVisible = !PainelDoca.state.summaryVisible;
+      document.getElementById('summaryPanel').classList.toggle('hidden', !PainelDoca.state.summaryVisible);
+      document.getElementById('mainGrid').classList.toggle('noSummary', !PainelDoca.state.summaryVisible);
+      document.getElementById('summaryToggleBtn').textContent = PainelDoca.state.summaryVisible ? 'Ocultar resumo' : 'Mostrar resumo';
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.clearFilters = function () {
+      document.getElementById('searchGeneral').value = '';
+      document.getElementById('searchChamado').value = '';
+      document.getElementById('searchNf').value = '';
+      document.getElementById('searchCnpj').value = '';
+      document.getElementById('filterSubcategoria').value = '';
+      document.getElementById('searchInput').value = '';
+
+      PainelDoca.state.touchedRepresentantes = false;
+      PainelDoca.state.touchedAtendentes = false;
+      PainelDoca.state.touchedCompetencias = false;
+      PainelDoca.state.touchedSituacoes = false;
+
+      PainelDoca.state.selectedRepresentantes.clear();
+      PainelDoca.state.selectedAtendentes.clear();
+      PainelDoca.state.selectedCompetencias.clear();
+      PainelDoca.state.selectedSituacoes.clear();
+
+      for (const name of ['competencia', 'situacao', 'representante', 'atendente']) {
+        const search = document.getElementById(`${name}MultiSearch`);
+        if (search) search.value = '';
+      }
+
+      PainelDoca.state.lastTotalCount = 0;
+      PainelDoca.state.lastTotals = new Map();
+      PainelDoca.state.filtersReady = false;
+
+      PainelDoca.scheduleRender();
+    };
+
+    PainelDoca.copyText = async function (text) {
+      text = PainelDoca.clean(text);
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); }
+      catch (_) {
+        const input = document.createElement('textarea');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+      }
+      PainelDoca.toast('Chave copiada');
+    };
+
+    PainelDoca.toast = function (message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(PainelDoca.toastTimer);
+      PainelDoca.toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1500);
+    };
+
+    PainelDoca.copyReportKeys = async function () {
+      const keys = [
+        ...new Set(
+          PainelDoca.getReportItems()
+            .map(item =>
+              PainelDoca.onlyDigits(
+                item.chaveAcesso || ''
+              )
+            )
+            .filter(key => key.length === 44)
+        )
+      ];
+
+      if (!keys.length) {
+        PainelDoca.toast(
+          'Nenhuma chave válida no relatório selecionado.'
+        );
+        return;
+      }
+
+      await PainelDoca.copyText(
+        keys.join('\n')
+      );
+
+      PainelDoca.toast(
+        `${keys.length} chave(s) copiada(s).`
+      );
+    };
+
+    PainelDoca.copyPendingBluesoftJson = async function () {
+      // ESCOPO_MANUAL_JSON
+      // Usa exatamente o conjunto selecionado nos botões acima da tabela.
+      const itensSelecionados =
+        PainelDoca.getJsonScopeItems();
+
+      const porChave = new Map();
+      const semChave = [];
+
+      for (const item of itensSelecionados) {
+        const chave =
+          PainelDoca.onlyDigits(
+            item.chaveAcesso || ''
+          );
+
+        if (chave.length !== 44) {
+          semChave.push(
+            String(item.id || '')
+          );
+          continue;
+        }
+
+        if (!porChave.has(chave)) {
+          porChave.set(chave, []);
+        }
+
+        porChave.get(chave).push(item);
+      }
+
+      const chaves = [];
+
+      for (const [chaveAcesso, itens] of porChave) {
+        const primeiro =
+          itens[0] || {};
+
+        const situacao =
+          PainelDoca.receiveStateInfo(
+            primeiro
+          );
+
+        chaves.push({
+          chaveAcesso,
+
+          numeroNf:
+            primeiro.nfNumeroLimpo ||
+            primeiro.nfNumero ||
+            '',
+
+          cnpj:
+            PainelDoca.onlyDigits(
+              primeiro.cnpjEmitente || ''
+            ),
+
+          fornecedor:
+            primeiro.fornecedorNome || '',
+
+          representante:
+            primeiro.representante || '',
+
+          atendente:
+            primeiro.atendente || '',
+
+          statusInfraDesk:
+            primeiro.statusNome || '',
+
+          situacaoBluesoftAtual:
+            situacao?.label || '',
+
+          competencia:
+            PainelDoca.competenciaLabel(
+              primeiro.competenciaNfe || ''
+            ),
+
+          chamadoId:
+            String(primeiro.id || ''),
+
+          chamadosIds:
+            itens
+              .map(item =>
+                String(item.id || '')
+              )
+              .filter(Boolean),
+
+          aberturaInfraDesk:
+            primeiro.aberturaTexto || '',
+
+          finalizadoInfraDesk:
+            primeiro.liberadoTexto || ''
+        });
+      }
+
+      if (!chaves.length) {
+        PainelDoca.toast(
+          'O escopo selecionado não possui chave NF-e válida.'
+        );
+        return;
+      }
+
+      const range =
+        PainelDoca.currentRange();
+
+      const scope =
+        PainelDoca.state.detailsScope;
+
+      const nomeEscopo =
+        PainelDoca.detailsScopeLabel(
+          scope
+        );
+
+      const payload = {
+        origem:
+          'InfraDesk Relatórios v12.7',
+
+        tipo:
+          'consulta_manual_escopo',
+
+        modo:
+          'consulta',
+
+        acao:
+          'consultar_somente',
+
+        escopo:
+          scope,
+
+        escopoNome:
+          nomeEscopo,
+
+        // Mantido para auditoria quando o escopo for "Relatório atual".
+        relatorioSelecionado:
+          PainelDoca.state.reportType,
+
+        geradoEm:
+          new Date().toISOString(),
+
+        periodoAbertura: {
+          de:
+            range.startKey || '',
+          ate:
+            range.endKey || ''
+        },
+
+        quantidadeChamadosEscopo:
+          itensSelecionados.length,
+
+        quantidadeChaves:
+          chaves.length,
+
+        quantidadeSemChaveValida:
+          semChave.length,
+
+        chamadosSemChaveValida:
+          semChave,
+
+        chaves
+      };
+
+      await PainelDoca.copyText(
+        JSON.stringify(
+          payload,
+          null,
+          2
+        )
+      );
+
+      PainelDoca.toast(
+        `${chaves.length} chave(s) copiadas • ${nomeEscopo}.`
+      );
+    };
+
+    PainelDoca.exportCsv = function () {
+      const rows = PainelDoca.getReportItems();
+
+      const header = [
+        'chamadoId',
+        'aberturaInfraDesk',
+        'representante',
+        'atendente',
+        'fornecedor',
+        'chaveAcesso',
+        'cnpj',
+        'nf',
+        'statusInfraDesk',
+        'situacao',
+        'statusBluesoft',
+        'notaFechada',
+        'canceladaSefaz',
+        'recebimentoConfirmado',
+        'estadoRecebimentoDerivado',
+        'numeroCarga',
+        'statusCarga',
+        'statusRomaneio',
+        'conferidoPor',
+        'dataFechamentoCarga'
+      ];
+
+      const lines = [header.join(';')];
+
+      for (const item of rows) {
+        const bs = PainelDoca.bluesoftForItem(item) || {};
+
+        const values = [
+          item.id,
+          item.aberturaTexto,
+          item.representante,
+          item.atendente,
+          item.fornecedorNome,
+          item.chaveAcesso,
+          item.cnpjEmitente,
+          item.nfNumeroLimpo || item.nfNumero,
+          item.statusNome,
+          PainelDoca.receiveStateInfo(item).label,
+          bs.statusRecebimento,
+          bs.notaFechada,
+          bs.canceladaSefaz,
+          bs.recebimentoConfirmado,
+          bs.estadoRecebimentoDerivado,
+          bs.numeroCarga,
+          bs.statusCarga,
+          bs.statusRomaneio,
+          bs.conferidoPor,
+          bs.dataFechamentoCarga
+        ].map(value =>
+          '"' + PainelDoca.clean(value).replace(/"/g, '""') + '"'
+        );
+
+        lines.push(values.join(';'));
+      }
+
+      const blob = new Blob(
+        ['\ufeff' + lines.join('\n')],
+        { type: 'text/csv;charset=utf-8' }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+
+      a.href = url;
+      const tipo =
+        PainelDoca.state.reportType === 'recebida'
+          ? 'recebidas'
+          : PainelDoca.state.reportType === 'com_carga'
+            ? 'com-carga'
+            : PainelDoca.state.reportType === 'sem_carga'
+              ? 'sem-carga'
+              : PainelDoca.state.reportType === 'pendente_sync'
+                ? 'falta-atualizar-bluesoft'
+                : 'classificadas';
+
+      a.download =
+        `infradesk-relatorio-${tipo}.csv`;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+    };
+
+    PainelDoca.printReceiptReport = function () {
+      const rows = PainelDoca.getReportItems();
+      const range = PainelDoca.currentRange();
+
+      const counts = {
+        recebida: 0,
+        sem_carga: 0,
+        com_carga: 0
+      };
+
+      rows.forEach(item => {
+        const key = PainelDoca.receiveStateInfo(item).key;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+
+      const win = window.open('about:blank', '_blank');
+
+      if (!win) {
+        PainelDoca.toast('O navegador bloqueou a janela do relatório.');
+        return;
+      }
+
+      const period = PainelDoca.state.mode === 'all'
+        ? 'Todos os registros'
+        : `${PainelDoca.fullDateLabel(range.startKey || '')} a ${PainelDoca.fullDateLabel(range.endKey || '')}`;
+
+      const bodyRows = rows.map((item, i) => {
+        const bs = PainelDoca.bluesoftForItem(item) || {};
+        const visual = PainelDoca.visualStatusBluesoft(
+          bs.statusRecebimento || 'Não sincronizada'
+        );
+
+        return `<tr>
+          <td class="colSeq">${i + 1}</td>
+          <td class="colNf">${PainelDoca.escapeHTML(item.nfNumeroLimpo || item.nfNumero || '—')}</td>
+          <td>${PainelDoca.escapeHTML(item.fornecedorNome || '—')}</td>
+          <td>${PainelDoca.escapeHTML(item.representante || '—')}</td>
+          <td>${PainelDoca.escapeHTML(item.atendente || '—')}</td>
+          <td>${PainelDoca.escapeHTML(item.statusNome || 'Finalizado')}</td>
+          <td>${PainelDoca.escapeHTML(item.aberturaTexto || '—')}</td>
+          <td>${PainelDoca.escapeHTML(item.liberadoTexto || '—')}</td>
+          <td class="colCarga">${PainelDoca.escapeHTML(bs.numeroCarga || '—')}</td>
+          <td class="colBluesoft"><img src="${visual.icon}" title="${PainelDoca.escapeHTML(visual.label)}"></td>
+        </tr>`;
+      }).join('');
+
+      win.document.open();
+
+      win.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Relatório Fluxo NF-e</title>
+<style>
+  @page{size:A4 landscape;margin:8mm}
+  body{font-family:Arial,sans-serif;color:#222;margin:0}
+  h1{font-size:22px;margin:0 0 8px}
+  .meta{font-size:10px;border-bottom:3px solid #333;padding-bottom:8px;margin-bottom:10px}
+  .summary{border:1px solid #bbb;padding:8px;margin-bottom:10px;font-size:10px}
+  table{width:100%;border-collapse:collapse;table-layout:auto}
+  th,td{border:1px solid #aaa;padding:4px 5px;font-size:8.2px;vertical-align:top;overflow:hidden;text-overflow:ellipsis}
+  th{background:#f3f4f6;font-weight:800}
+  td img{width:15px;height:15px;vertical-align:middle}
+
+  /* Colunas compactas */
+  th.colSeq,td.colSeq{
+    width:4ch;
+    min-width:4ch;
+    max-width:4ch;
+    text-align:center;
+    white-space:nowrap;
+  }
+
+  th.colNf,td.colNf{
+    width:10ch;
+    min-width:10ch;
+    max-width:10ch;
+    white-space:nowrap;
+  }
+
+  th.colCarga,td.colCarga{
+    width:9ch;
+    min-width:9ch;
+    max-width:9ch;
+    white-space:nowrap;
+  }
+
+  th.colBluesoft,td.colBluesoft{
+    width:6ch;
+    min-width:6ch;
+    max-width:6ch;
+    text-align:center;
+    white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+  <h1>Relatório de Fluxo de Recebimento NF-e • ${
+    PainelDoca.state.reportType === 'recebida'
+      ? 'RECEBIDAS'
+      : PainelDoca.state.reportType === 'com_carga'
+        ? 'COM CARGA • AINDA NÃO RECEBIDAS'
+        : PainelDoca.state.reportType === 'sem_carga'
+          ? 'SEM CARGA • AINDA NÃO RECEBIDAS'
+          : PainelDoca.state.reportType === 'pendente_sync'
+            ? 'FALTA ATUALIZAR BLUESOFT'
+            : 'CLASSIFICADAS'
+  }</h1>
+
+  <div class="meta">
+    <strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}
+    &nbsp; <strong>Período de abertura:</strong> ${period}
+  </div>
+
+  <div class="summary">
+    <strong>${rows.length}</strong> registro(s) •
+    <strong>${counts.recebida || 0}</strong> recebida(s) •
+    <strong>${counts.com_carga || 0}</strong> com carga •
+    <strong>${counts.sem_carga || 0}</strong> sem carga
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="colSeq">#</th>
+        <th class="colNf">NF</th>
+        <th>Fornecedor</th>
+        <th>Representante</th>
+        <th>Atendente</th>
+        <th>Status InfraDesk</th>
+        <th>Criado InfraDesk</th>
+        <th>Finalizado InfraDesk</th>
+        <th class="colCarga">Carga</th>
+        <th class="colBluesoft">Bluesoft</th>
+      </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+</body>
+</html>`);
+
+      win.document.close();
+
+      setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (_) {}
+      }, 450);
+    };
+
+    PainelDoca.bind = function () {
+      document.getElementById('modeToday').addEventListener('click', () => PainelDoca.setMode('today'));
+      document.getElementById('modeWeek').addEventListener('click', () => PainelDoca.setMode('week'));
+      document.getElementById('modeMonth').addEventListener('click', () => PainelDoca.setMode('month'));
+      document.getElementById('modeCustom').addEventListener('click', () => PainelDoca.setMode('custom'));
+      document.getElementById('modeAll').addEventListener('click', () => PainelDoca.setMode('all'));
+      document.getElementById('prevPeriodBtn').addEventListener('click', PainelDoca.prevPeriod);
+      document.getElementById('nextPeriodBtn').addEventListener('click', PainelDoca.nextPeriod);
+      document.getElementById('dateFrom').addEventListener('change', PainelDoca.reloadForRange);
+      document.getElementById('dateTo').addEventListener('change', PainelDoca.reloadForRange);
+      ['searchGeneral', 'searchChamado', 'searchNf', 'searchCnpj'].forEach(id => {
+        const el = document.getElementById(id);
+
+        el.addEventListener('input', function () {
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+
+          // Evita redesenhar o gráfico a cada tecla.
+          PainelDoca.scheduleRender(240);
+        });
+      });
+
+      ['filterSubcategoria', 'groupBy', 'chartMode'].forEach(id => {
+        const el = document.getElementById(id);
+
+        el.addEventListener('change', function () {
+          PainelDoca.state.lastTotalCount = 0;
+          PainelDoca.state.lastTotals = new Map();
+          PainelDoca.scheduleRender();
+        });
+      });
+      document.getElementById('searchInput').addEventListener('input', function () {
+        PainelDoca.renderTable(
+          PainelDoca.getDetailsItems()
+        );
+      });
+
+      document.getElementById('tableBody').addEventListener('click', function (event) {
+        const botao =
+          event.target.closest(
+            '[data-bs-refresh-key]'
+          );
+
+        if (!botao) return;
+
+        const chave =
+          PainelDoca.onlyDigits(
+            botao.dataset.bsRefreshKey || ''
+          );
+
+        if (chave.length !== 44) {
+          PainelDoca.toast(
+            'Esta linha não possui chave NF-e válida.'
+          );
+          return;
+        }
+
+        botao.disabled = true;
+
+        PainelDoca.toast(
+          'Recomparando somente esta NF...'
+        );
+
+        PainelDoca.syncBluesoft(
+          true,
+          [chave]
+        )
+          .then(() => {
+            const item =
+              Object.values(
+                PainelDoca.state.byId || {}
+              ).find(registro =>
+                PainelDoca.onlyDigits(
+                  registro.chaveAcesso || ''
+                ) === chave
+              );
+
+            const resultado =
+              item
+                ? PainelDoca.receiveStateInfo(item)
+                : null;
+
+            PainelDoca.toast(
+              resultado
+                ? `NF atualizada: ${resultado.label}.`
+                : 'Comparação concluída.'
+            );
+          })
+          .catch(error => {
+            console.warn(error);
+            PainelDoca.toast(
+              'Não consegui recomparar esta NF.'
+            );
+          })
+          .finally(() => {
+            botao.disabled = false;
+          });
+      });
+      document.getElementById('clearBtn').addEventListener('click', PainelDoca.clearFilters);
+      document.getElementById('reloadBtn').addEventListener('click', function () {
+        PainelDoca.loadInitial(true);
+      });
+
+      document.getElementById('syncBluesoftBtn').addEventListener('click', function () {
+        const totalFinalizadas =
+          PainelDoca.keysForCurrentReceiptRange();
+
+        const keys =
+          PainelDoca.keysForManualBluesoftRefresh();
+
+        if (!totalFinalizadas.length) {
+          PainelDoca.toast(
+            'Nenhuma NF-e Finalizada InfraDesk neste período/filtro.'
+          );
+          return;
+        }
+
+        if (!keys.length) {
+          PainelDoca.toast(
+            'Nenhuma chave NF-e válida entre as Finalizadas.'
+          );
+          return;
+        }
+
+        PainelDoca.toast(
+          `Consulta Firestore direta: ${keys.length} NF-e Finalizada(s)...`
+        );
+
+        PainelDoca.syncBluesoft(
+          true,
+          keys
+        ).catch(
+          error => console.warn(error)
+        );
+      });
+      document.getElementById('toggleDetailsBtn').addEventListener('click', PainelDoca.toggleDetails);
+      document.getElementById('summaryToggleBtn').addEventListener('click', PainelDoca.toggleSummary);
+      document.getElementById('copyKeysBtn').addEventListener('click', PainelDoca.copyReportKeys);
+      document.getElementById('copyPendingJsonBtn').addEventListener('click', PainelDoca.copyPendingBluesoftJson);
+      document.getElementById('exportBtn').addEventListener('click', PainelDoca.exportCsv);
+      document.getElementById('printBtn').addEventListener('click', PainelDoca.printReceiptReport);
+
+      for (const name of ['competencia', 'situacao', 'representante', 'atendente']) {
+        document.getElementById(`${name}MultiBtn`)?.addEventListener('click', function (event) {
+          event.stopPropagation();
+          PainelDoca.toggleMultiMenu(name);
+        });
+
+        document.getElementById(`${name}MultiSearch`)?.addEventListener('input', function () {
+          PainelDoca.renderMultiSelect(name);
+        });
+      }
+
+      document.addEventListener('click', function (event) {
+        const allBtn = event.target.closest('[data-multi-all]');
+
+        if (allBtn) {
+          event.stopPropagation();
+          PainelDoca.setMultiAll(allBtn.getAttribute('data-multi-all'), true);
+          return;
+        }
+
+        const noneBtn = event.target.closest('[data-multi-none]');
+
+        if (noneBtn) {
+          event.stopPropagation();
+          PainelDoca.setMultiAll(noneBtn.getAttribute('data-multi-none'), false);
+          return;
+        }
+
+        if (!event.target.closest('[data-multi-root]')) {
+          PainelDoca.closeMultiMenus();
+        }
+      });
+      document.getElementById('summaryAllFinalized')?.addEventListener('click', function () {
+        PainelDoca.state.detailsScope = 'finalizados';
+        PainelDoca.state.detailsVisible = true;
+        document.getElementById('detailsPanel').classList.remove('hidden');
+        document.getElementById('toggleDetailsBtn').textContent = 'Ocultar tabela';
+        PainelDoca.scheduleRender();
+        document.getElementById('detailsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      document.getElementById('detailsScope')?.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-details-scope]');
+        if (!btn) return;
+
+        PainelDoca.state.detailsScope =
+          btn.dataset.detailsScope || 'todos';
+
+        const nomeEscopo =
+          PainelDoca.detailsScopeLabel(
+            PainelDoca.state.detailsScope
+          );
+
+        PainelDoca.toast(
+          `Escopo para tabela/JSON: ${nomeEscopo}.`
+        );
+
+        PainelDoca.scheduleRender();
+      });
+
+      document.addEventListener('click', function (event) {
+        const stat =
+          event.target.closest(
+            '[data-receive-filter]'
+          );
+
+        if (stat) {
+          const key =
+            stat.getAttribute(
+              'data-receive-filter'
+            ) || '';
+
+          if (
+            ['recebida', 'com_carga', 'sem_carga']
+              .includes(key)
+          ) {
+            PainelDoca.state.reportType = key;
+            PainelDoca.state.detailsScope =
+              'relatorio';
+          } else if (
+            key === 'cancelada_sefaz'
+          ) {
+            // Diagnóstico: nunca entra em relatório de recebimento.
+            PainelDoca.state.detailsScope =
+              'canceladas';
+          } else if (
+            key === 'pendente_sync'
+          ) {
+            // V12.1:
+            // "Falta atualizar Bluesoft" é o principal relatório de trabalho.
+            // Ao selecionar, o botão "Copiar JSON • Relatório atual"
+            // copia exatamente estas NFs.
+            PainelDoca.state.reportType =
+              'pendente_sync';
+
+            PainelDoca.state.detailsScope =
+              'relatorio';
+          }
+
+          PainelDoca.state.detailsVisible = true;
+
+          document
+            .getElementById('detailsPanel')
+            .classList.remove('hidden');
+
+          document.getElementById(
+            'toggleDetailsBtn'
+          ).textContent = 'Ocultar tabela';
+
+          PainelDoca.scheduleRender();
+
+          return;
+        }
+
+        const btn =
+          event.target.closest('[data-copy]');
+
+        if (btn) {
+          PainelDoca.copyText(
+            btn.getAttribute('data-copy') || ''
+          );
+        }
+      });
+      window.addEventListener('resize', PainelDoca.scheduleRender);
+      window.addEventListener('beforeunload', function () {
+        if (PainelDoca.state.eventSource) PainelDoca.state.eventSource.close();
+        if (PainelDoca.state.historyEventSource) PainelDoca.state.historyEventSource.close();
+        PainelDoca.cancelBluesoftListeners();
+      });
+    };
+
+    PainelDoca.start = function () {
+      const now = new Date();
+
+      // V11.4: abre em Hoje para reduzir dados, leituras e tempo de render.
+      PainelDoca.state.mode = 'today';
+      PainelDoca.state.weekStart = PainelDoca.startOfWeek(now);
+      PainelDoca.state.monthStart = PainelDoca.startOfMonth(now);
+      const range = PainelDoca.currentRange();
+      document.getElementById('dateFrom').value = range.startKey;
+      document.getElementById('dateTo').value = range.endKey;
+      PainelDoca.state.detailsVisible = true;
+      PainelDoca.state.detailsScope = 'todos';
+      PainelDoca.state.reportType = 'recebida';
+
+      document.getElementById('detailsPanel').classList.remove('hidden');
+      document.getElementById('toggleDetailsBtn').textContent = 'Ocultar tabela';
+      PainelDoca.bind();
+      PainelDoca.render();
+      PainelDoca.loadInitial();
+    };
+
+    PainelDoca.start();
+  </script>
+</body>
+</html>
