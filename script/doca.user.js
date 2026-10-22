@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Doca • Captura + Status Real + Firebase + Ordem Lojas
 // @namespace    clncentral/infradesk-doca
-// @version      4.1.1
-// @description  Painel operacional e Kanban unificados, com reservas em tempo real e integração econômica com NF-e/Status da Bluesoft.
+// @version      4.6.0
+// @description  Painel ultraleve + Bluesoft híbrida: Atualizar força leitura agora e realtime econômico acompanha só NFs ainda pendentes.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/chamados*
 // @match        https://asp.infradesk.app/backend/chamados/*
@@ -33,7 +33,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "4.1.1",
+    versao: "4.6.0",
     parametroPainel: "sigma_painel_doca",
     urlPainel: "/backend/chamados/lista?sigma_painel_doca=1",
     urlFonte: "/backend/chamados/lista",
@@ -65,8 +65,13 @@
     // Uma consulta complementar por vez evita picos de DOMParser e rede.
     consultasComplementaresSimultaneas: 1,
     cacheComplementoNfMs: 7 * 24 * 60 * 60 * 1000,
-    atrasoComplementoNfMs: 1400,
-    complementoLoteTamanho: 18,
+    // PERF_4_5: complementos só depois da tela ficar livre e em lotes pequenos.
+    atrasoComplementoNfMs: 5000,
+    complementoLoteTamanho: 6,
+    complementoMaxPorCiclo: 6,
+
+    // PERF_4_5: todos continuam pesquisáveis, mas só 120 entram no DOM.
+    maxLinhasTabela: 120,
 
     firebaseBase: "https://infra-doca-default-rtdb.firebaseio.com",
     firebaseRoot: "doca_capturas",
@@ -88,17 +93,181 @@
     // INTEGRACOES_LAZY_VIEWPORT
     // Xabuia e Comercial recebem somente os chamados próximos da área visível.
     // Isso evita centenas de cartões ocultos, observers e listeners simultâneos.
-    integracoesMaxAtivas: 18,
-    integracoesMargemPx: 650,
-    integracoesScrollDebounceMs: 140,
+    integracoesMaxAtivas: 6,
+    integracoesMargemPx: 260,
+    integracoesScrollDebounceMs: 240,
 
-    // Atualização automática leve. Zero desativa.
-    atualizarAutomaticamenteMs: 2 * 60 * 1000,
+    // Menos recargas completas do InfraDesk.
+    atualizarAutomaticamenteMs: 5 * 60 * 1000,
+
+    // BLUESOFT_HIBRIDA_ECONOMICA
+    // Fotografia geral com cache longo; realtime apenas para poucas NFs ainda pendentes.
+    bluesoftCacheMs: 5 * 60 * 1000,
+    bluesoftRealtimeAtivo: true,
+    bluesoftRealtimeMaxChaves: 30,
+    bluesoftRealtimeReconfigurarMs: 850,
+
+    // Finalizados: sincronização silenciosa para o Firebase.
+    finalizadosSyncIntervaloMs: 10 * 60 * 1000,
+    finalizadosSyncPrimeiroAtrasoMs: 6500,
 
     // A empresa informada pelo InfraDesk nem sempre representa a loja real.
     // A organização opcional usa o representante: Recebimento 03, 01 e 05.
     // Dentro de cada loja, SLA mais urgente e chamados mais antigos vêm primeiro.
   };
+
+  // =========================================================
+  // HISTORICO_FINALIZADOS_FIREBASE
+  // Atualiza somente os campos de status/histórico do chamado.
+  // Não sobrescreve os dados de captura já existentes.
+  // =========================================================
+  const CHAVE_CACHE_STATUS_FINALIZADOS =
+    "sigma_doca_status_finalizados_sync_v1";
+
+  const CHAVE_ULTIMA_DATA_FINALIZADOS =
+    "sigma_doca_status_finalizados_ultima_data_v1";
+
+  function carregarCacheStatusFinalizados() {
+    try {
+      const valor = JSON.parse(
+        localStorage.getItem(CHAVE_CACHE_STATUS_FINALIZADOS) || "{}"
+      );
+
+      return valor && typeof valor === "object" ? valor : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  let cacheStatusFinalizados = carregarCacheStatusFinalizados();
+
+  function salvarCacheStatusFinalizados() {
+    try {
+      const entradas = Object.entries(cacheStatusFinalizados)
+        .sort(function (a, b) {
+          return Number(b[1]?.salvoEm || 0) - Number(a[1]?.salvoEm || 0);
+        })
+        .slice(0, 4000);
+
+      cacheStatusFinalizados = Object.fromEntries(entradas);
+
+      localStorage.setItem(
+        CHAVE_CACHE_STATUS_FINALIZADOS,
+        JSON.stringify(cacheStatusFinalizados)
+      );
+    } catch (_) {}
+  }
+
+  function assinaturaFinalizadoFirebase(item) {
+    return [
+      String(item?.id || ""),
+      String(item?.statusId || ""),
+      texto(item?.finalizadoTexto || ""),
+      texto(item?.atendente || ""),
+      texto(item?.representante || item?.solicitante || ""),
+      somenteDigitos(item?.chaveNf || item?.chaveNfTexto || ""),
+    ].join("|");
+  }
+
+  async function sincronizarHistoricoFinalizadosFirebase(itens) {
+    const lista = (itens || [])
+      .filter(function (item) {
+        return item && String(item.statusId) === "4";
+      })
+      .filter(function (item) {
+        const id = String(item.id || "");
+        const assinatura = assinaturaFinalizadoFirebase(item);
+
+        return (
+          !cacheStatusFinalizados[id] ||
+          cacheStatusFinalizados[id].assinatura !== assinatura
+        );
+      });
+
+    if (!lista.length) return;
+
+    const agora = Date.now();
+
+    // Evita PATCH gigantesco de uma única vez.
+    for (let inicio = 0; inicio < lista.length; inicio += 180) {
+      const lote = lista.slice(inicio, inicio + 180);
+      const patch = {};
+
+      lote.forEach(function (item) {
+        const base = `by_id/${item.id}`;
+
+        patch[`${base}/chamadoId`] = item.id;
+        patch[`${base}/statusId`] = "4";
+        patch[`${base}/statusNome`] = CONFIG.statusNomes["4"];
+        patch[`${base}/statusAtualizadoEmMs`] = agora;
+        patch[`${base}/origemStatus`] =
+          "painel-doca-consulta-finalizados";
+
+        if (item.aberturaTexto) {
+          patch[`${base}/aberturaTexto`] = item.aberturaTexto;
+        }
+
+        if (item.finalizadoTexto) {
+          patch[`${base}/finalizadoTexto`] = item.finalizadoTexto;
+          const finalizadoMs = dataMs(item.finalizado);
+          if (finalizadoMs) {
+            patch[`${base}/finalizadoEmMs`] = finalizadoMs;
+          }
+        }
+
+        if (item.representante || item.solicitante) {
+          patch[`${base}/representante`] =
+            item.representante || item.solicitante;
+        }
+
+        if (item.atendente) {
+          patch[`${base}/atendente`] = item.atendente;
+        }
+
+        if (item.fornecedor) {
+          patch[`${base}/fornecedorNome`] = item.fornecedor;
+        }
+
+        if (item.chaveNf) {
+          patch[`${base}/chaveAcesso`] = item.chaveNf;
+        }
+
+        if (item.nota) {
+          patch[`${base}/nfNumeroTexto`] = item.nota;
+        }
+      });
+
+      const res = await gmRequest({
+        method: "PATCH",
+        url:
+          firebaseUrl(CONFIG.firebaseRoot) +
+          `?print=silent&_=${Date.now()}`,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        data: JSON.stringify(patch),
+        timeout: 15000,
+      });
+
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(
+          `Firebase histórico Finalizados PATCH ${res.status}`
+        );
+      }
+
+      lote.forEach(function (item) {
+        const id = String(item.id || "");
+        if (!id) return;
+
+        cacheStatusFinalizados[id] = {
+          assinatura: assinaturaFinalizadoFirebase(item),
+          salvoEm: agora,
+        };
+      });
+
+      salvarCacheStatusFinalizados();
+    }
+  }
 
   // =========================================================
   // BLUESOFT_FIREBASE_COMPARTILHADO
@@ -127,6 +296,7 @@
   const BLUESOFT_FIREBASE_MAX_CHAVES_POR_CONSULTA = 30;
   const BLUESOFT_URL_RECEBIMENTO = "https://erp.bluesoft.com.br/flex/comercial/recebimentoMercadorias/prosseguirComRecebimento.action?nfKey=";
   const BLUESOFT_URL_STATUS = "https://erp.bluesoft.com.br/flex/comercial/statusRecebimentoMercadorias/exibirHistorico.action?nfKey=";
+  const BLUESOFT_URL_CARGA = "https://erp.bluesoft.com.br/flex/erp-app/areas/estoques/recebimento-mercadoria/consultar-itens-nf/index.action#/estoques/recebimento-mercadoria/consultar-itens-nf/";
 
   // ICONES_OFICIAIS_BLUESOFT — CTRL + F: ICONES_OFICIAIS_BLUESOFT
   // Mesmos arquivos usados pelo ERP Bluesoft na consulta de NF-e.
@@ -164,6 +334,15 @@
     capturandoIds: {},
     filtroStatus: "todos",
     filtroSituacao: "todas",
+
+    // HISTORICO_FINALIZADOS
+    // Finalizados NÃO entram por padrão. O usuário escolhe quando precisa
+    // pesquisar notas antigas pelo painel.
+    incluirFinalizados: false,
+    finalizadosInicio: "",
+    finalizadosFim: "",
+    carregandoFinalizados: false,
+
     ultimaAtualizacao: 0,
     buscaTocada: false,
     filtrosObserver: null,
@@ -219,6 +398,11 @@
     integracaoAtivos: new Set(),
     complementoNfTimer: null,
 
+    // FINALIZADOS_SYNC_SILENCIOSO
+    finalizadosSyncSilenciosoRodando: false,
+    finalizadosSyncSilenciosoTimer: null,
+    finalizadosSyncSilenciosoInterval: null,
+
     // BLUESOFT_FIREBASE_COMPARTILHADO
     bluesoftFirestore: null,
     bluesoftFirebaseInicializacao: null,
@@ -227,6 +411,21 @@
     bluesoftAssinaturaChaves: "",
     bluesoftSyncTimer: null,
     bluesoftFalhaEm: 0,
+    bluesoftUltimaConsultaEm: 0,
+    bluesoftRealtimeAssinatura: "",
+    bluesoftRealtimeReconfigTimer: null,
+
+    // FILA_CHAVES_BLUESOFT
+    // CTRL + F: FILA_CHAVES_BLUESOFT
+    // Fila local para copiar as chaves de acesso uma por uma para a Bluesoft.
+    filaChaves: {
+      itens: [],
+      indice: 0,
+      escopo: "",
+      geradaEm: "",
+      ignoradas: 0,
+      duplicadas: 0,
+    },
   };
 
   prepararPainel().catch(function (falha) {
@@ -235,8 +434,9 @@
     mostrarErroFatal(falha);
   });
 
+
   // =========================================================
-  // ABRIR_PAINEL
+  // ABRIR_PAINEL — BOTÃO COMPACTO
   // =========================================================
   function instalarBotaoAbrirPainel() {
     const instalar = function () {
@@ -247,8 +447,9 @@
       link.href = CONFIG.urlPainel;
       link.target = "_blank";
       link.rel = "noopener";
-      link.innerHTML = '<i class="fa-solid fa-warehouse"></i><span>Painel Doca</span>';
+      link.innerHTML = '<i class="fa-solid fa-warehouse"></i><span>Painel</span>';
       link.title = "Abrir o Painel Operacional da Doca";
+
       link.style.cssText = [
         "position:fixed",
         "right:18px",
@@ -256,19 +457,22 @@
         "z-index:999999",
         "display:inline-flex",
         "align-items:center",
-        "gap:8px",
-        "height:42px",
-        "padding:0 15px",
-        "border-radius:12px",
+        "justify-content:center",
+        "gap:5px",
+        "height:32px",
+        "padding:0 9px",
+        "border-radius:9px",
         "background:#102238",
         "color:#fff",
-        "font:800 13px Arial,sans-serif",
+        "font:700 11px Arial,sans-serif",
         "text-decoration:none",
-        "box-shadow:0 10px 28px rgba(15,23,42,.32)",
+        "box-shadow:0 5px 15px rgba(15,23,42,.25)",
+        "white-space:nowrap",
       ].join(";");
 
       document.body.appendChild(link);
     };
+
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", instalar, { once: true });
@@ -342,8 +546,26 @@
     renderizar();
     configurarIntegracoesLazy();
     agendarComplementoNfEmOciosidade();
+    agendarPreparoMotorCaptura();
     conectarRealtimeReservas();
     configurarAtualizacaoAutomatica();
+
+    // Sincroniza Finalizados sem colocar nenhum deles na tabela.
+    agendarSincronizacaoFinalizadosSilencioso();
+
+    clearInterval(state.finalizadosSyncSilenciosoInterval);
+
+    state.finalizadosSyncSilenciosoInterval = setInterval(function () {
+      if (
+        document.hidden ||
+        state.carregando ||
+        Object.keys(state.capturandoIds || {}).length
+      ) {
+        return;
+      }
+
+      agendarSincronizacaoFinalizadosSilencioso(1800);
+    }, CONFIG.finalizadosSyncIntervaloMs || 10 * 60 * 1000);
   }
 
   // =========================================================
@@ -382,7 +604,7 @@
     /* Os scripts originais do InfraDesk podem terminar de carregar depois que
        o painel já foi montado e tentar recolocar listas/modais antigos no BODY.
        Esta barreira mantém visíveis somente os elementos pertencentes ao painel. */
-    body > *:not(#sigma-doca-app):not(#sigma-modal):not(#sigma-feedback-modal):not(#sigma-premsg-modal):not(#sigma-toast):not(#sigma-motor-infradesk):not(#xabuia-overlay):not(#xabuia-toast):not(#xabuia-force-update-overlay):not(#xabuia-loader-error):not(#comercial-overlay):not(#comercial-toast):not(#comercial-loader-error) {
+    body > *:not(#sigma-doca-app):not(#sigma-modal):not(#sigma-feedback-modal):not(#sigma-premsg-modal):not(#sigma-fila-modal):not(#sigma-toast):not(#sigma-motor-infradesk):not(#xabuia-overlay):not(#xabuia-toast):not(#xabuia-force-update-overlay):not(#xabuia-loader-error):not(#comercial-overlay):not(#comercial-toast):not(#comercial-loader-error) {
       display:none !important;
     }
 
@@ -491,6 +713,34 @@
     .sigma-campo input:focus,.sigma-campo select:focus,.sigma-busca-segura:focus {
       border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12);
     }
+    .sigma-campo-check {
+      display:flex;
+      align-items:center;
+      min-height:36px;
+      padding:0 9px;
+      border:1px solid #cbd5e1;
+      border-radius:7px;
+      background:#f8fafc;
+      color:#334155;
+      font-size:9.5px;
+      font-weight:900;
+      white-space:nowrap;
+      cursor:pointer;
+    }
+
+    .sigma-campo-check input {
+      width:15px!important;
+      height:15px!important;
+      min-height:15px!important;
+      margin:0 7px 0 0!important;
+      padding:0!important;
+      accent-color:#2563eb;
+    }
+
+    .sigma-campo-historico-desabilitado {
+      opacity:.48;
+    }
+
 
     /* O InfraDesk tenta converter SELECTs novos em Select2. Nos filtros do
        painel usamos somente os campos nativos para não duplicar opções fora
@@ -523,7 +773,7 @@
       background:#fff;box-shadow:0 7px 22px rgba(15,23,42,.07);
     }
     .sigma-grade { width:100%;min-width:1120px;table-layout:fixed;border-collapse:separate;border-spacing:0; }
-    #sigma-doca-app.sigma-mostrar-colunas-opcionais .sigma-grade { min-width:1580px; }
+    #sigma-doca-app.sigma-mostrar-colunas-opcionais .sigma-grade { min-width:1740px; }
     .sigma-grade thead th {
       position:sticky;top:0;z-index:20;padding:10px 8px;border:0;background:var(--dark);
       color:#fff;font-size:10.5px;text-align:left;white-space:nowrap;
@@ -550,6 +800,7 @@
     }
     .status-2 { background:#dcfce7;color:#166534; }
     .status-3 { background:#dbeafe;color:#1d4ed8; }
+    .status-4 { background:#dcfce7;color:#166534; }
     .status-5 { background:#fee2e2;color:#991b1b; }
     .status-6 { background:#ede9fe;color:#5b21b6; }
 
@@ -580,6 +831,44 @@
     .sigma-pessoa small { display:block;color:#7c8ba1;font-size:9px; }
     .sigma-data { white-space:nowrap;font-weight:800; }
     .sigma-data small { display:block;margin-top:2px;color:#7c8ba1;font-size:9px; }
+
+    /* CARGA_BLUESOFT — CTRL + F: CARGA_BLUESOFT */
+    .sigma-carga {
+      font-size:10px;font-weight:800;line-height:1.25;color:#334155;
+    }
+    .sigma-carga a {
+      display:inline-flex;align-items:center;gap:5px;color:#1d4ed8;
+      font-size:11px;font-weight:950;text-decoration:none;
+    }
+    .sigma-carga a:hover { text-decoration:underline; }
+    .sigma-carga-numero {
+      display:inline-flex;align-items:center;gap:5px;max-width:100%;
+    }
+    .sigma-carga-status {
+      display:inline-flex;align-items:center;min-height:19px;margin-top:3px;
+      padding:0 6px;border-radius:999px;background:#eff6ff;color:#1d4ed8;
+      font-size:8px;font-weight:950;white-space:nowrap;
+    }
+    .sigma-carga-status.fechada {
+      background:#dcfce7;color:#166534;
+    }
+    .sigma-carga-status.divergente {
+      background:#fff7ed;color:#c2410c;
+    }
+    .sigma-carga-sem {
+      display:inline-flex;align-items:center;min-height:21px;padding:0 7px;
+      border-radius:999px;background:#fff1f2;color:#b91c1c;
+      font-size:8.5px;font-weight:950;
+    }
+    .sigma-carga-nao-sync {
+      display:inline-flex;align-items:center;min-height:21px;padding:0 7px;
+      border-radius:999px;background:#f1f5f9;color:#64748b;
+      font-size:8.5px;font-weight:900;
+    }
+    .sigma-carga small {
+      display:block;margin-top:3px;overflow:hidden;color:#64748b;
+      font-size:8.5px;font-weight:800;text-overflow:ellipsis;white-space:nowrap;
+    }
 
     .sigma-owner {
       display:inline-flex;align-items:center;gap:5px;max-width:145px;min-height:23px;padding:0 7px;
@@ -614,12 +903,22 @@
     .sigma-acao-integracao img { width:19px;height:19px;border-radius:5px;display:block; }
 
     .sigma-resumo-direita { display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0; }
+    .sigma-limite-tabela {
+      display:none;align-items:center;min-height:26px;padding:0 8px;
+      border:1px solid #fde68a;border-radius:999px;background:#fffbeb;color:#92400e;
+      font-size:8.5px;font-weight:950;white-space:nowrap;
+    }
     .sigma-colunas-btn {
       display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 9px;border:1px solid #cbd5e1;
       border-radius:8px;background:#f8fafc;color:#334155;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap;
     }
     .sigma-colunas-btn:hover,.sigma-colunas-btn.ativo { border-color:#2563eb;background:#eff6ff;color:#1d4ed8; }
     .sigma-colunas-btn b { display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:8px; }
+    .sigma-colunas-btn:disabled { opacity:.48;cursor:not-allowed; }
+
+    /* FILA_CHAVES_BLUESOFT — CTRL + F: FILA_CHAVES_BLUESOFT */
+    #sigma-fila-chaves:not(:disabled) { border-color:#93c5fd;background:#eff6ff;color:#1d4ed8; }
+    #sigma-fila-chaves:not(:disabled):hover { border-color:#2563eb;background:#dbeafe; }
 
     #sigma-integracao-bridge {
       position:fixed!important;left:-100000px!important;top:0!important;width:420px!important;height:auto!important;
@@ -700,13 +999,14 @@
 
     /* FEEDBACK_MODAL_PROPRIO
        O feedback não abre mais uma página inteira dentro de iframe. */
-    #sigma-feedback-modal,#sigma-premsg-modal {
+    #sigma-feedback-modal,#sigma-premsg-modal,#sigma-fila-modal {
       position:fixed;inset:0;display:none;align-items:center;justify-content:center;
       padding:16px;background:rgba(15,23,42,.76);backdrop-filter:blur(2px);
     }
     #sigma-feedback-modal { z-index:2200000; }
+    #sigma-fila-modal { z-index:2250000;background:rgba(15,23,42,.80); }
     #sigma-premsg-modal { z-index:2300000;background:rgba(15,23,42,.82); }
-    #sigma-feedback-modal.ativo,#sigma-premsg-modal.ativo { display:flex; }
+    #sigma-feedback-modal.ativo,#sigma-premsg-modal.ativo,#sigma-fila-modal.ativo { display:flex; }
     .sigma-feedback-caixa {
       display:flex;flex-direction:column;width:min(980px,calc(100vw - 30px));
       max-height:calc(100vh - 30px);overflow:hidden;border-radius:14px;background:#fff;
@@ -758,6 +1058,55 @@
     .sigma-premsg-preview { max-height:64px;overflow:hidden;color:#64748b;font-size:10px;line-height:1.35; }
     .sigma-premsg-busca { width:100%;height:35px;margin-bottom:10px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:11px; }
     .sigma-premsg-busca[readonly] { background:#fff;color:#172033;cursor:text; }
+
+    .sigma-fila-caixa { width:min(980px,calc(100vw - 30px)); }
+    .sigma-fila-resumo {
+      display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;margin-bottom:12px;
+    }
+    .sigma-fila-card {
+      padding:10px 11px;border:1px solid #dbe3ec;border-radius:10px;background:#fff;
+    }
+    .sigma-fila-card small { display:block;color:#64748b;font-size:9px;font-weight:800; }
+    .sigma-fila-card strong { display:block;margin-top:3px;color:#172033;font-size:15px; }
+    .sigma-fila-proxima {
+      display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+      margin-bottom:12px;padding:12px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;
+    }
+    .sigma-fila-proxima small { display:block;color:#64748b;font-size:9px;font-weight:800; }
+    .sigma-fila-proxima strong { display:block;margin-top:3px;color:#1e3a8a;font-size:13px;word-break:break-all; }
+    .sigma-fila-proxima em { display:block;margin-top:4px;color:#475569;font-size:10px;font-style:normal; }
+    .sigma-fila-acoes { display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px; }
+    .sigma-fila-btn {
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:35px;
+      padding:0 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;
+      font-size:10px;font-weight:900;cursor:pointer;
+    }
+    .sigma-fila-btn:hover { border-color:#2563eb;background:#eff6ff;color:#1d4ed8; }
+    .sigma-fila-btn.primario { border-color:#2563eb;background:#2563eb;color:#fff; }
+    .sigma-fila-btn.primario:hover { background:#1d4ed8;color:#fff; }
+    .sigma-fila-btn:disabled { opacity:.45;cursor:not-allowed; }
+    .sigma-fila-aviso {
+      margin-bottom:12px;padding:9px 11px;border:1px solid #fde68a;border-radius:9px;
+      background:#fffbeb;color:#92400e;font-size:9.5px;font-weight:800;line-height:1.4;
+    }
+    .sigma-fila-lista {
+      overflow:auto;max-height:330px;border:1px solid #dbe3ec;border-radius:10px;background:#fff;
+    }
+    .sigma-fila-tabela { width:100%;border-collapse:collapse; }
+    .sigma-fila-tabela th,.sigma-fila-tabela td {
+      padding:8px 9px;border-bottom:1px solid #eef2f7;text-align:left;font-size:9.5px;vertical-align:middle;
+    }
+    .sigma-fila-tabela th {
+      position:sticky;top:0;z-index:2;background:#f8fafc;color:#475569;font-size:9px;
+    }
+    .sigma-fila-tabela td.chave { font-family:Consolas,monospace;word-break:break-all; }
+    .sigma-fila-tabela tr.copiada td { background:#f0fdf4;color:#166534; }
+    .sigma-fila-tabela tr.proxima td { background:#eff6ff; }
+    .sigma-fila-json {
+      width:100%;min-height:110px;margin-top:12px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;
+      background:#0f172a;color:#e2e8f0;font:10px/1.45 Consolas,monospace;resize:vertical;
+    }
+
     .sigma-autofill-armadilha {
       position:fixed!important;left:-10000px!important;top:-10000px!important;width:1px!important;height:1px!important;
       overflow:hidden!important;opacity:0!important;pointer-events:none!important;
@@ -791,7 +1140,7 @@
         <span class="sigma-marca-icone"><i class="fa-solid fa-warehouse"></i></span>
         <span>
           <strong>Painel Operacional da Doca</strong>
-          <small>Fila independente do Kanban • Status ativos, última movimentação e captura protegida • v${CONFIG.versao}</small>
+          <small>Fila operacional rápida • busca por chave • Finalizados sincronizados em segundo plano • v${CONFIG.versao}</small>
         </span>
       </div>
       <div class="sigma-topo-acoes">
@@ -842,12 +1191,16 @@
         <button class="sigma-chip" type="button" data-situacao="reservadas">Reservadas por outros <b id="sigma-sit-reservadas">0</b></button>
       </div>
       <div class="sigma-resumo-direita">
+        <button class="sigma-colunas-btn" id="sigma-fila-chaves" type="button" title="Criar fila com as chaves de acesso visíveis. Se houver linhas marcadas, usa somente as marcadas." disabled>
+          <i class="fa-solid fa-list-ol"></i><span>Fila de chaves</span><b id="sigma-fila-count">0</b>
+        </button>
         <button class="sigma-colunas-btn sigma-lote-btn" id="sigma-abrir-lote" type="button" title="Selecionar vários chamados e gravar a mesma ocorrência em lote" disabled>
           <i class="fa-solid fa-layer-group"></i><span>Ação em lote</span><b id="sigma-lote-count">0</b>
         </button>
-        <button class="sigma-colunas-btn" id="sigma-toggle-colunas" type="button" title="Mostrar ou ocultar as quatro colunas secundárias">
-          <i class="fa-solid fa-table-columns"></i><span>Exibir colunas ocultas</span><b>4</b>
+        <button class="sigma-colunas-btn" id="sigma-toggle-colunas" type="button" title="Mostrar ou ocultar as cinco colunas secundárias">
+          <i class="fa-solid fa-table-columns"></i><span>Exibir colunas ocultas</span><b>5</b>
         </button>
+        <span id="sigma-limite-tabela" class="sigma-limite-tabela"></span>
         <span id="sigma-status-carregamento" aria-hidden="true"></span>
       </div>
     </section>
@@ -861,6 +1214,7 @@
             <th style="width:120px">Status</th>
             <th style="width:150px">Tipo</th>
             <th style="width:420px">NF / chave / Xabuia e Comercial</th>
+            <th class="sigma-col-opcional" style="width:160px">Carga</th>
             <th style="width:225px">Fornecedor</th>
             <th class="sigma-col-opcional" style="width:175px">Representante</th>
             <th class="sigma-col-opcional" style="width:155px">Última movimentação</th>
@@ -870,7 +1224,7 @@
           </tr>
         </thead>
         <tbody id="sigma-corpo-tabela">
-          <tr><td colspan="11" class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando chamados...</td></tr>
+          <tr><td colspan="12" class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando chamados...</td></tr>
         </tbody>
       </table>
     </main>
@@ -925,6 +1279,17 @@
       <div class="sigma-feedback-corpo" id="sigma-premsg-corpo">
         <div class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando mensagens...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- FILA_CHAVES_BLUESOFT — CTRL + F: FILA_CHAVES_BLUESOFT -->
+  <div id="sigma-fila-modal" aria-hidden="true">
+    <div class="sigma-feedback-caixa sigma-fila-caixa">
+      <div class="sigma-feedback-topo">
+        <strong>Fila de chaves NF-e • Bluesoft</strong>
+        <button id="sigma-fila-fechar" type="button"><i class="fa-solid fa-xmark"></i> Fechar</button>
+      </div>
+      <div class="sigma-feedback-corpo" id="sigma-fila-corpo"></div>
     </div>
   </div>
 
@@ -1088,6 +1453,53 @@
     }).format(data).replace(",", "");
   }
 
+  // =========================================================
+  // HISTORICO_FINALIZADOS
+  // =========================================================
+  function dataInputHoje() {
+    const agora = new Date();
+    const y = agora.getFullYear();
+    const m = String(agora.getMonth() + 1).padStart(2, "0");
+    const d = String(agora.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function dataInputInicioMes() {
+    const agora = new Date();
+    const y = agora.getFullYear();
+    const m = String(agora.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}-01`;
+  }
+
+  function dataInputParaBr(valor) {
+    const m = String(valor || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+  }
+
+  function configurarCamposHistoricoFinalizados() {
+    const check = document.getElementById("sigma-incluir-finalizados");
+    const inicio = document.getElementById("sigma-finalizados-inicio");
+    const fim = document.getElementById("sigma-finalizados-fim");
+    const wrapInicio = document.getElementById("sigma-wrap-finalizados-inicio");
+    const wrapFim = document.getElementById("sigma-wrap-finalizados-fim");
+
+    if (!check || !inicio || !fim) return;
+
+    if (!inicio.value) inicio.value = state.finalizadosInicio || dataInputInicioMes();
+    if (!fim.value) fim.value = state.finalizadosFim || dataInputHoje();
+
+    state.finalizadosInicio = inicio.value;
+    state.finalizadosFim = fim.value;
+
+    check.checked = !!state.incluirFinalizados;
+
+    const habilitado = !!check.checked;
+    inicio.disabled = !habilitado;
+    fim.disabled = !habilitado;
+    wrapInicio?.classList.toggle("sigma-campo-historico-desabilitado", !habilitado);
+    wrapFim?.classList.toggle("sigma-campo-historico-desabilitado", !habilitado);
+  }
+
   function detectarUsuario(doc) {
     const out = { nome: "", id: "", login: "" };
     const selectors = [
@@ -1124,9 +1536,31 @@
   // =========================================================
   function configurarEventos() {
     document.getElementById("sigma-atualizar").addEventListener("click", async function () {
-      await atualizarTudo();
+      const botao = this;
+
+      try {
+        botao.disabled = true;
+        botao.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i> Atualizando';
+
+        await atualizarTudo({
+          forcarBluesoft: true,
+          manual: true
+        });
+
+        toast("InfraDesk + Bluesoft atualizados agora.", "sucesso");
+      } catch (falha) {
+        console.error(PREFIXO, "Atualização manual falhou.", falha);
+        toast(
+          "Atualização incompleta: " + texto(falha?.message || falha),
+          "erro"
+        );
+      } finally {
+        botao.disabled = false;
+        botao.innerHTML = '<i class="fa-solid fa-rotate"></i> Atualizar';
+      }
     });
     document.getElementById("sigma-abrir-lote")?.addEventListener("click", abrirModalFeedbackLote);
+    document.getElementById("sigma-fila-chaves")?.addEventListener("click", abrirFilaChavesBluesoft);
     document.getElementById("sigma-selecao-todos")?.addEventListener("change", function (event) {
       selecionarTodosVisiveis(!!event.target.checked);
     });
@@ -1234,10 +1668,29 @@
       fecharMensagensPredefinidas();
     });
 
+    document.getElementById("sigma-fila-fechar")?.addEventListener("click", fecharFilaChavesBluesoft);
+    document.getElementById("sigma-fila-modal")?.addEventListener("click", function (event) {
+      if (event.target.id === "sigma-fila-modal") fecharFilaChavesBluesoft();
+    });
+    document.getElementById("sigma-fila-corpo")?.addEventListener("click", async function (event) {
+      const botao = event.target.closest("[data-fila-acao]");
+      if (!botao) return;
+      const acao = botao.dataset.filaAcao || "";
+      if (acao === "proxima") await copiarProximaChaveBluesoft();
+      if (acao === "todas") await copiarTodasChavesBluesoft();
+      if (acao === "json") await copiarJsonFilaChavesBluesoft();
+      if (acao === "reiniciar") {
+        state.filaChaves.indice = 0;
+        renderizarFilaChavesBluesoft();
+      }
+    });
+
     document.addEventListener("keydown", function (event) {
       if (event.key !== "Escape") return;
       if (document.getElementById("sigma-premsg-modal")?.classList.contains("ativo")) {
         fecharMensagensPredefinidas();
+      } else if (document.getElementById("sigma-fila-modal")?.classList.contains("ativo")) {
+        fecharFilaChavesBluesoft();
       } else if (document.getElementById("sigma-feedback-modal")?.classList.contains("ativo")) {
         fecharModalFeedback();
       } else {
@@ -1346,7 +1799,12 @@
 
   function agendarRender() {
     clearTimeout(state.renderTimer);
-    state.renderTimer = setTimeout(renderizar, 80);
+
+    // Evita reconstruir uma tabela grande a cada tecla digitada.
+    state.renderTimer = setTimeout(
+      renderizar,
+      state.incluirFinalizados ? 160 : 110
+    );
   }
 
   // =========================================================
@@ -1398,6 +1856,362 @@
     return url.toString();
   }
 
+  function montarUrlFonteFinalizados(pagina) {
+    const url = new URL(CONFIG.urlFonte, window.location.origin);
+
+    // FINALIZADOS_URL_NATIVA
+    // O link "Finalizado" da própria lista do InfraDesk usa:
+    // status_id[0]=4 + is_active=1 + is_inativo=0.
+    // A v4.4.0 usava is_inativo=1 e por isso podia retornar zero resultados.
+    url.searchParams.set("is_active", "1");
+    url.searchParams.set("is_inativo", "0");
+    url.searchParams.set("status_id[0]", "4");
+    url.searchParams.set("categoria_ignorar", "0");
+    url.searchParams.set("show_descricao_curta", "0");
+    url.searchParams.set("is_interacao_solicitante", "0");
+    url.searchParams.set("tempo_excedido", "0");
+    url.searchParams.set("sort", "id");
+    url.searchParams.set("direction", "desc");
+
+    const inicio = dataInputParaBr(
+      document.getElementById("sigma-finalizados-inicio")?.value ||
+      state.finalizadosInicio
+    );
+    const fim = dataInputParaBr(
+      document.getElementById("sigma-finalizados-fim")?.value ||
+      state.finalizadosFim
+    );
+
+    // "data" é o Período Abertura da própria lista do InfraDesk.
+    if (inicio && fim) {
+      url.searchParams.set("data", `${inicio} - ${fim}`);
+    }
+
+    if (pagina > 1) {
+      url.searchParams.set("page", String(pagina));
+    }
+
+    return url.toString();
+  }
+
+  async function carregarChamadosFinalizados() {
+    if (!state.incluirFinalizados) return [];
+
+    const inicio =
+      document.getElementById("sigma-finalizados-inicio")?.value || "";
+    const fim =
+      document.getElementById("sigma-finalizados-fim")?.value || "";
+
+    if (!inicio || !fim) {
+      throw new Error(
+        "Informe o período de abertura para consultar Finalizados."
+      );
+    }
+
+    if (inicio > fim) {
+      throw new Error(
+        "A data inicial dos Finalizados não pode ser maior que a final."
+      );
+    }
+
+    atualizarStatus(
+      `Consultando Finalizados por abertura • ${dataInputParaBr(inicio)} a ${dataInputParaBr(fim)}...`
+    );
+
+    const primeira = await buscarPaginaFinalizados(1);
+    const totalPaginas = obterTotalPaginas(primeira.doc);
+    const mapa = new Map();
+
+    primeira.itens.forEach(function (item) {
+      if (item.statusId === "4") mapa.set(item.id, item);
+    });
+
+    let proxima = 2;
+    let concluidas = 1;
+    const workers = [];
+    const quantidade = Math.min(
+      CONFIG.paginasSimultaneas,
+      Math.max(0, totalPaginas - 1)
+    );
+
+    for (let w = 0; w < quantidade; w++) {
+      workers.push((async function () {
+        while (true) {
+          const pagina = proxima++;
+          if (pagina > totalPaginas) return;
+
+          const resultado =
+            await buscarPaginaFinalizados(pagina);
+
+          resultado.itens.forEach(function (item) {
+            if (item.statusId === "4") {
+              mapa.set(item.id, item);
+            }
+          });
+
+          concluidas++;
+
+          atualizarStatus(
+            `Finalizados ${concluidas}/${totalPaginas} página(s) • ${mapa.size} chamado(s)`
+          );
+        }
+      })());
+    }
+
+    await Promise.all(workers);
+
+    const itens = Array.from(mapa.values());
+
+    if (!itens.length) {
+      atualizarStatus(
+        `Nenhum Finalizado encontrado por abertura • ${dataInputParaBr(inicio)} a ${dataInputParaBr(fim)}`
+      );
+    }
+
+    // Além de exibir no painel, este painel novo faz o backfill do status real.
+    // Assim usuários com scripts antigos também acabam corrigidos no Firebase
+    // quando alguém consulta o histórico neste painel.
+    sincronizarHistoricoFinalizadosFirebase(itens).catch(function (erro) {
+      console.warn(
+        PREFIXO,
+        "Falha ao sincronizar histórico Finalizado no Firebase",
+        erro
+      );
+    });
+
+    return itens;
+  }
+
+  async function atualizarSomenteHistoricoFinalizados() {
+    if (state.carregandoFinalizados) return;
+
+    state.carregandoFinalizados = true;
+
+    try {
+      const assinaturasAntes = new Map(
+        state.chamados.map(function (item) {
+          return [
+            String(item.id),
+            assinaturaLinhaItem(item)
+          ];
+        })
+      );
+
+      // Desmarcou: remove apenas os status 4 da memória.
+      if (!state.incluirFinalizados) {
+        state.chamados = state.chamados.filter(
+          function (item) {
+            return String(item.statusId) !== "4";
+          }
+        );
+
+        reconstruirFiltros();
+        sincronizarTabelaIncremental(
+          assinaturasAntes
+        );
+
+        atualizarStatus(
+          `${state.chamados.length} chamados ativos`
+        );
+
+        return;
+      }
+
+      const finalizados =
+        await carregarChamadosFinalizados();
+
+      // Preserva toda a fila ativa já carregada e substitui
+      // somente o bloco de histórico status 4.
+      const mapa = new Map();
+
+      state.chamados
+        .filter(function (item) {
+          return String(item.statusId) !== "4";
+        })
+        .forEach(function (item) {
+          mapa.set(String(item.id), item);
+        });
+
+      finalizados.forEach(function (item) {
+        mapa.set(String(item.id), item);
+      });
+
+      state.chamados =
+        Array.from(mapa.values());
+
+      reconstruirFiltros();
+      sincronizarTabelaIncremental(
+        assinaturasAntes
+      );
+
+      atualizarStatus(
+        `${state.chamados.filter(i => String(i.statusId) !== "4").length} ativos + ${finalizados.length} finalizados`
+      );
+    } catch (falha) {
+      console.error(
+        PREFIXO,
+        "Falha ao atualizar somente Finalizados",
+        falha
+      );
+
+      toast(
+        "Não consegui consultar os Finalizados: " +
+          texto(falha.message || falha),
+        "erro"
+      );
+    } finally {
+      state.carregandoFinalizados = false;
+    }
+  }
+
+  function dataInputMenosDias(dias) {
+    const data = new Date();
+    data.setHours(0, 0, 0, 0);
+    data.setDate(data.getDate() - Math.max(0, Number(dias) || 0));
+
+    const y = data.getFullYear();
+    const m = String(data.getMonth() + 1).padStart(2, "0");
+    const d = String(data.getDate()).padStart(2, "0");
+
+    return `${y}-${m}-${d}`;
+  }
+
+  function inicioSyncFinalizadosSilencioso() {
+    let ultimo = "";
+
+    try {
+      ultimo =
+        localStorage.getItem(CHAVE_ULTIMA_DATA_FINALIZADOS) || "";
+    } catch (_) {}
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ultimo)) {
+      return dataInputMenosDias(1);
+    }
+
+    const base = new Date(`${ultimo}T00:00:00`);
+
+    if (Number.isNaN(base.getTime())) {
+      return dataInputMenosDias(1);
+    }
+
+    base.setDate(base.getDate() - 1);
+
+    const minimo = new Date(`${dataInputMenosDias(7)}T00:00:00`);
+
+    if (base < minimo) {
+      return dataInputMenosDias(7);
+    }
+
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, "0");
+    const d = String(base.getDate()).padStart(2, "0");
+
+    return `${y}-${m}-${d}`;
+  }
+
+  function montarUrlFinalizadosSilencioso(pagina) {
+    const url = new URL(CONFIG.urlFonte, window.location.origin);
+
+    url.searchParams.set("is_active", "1");
+    url.searchParams.set("is_inativo", "0");
+    url.searchParams.set("status_id[0]", "4");
+    url.searchParams.set("categoria_ignorar", "0");
+    url.searchParams.set("show_descricao_curta", "0");
+    url.searchParams.set("is_interacao_solicitante", "0");
+    url.searchParams.set("tempo_excedido", "0");
+    url.searchParams.set("sort", "id");
+    url.searchParams.set("direction", "desc");
+
+    const inicio = inicioSyncFinalizadosSilencioso();
+    const fim = dataInputHoje();
+
+    url.searchParams.set(
+      "data_termino",
+      `${dataInputParaBr(inicio)} - ${dataInputParaBr(fim)}`
+    );
+
+    if (pagina > 1) {
+      url.searchParams.set("page", String(pagina));
+    }
+
+    return url.toString();
+  }
+
+  async function sincronizarFinalizadosSilencioso() {
+    if (state.finalizadosSyncSilenciosoRodando) return;
+
+    state.finalizadosSyncSilenciosoRodando = true;
+
+    try {
+      const primeira = await buscarPaginaComMontador(
+        1,
+        montarUrlFinalizadosSilencioso,
+        900000000
+      );
+
+      const totalPaginas = obterTotalPaginas(primeira.doc);
+      const mapa = new Map();
+
+      primeira.itens.forEach(function (item) {
+        if (String(item.statusId) === "4") {
+          mapa.set(String(item.id), item);
+        }
+      });
+
+      for (let pagina = 2; pagina <= totalPaginas; pagina++) {
+        await cederAoNavegador();
+
+        const resultado = await buscarPaginaComMontador(
+          pagina,
+          montarUrlFinalizadosSilencioso,
+          900000000
+        );
+
+        resultado.itens.forEach(function (item) {
+          if (String(item.statusId) === "4") {
+            mapa.set(String(item.id), item);
+          }
+        });
+      }
+
+      const finalizados = Array.from(mapa.values());
+
+      await sincronizarHistoricoFinalizadosFirebase(finalizados);
+
+      try {
+        localStorage.setItem(
+          CHAVE_ULTIMA_DATA_FINALIZADOS,
+          dataInputHoje()
+        );
+      } catch (_) {}
+
+      console.info(
+        PREFIXO,
+        `Finalizados sincronizados silenciosamente: ${finalizados.length}`
+      );
+    } catch (falha) {
+      console.warn(
+        PREFIXO,
+        "Sincronização silenciosa de Finalizados falhou.",
+        falha
+      );
+    } finally {
+      state.finalizadosSyncSilenciosoRodando = false;
+    }
+  }
+
+  function agendarSincronizacaoFinalizadosSilencioso(
+    atraso = CONFIG.finalizadosSyncPrimeiroAtrasoMs || 6500
+  ) {
+    clearTimeout(state.finalizadosSyncSilenciosoTimer);
+
+    state.finalizadosSyncSilenciosoTimer = setTimeout(function () {
+      executarQuandoOcioso(function () {
+        sincronizarFinalizadosSilencioso();
+      }, 2000);
+    }, Math.max(1500, Number(atraso) || 6500));
+  }
+
   async function carregarTodosChamados() {
     if (state.carregando) return;
     state.carregando = true;
@@ -1408,7 +2222,7 @@
 
     const corpo = document.getElementById("sigma-corpo-tabela");
     if (corpo && !state.chamados.length) {
-      corpo.innerHTML = '<tr><td colspan="11" class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Consultando o InfraDesk sem desenhar as páginas...</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="12" class="sigma-loading"><i class="fa-solid fa-spinner fa-spin"></i> Consultando o InfraDesk sem desenhar as páginas...</td></tr>';
     }
 
     try {
@@ -1443,11 +2257,44 @@
       }
 
       await Promise.all(workers);
-      state.chamados = Array.from(mapa.values()).filter(function (item) {
+
+      const ativos = Array.from(mapa.values()).filter(function (item) {
         return CONFIG.statusIds.includes(item.statusId);
       });
+
+      let finalizados = [];
+
+      if (state.incluirFinalizados) {
+        try {
+          finalizados = await carregarChamadosFinalizados();
+        } catch (erroFinalizados) {
+          console.warn(PREFIXO, "Falha ao carregar Finalizados", erroFinalizados);
+          toast(
+            "Ativos carregados, mas não consegui consultar os Finalizados: " +
+              texto(erroFinalizados.message || erroFinalizados),
+            "aviso"
+          );
+        }
+      }
+
+      const todos = new Map();
+
+      ativos.forEach(function (item) {
+        todos.set(item.id, item);
+      });
+
+      finalizados.forEach(function (item) {
+        todos.set(item.id, item);
+      });
+
+      state.chamados = Array.from(todos.values());
       state.ultimaAtualizacao = Date.now();
-      atualizarStatus(`${state.chamados.length} chamados ativos • ${totalPaginas} página(s) consultada(s)`);
+
+      atualizarStatus(
+        state.incluirFinalizados
+          ? `${ativos.length} ativos + ${finalizados.length} finalizados`
+          : `${ativos.length} chamados ativos • ${totalPaginas} página(s) consultada(s)`
+      );
     } catch (falha) {
       console.error(PREFIXO, falha);
       atualizarStatus("Erro ao carregar a fila");
@@ -1458,23 +2305,41 @@
     }
   }
 
-  async function buscarPagina(pagina) {
-    const resposta = await fetch(montarUrlFonte(pagina), {
+  async function buscarPaginaComMontador(pagina, montadorUrl, deslocamentoOrdem = 0) {
+    const resposta = await fetch(montadorUrl(pagina), {
       credentials: "same-origin",
       cache: "no-store",
       headers: { "X-Requested-With": "SigmaPainelDoca" },
     });
 
-    if (!resposta.ok) throw new Error(`InfraDesk retornou HTTP ${resposta.status} na página ${pagina}.`);
+    if (!resposta.ok) {
+      throw new Error(`InfraDesk retornou HTTP ${resposta.status} na página ${pagina}.`);
+    }
+
     const html = await resposta.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
     const itens = extrairChamados(doc);
+
     itens.forEach(function (item, indice) {
       item._paginaFonte = pagina;
       item._indiceFonte = indice;
-      item._ordemFonte = ((pagina - 1) * 100000) + indice;
+      item._ordemFonte =
+        deslocamentoOrdem + ((pagina - 1) * 100000) + indice;
     });
+
     return { doc: doc, itens: itens };
+  }
+
+  function buscarPagina(pagina) {
+    return buscarPaginaComMontador(pagina, montarUrlFonte, 0);
+  }
+
+  function buscarPaginaFinalizados(pagina) {
+    return buscarPaginaComMontador(
+      pagina,
+      montarUrlFonteFinalizados,
+      900000000
+    );
   }
 
   function localizarTabelaChamados(doc) {
@@ -1688,6 +2553,11 @@
       atualizadoTexto,
       atualizado: parseDataHoraBr(atualizadoTexto),
       atualizadoPor,
+
+      // HISTORICO_FINALIZADOS
+      finalizadoTexto: datas.finalizado || "",
+      finalizado: parseDataHoraBr(datas.finalizado || ""),
+
       descricaoResumo: descricaoResumo || descricaoCompleta,
       descricaoCompleta,
       nota,
@@ -2250,87 +3120,89 @@
   }
 
   async function completarDadosNfAusentesEmSegundoPlano() {
-    if (!CONFIG.completarDadosNfAusentes || state.enriquecendoDadosNf || state.carregando) return;
-
-    const pendentes = state.chamados.filter(function (item) {
-      if (!precisaCompletarDadosNf(item)) return false;
-      if (texto(state.complementoNfTentado[item.id]) === texto(item.atualizadoTexto || "sem-data")) return false;
-      return true;
-    });
-    if (!pendentes.length) return;
-
-    state.enriquecendoDadosNf = true;
-    let restantes = pendentes.slice();
-    const tamanhoLote = Math.max(5, Number(CONFIG.complementoLoteTamanho) || 18);
-
-    try {
-      // Uma leitura do Kanban continua sendo mais barata que centenas de
-      // requisições, porém a aplicação dos resultados é dividida em lotes.
-      if (pendentes.length >= 8) {
-        const mapaKanban = await carregarMapaComplementoKanban();
-        const semChave = [];
-        let alterados = [];
-
-        for (let i = 0; i < pendentes.length; i++) {
-          const item = pendentes[i];
-          const dados = mapaKanban?.get(item.id);
-          if (!dados) {
-            semChave.push(item);
-          } else {
-            if (aplicarComplementoNf(item, dados)) alterados.push(item.id);
-            salvarCacheComplementoNf(item, dados);
-            if (!item.chaveNf || String(item.chaveNf).replace(/\D+/g, "").length !== 44) semChave.push(item);
-          }
-
-          if (alterados.length >= tamanhoLote) {
-            agendarAtualizacaoLinhasParciais(alterados);
-            alterados = [];
-          }
-          if ((i + 1) % tamanhoLote === 0) await cederAoNavegador();
-        }
-
-        if (alterados.length) agendarAtualizacaoLinhasParciais(alterados);
-        restantes = semChave;
-      }
-    } catch (falha) {
-      console.debug(PREFIXO, "Não foi possível ler o Kanban completo; usando cards individuais.", falha);
+    if (
+      !CONFIG.completarDadosNfAusentes ||
+      state.enriquecendoDadosNf ||
+      state.carregando
+    ) {
+      return;
     }
 
-    let proximo = 0;
-    const total = restantes.length;
-    const quantidade = Math.max(1, Math.min(CONFIG.consultasComplementaresSimultaneas || 1, total || 1));
-    const workers = Array.from({ length: quantidade }, function () {
-      return (async function () {
-        while (true) {
-          const indice = proximo++;
-          if (indice >= total) return;
-          const item = restantes[indice];
-          state.complementoNfTentado[item.id] = item.atualizadoTexto || "sem-data";
+    const idsTela = new Set(
+      listaTabelaAtual().lista.map(function (item) {
+        return String(item.id);
+      })
+    );
 
-          try {
-            const dados = await buscarComplementoNf(item);
-            if (dados) {
-              const mudou = aplicarComplementoNf(item, dados);
-              salvarCacheComplementoNf(item, dados);
-              if (mudou) agendarAtualizacaoLinhasParciais([item.id]);
-            }
-          } catch (falha) {
-            console.debug(PREFIXO, `Não consegui complementar o chamado #${item.id}.`, falha);
-          }
+    const pendentes = state.chamados
+      .filter(function (item) {
+        if (!precisaCompletarDadosNf(item)) return false;
 
-          // Mesmo com uma única consulta, entrega o controle ao navegador
-          // entre os chamados para rolagem, seleção e Ctrl+C continuarem vivos.
-          await cederAoNavegador();
+        if (
+          texto(state.complementoNfTentado[item.id]) ===
+          texto(item.atualizadoTexto || "sem-data")
+        ) {
+          return false;
         }
-      })();
-    });
+
+        return true;
+      })
+      .sort(function (a, b) {
+        return (
+          Number(idsTela.has(String(b.id))) -
+          Number(idsTela.has(String(a.id)))
+        );
+      });
+
+    if (!pendentes.length) return;
+
+    const limite = Math.max(
+      1,
+      Number(CONFIG.complementoMaxPorCiclo) || 6
+    );
+
+    const alvos = pendentes.slice(0, limite);
+    state.enriquecendoDadosNf = true;
 
     try {
-      await Promise.all(workers);
-      executarQuandoOcioso(reconstruirFiltros, 500);
-      agendarSincronizacaoPonteVisivel();
+      for (const item of alvos) {
+        state.complementoNfTentado[item.id] =
+          item.atualizadoTexto || "sem-data";
+
+        try {
+          const dados = await buscarComplementoNf(item);
+
+          if (dados) {
+            const mudou = aplicarComplementoNf(item, dados);
+            salvarCacheComplementoNf(item, dados);
+
+            if (mudou) {
+              agendarAtualizacaoLinhasParciais([item.id]);
+            }
+          }
+        } catch (falha) {
+          console.debug(
+            PREFIXO,
+            `Não consegui complementar o chamado #${item.id}.`,
+            falha
+          );
+        }
+
+        await cederAoNavegador();
+      }
     } finally {
       state.enriquecendoDadosNf = false;
+    }
+
+    if (pendentes.length > alvos.length) {
+      clearTimeout(state.complementoNfTimer);
+
+      state.complementoNfTimer = setTimeout(function () {
+        executarQuandoOcioso(
+          completarDadosNfAusentesEmSegundoPlano,
+          1800
+        );
+      }, 3500);
     }
   }
 
@@ -2670,6 +3542,27 @@
       texto(registro.chaveAcesso),
       texto(registro.statusRecebimento),
       texto(registro.comprador),
+      registro.notaFechada === true ? "F1" : registro.notaFechada === false ? "F0" : "",
+      registro.canceladaSefaz === true ? "C1" : registro.canceladaSefaz === false ? "C0" : "",
+      registro.recebimentoConfirmado === true ? "R1" : registro.recebimentoConfirmado === false ? "R0" : "",
+      texto(registro.estadoRecebimentoDerivado),
+      texto(registro.estadoBluesoftVerificadoEmMs),
+
+      // CARGA_BLUESOFT — qualquer mudança abaixo atualiza a linha em tempo real.
+      texto(registro.numeroCarga),
+      registro.temCarga === true ? "1" : registro.temCarga === false ? "0" : "",
+      texto(registro.statusCarga),
+      texto(registro.statusRomaneio),
+      texto(registro.cargaCriadaEm),
+      texto(registro.cargaCriadaPor),
+      texto(registro.dataGeracaoCarga),
+      texto(registro.geradoPorTela),
+      texto(registro.conferidoPor),
+      texto(registro.fechadoPor),
+      texto(registro.dataRecebimentoCarga),
+      texto(registro.dataFechamentoCarga),
+      texto(registro.cargaVerificadaEmMs),
+      texto(registro.cargaDetalhesAtualizadosEmMs),
     ].join("|");
   }
 
@@ -2683,13 +3576,131 @@
 
   function mapaChavesBluesoftAtuais() {
     const mapa = new Map();
-    state.chamados.forEach(function (item) {
+
+    // PERF_4_5: só consulta Bluesoft para linhas que estão no DOM.
+    const origem = listaTabelaAtual().lista;
+
+    origem.forEach(function (item) {
       const chave = chaveAcessoValidaDoItem(item);
       if (!chave) return;
+
       if (!mapa.has(chave)) mapa.set(chave, []);
       mapa.get(chave).push(String(item.id));
     });
+
     return mapa;
+  }
+
+  // =========================================================
+  // BLUESOFT_HIBRIDA_ECONOMICA
+  // =========================================================
+  function pontuacaoRegistroBluesoft(registro) {
+    if (!registro) return 0;
+    return Math.max(
+      Number(registro.estadoBluesoftVerificadoEmMs || 0),
+      Number(registro.cargaDetalhesAtualizadosEmMs || 0),
+      Number(registro.cargaVerificadaEmMs || 0),
+      Number(registro.metadadosLinhaAtualizadosEmMs || 0),
+      Number(registro.statusRecebimentoAtualizadoEmMs || 0),
+      Number(registro.atualizadoEmMs || 0)
+    );
+  }
+
+  function montarRegistroBluesoft(doc) {
+    const dados = doc?.data?.() || {};
+    const chave = somenteDigitos(dados.chaveAcesso || "");
+    if (chave.length !== 44) return null;
+
+    let statusRecebimento = texto(dados.statusRecebimento || "");
+
+    if (!statusRecebimento) {
+      if (dados.canceladaSefaz === true) {
+        statusRecebimento = "Cancelada na SEFAZ";
+      } else if (
+        dados.recebimentoConfirmado === true ||
+        dados.notaFechada === true ||
+        normalizar(dados.estadoRecebimentoDerivado || "") === "recebida"
+      ) {
+        statusRecebimento = "Nota fiscal fechada";
+      }
+    }
+
+    return {
+      nfKey: texto(dados.nfKey || doc.id),
+      chaveAcesso: chave,
+      statusRecebimento,
+      comprador: texto(dados.comprador || ""),
+      notaFechada: typeof dados.notaFechada === "boolean" ? dados.notaFechada : undefined,
+      canceladaSefaz: typeof dados.canceladaSefaz === "boolean" ? dados.canceladaSefaz : undefined,
+      recebimentoConfirmado: typeof dados.recebimentoConfirmado === "boolean" ? dados.recebimentoConfirmado : undefined,
+      estadoRecebimentoDerivado: texto(dados.estadoRecebimentoDerivado || ""),
+      estadoBluesoftVerificadoEmMs: Number(dados.estadoBluesoftVerificadoEmMs || 0),
+      metadadosLinhaAtualizadosEmMs: Number(dados.metadadosLinhaAtualizadosEmMs || 0),
+      statusRecebimentoAtualizadoEmMs: Number(dados.statusRecebimentoAtualizadoEmMs || 0),
+      numeroCarga: Number(dados.numeroCarga || 0),
+      temCarga: typeof dados.temCarga === "boolean" ? dados.temCarga : Number(dados.numeroCarga || 0) > 0,
+      statusCarga: texto(dados.statusCarga || ""),
+      statusRomaneio: texto(dados.statusRomaneio || ""),
+      cargaCriadaEm: texto(dados.cargaCriadaEm || ""),
+      cargaCriadaPor: texto(dados.cargaCriadaPor || ""),
+      dataGeracaoCarga: texto(dados.dataGeracaoCarga || ""),
+      geradoPorTela: texto(dados.geradoPorTela || ""),
+      conferidoPor: texto(dados.conferidoPor || ""),
+      fechadoPor: texto(dados.fechadoPor || ""),
+      dataRecebimentoCarga: texto(dados.dataRecebimentoCarga || ""),
+      dataFechamentoCarga: texto(dados.dataFechamentoCarga || ""),
+      cargaVerificadaEmMs: Number(dados.cargaVerificadaEmMs || 0),
+      cargaDetalhesAtualizadosEmMs: Number(dados.cargaDetalhesAtualizadosEmMs || 0),
+      atualizadoEmMs: Math.max(
+        Number(dados.estadoBluesoftVerificadoEmMs || 0),
+        Number(dados.cargaDetalhesAtualizadosEmMs || 0),
+        Number(dados.cargaVerificadaEmMs || 0),
+        Number(dados.metadadosLinhaAtualizadosEmMs || 0),
+        Number(dados.statusRecebimentoAtualizadoEmMs || 0),
+        Number(dados.atualizadoEmMs || 0)
+      ),
+    };
+  }
+
+  function guardarRegistroMaisNovoBluesoft(mapa, registro) {
+    if (!registro?.chaveAcesso) return;
+    const anterior = mapa.get(registro.chaveAcesso);
+    if (
+      !anterior ||
+      pontuacaoRegistroBluesoft(registro) >= pontuacaoRegistroBluesoft(anterior)
+    ) {
+      mapa.set(registro.chaveAcesso, registro);
+    }
+  }
+
+  function registroBluesoftEhTerminal(registro) {
+    if (!registro) return false;
+
+    if (
+      registro.recebimentoConfirmado === true ||
+      registro.canceladaSefaz === true ||
+      registro.notaFechada === true
+    ) {
+      return true;
+    }
+
+    const status = normalizar([
+      registro.statusRecebimento,
+      registro.estadoRecebimentoDerivado,
+    ].filter(Boolean).join(" "));
+
+    return /fechad|recebid|cancelad|cancel|devolvid|devolucao/.test(status);
+  }
+
+  function chavesBluesoftQuentes() {
+    const mapa = mapaChavesBluesoftAtuais();
+    const limite = Math.max(1, Number(CONFIG.bluesoftRealtimeMaxChaves || 30));
+
+    return Array.from(mapa.keys())
+      .filter(function (chave) {
+        return !registroBluesoftEhTerminal(state.bluesoftNfPorChave[chave] || null);
+      })
+      .slice(0, limite);
   }
 
   function dividirEmLotes(lista, tamanho) {
@@ -2703,10 +3714,101 @@
       try { cancelar?.(); } catch (_) {}
     });
     state.bluesoftListeners = [];
-    if (limparAssinatura) state.bluesoftAssinaturaChaves = "";
+    if (limparAssinatura) {
+      state.bluesoftAssinaturaChaves = "";
+      state.bluesoftRealtimeAssinatura = "";
+    }
   }
 
-  function agendarSincronizacaoBluesoftFirebase(atrasoMs = 180) {
+  function agendarReconfiguracaoRealtimeBluesoft() {
+    clearTimeout(state.bluesoftRealtimeReconfigTimer);
+
+    state.bluesoftRealtimeReconfigTimer = setTimeout(function () {
+      state.bluesoftRealtimeReconfigTimer = null;
+      configurarRealtimeBluesoftQuente().catch(function (falha) {
+        console.warn(PREFIXO, "Realtime econômico Bluesoft falhou.", falha);
+      });
+    }, Math.max(150, Number(CONFIG.bluesoftRealtimeReconfigurarMs || 850)));
+  }
+
+  async function configurarRealtimeBluesoftQuente() {
+    if (!CONFIG.bluesoftRealtimeAtivo) {
+      cancelarListenersBluesoft(false);
+      state.bluesoftRealtimeAssinatura = "";
+      return;
+    }
+
+    const chaves = chavesBluesoftQuentes();
+    const assinatura = chaves.join("|");
+
+    if (!chaves.length) {
+      cancelarListenersBluesoft(false);
+      state.bluesoftRealtimeAssinatura = "";
+      return;
+    }
+
+    if (
+      assinatura === state.bluesoftRealtimeAssinatura &&
+      state.bluesoftListeners.length
+    ) {
+      return;
+    }
+
+    cancelarListenersBluesoft(false);
+    state.bluesoftRealtimeAssinatura = assinatura;
+
+    const db = await obterFirestoreBluesoft();
+
+    const cancelar = db
+      .collection(BLUESOFT_FIREBASE_COLECAO_NOTAS)
+      .where("chaveAcesso", "in", chaves)
+      .onSnapshot(
+        function (snapshot) {
+          const encontrados = new Map();
+
+          snapshot.forEach(function (doc) {
+            const registro = montarRegistroBluesoft(doc);
+            if (!registro || !chaves.includes(registro.chaveAcesso)) return;
+            guardarRegistroMaisNovoBluesoft(encontrados, registro);
+          });
+
+          const idsAlterados = new Set();
+
+          chaves.forEach(function (chave) {
+            const novo = encontrados.get(chave);
+            if (!novo) return;
+
+            const anterior = state.bluesoftNfPorChave[chave] || null;
+
+            if (
+              assinaturaRegistroBluesoft(anterior) ===
+              assinaturaRegistroBluesoft(novo)
+            ) {
+              return;
+            }
+
+            state.bluesoftNfPorChave[chave] = novo;
+
+            idsChamadosDaChave(chave).forEach(function (id) {
+              idsAlterados.add(id);
+            });
+          });
+
+          if (idsAlterados.size) {
+            agendarAtualizacaoLinhasParciais(Array.from(idsAlterados));
+            agendarReconfiguracaoRealtimeBluesoft();
+          }
+        },
+        function (falha) {
+          console.warn(PREFIXO, "Listener Bluesoft econômico desconectou.", falha);
+          state.bluesoftFalhaEm = Date.now();
+        }
+      );
+
+    state.bluesoftListeners = [cancelar];
+  }
+
+  function agendarSincronizacaoBluesoftFirebase(atrasoMs = 650) {
     clearTimeout(state.bluesoftSyncTimer);
     state.bluesoftSyncTimer = setTimeout(function () {
       state.bluesoftSyncTimer = null;
@@ -2716,84 +3818,104 @@
     }, Math.max(0, Number(atrasoMs || 0)));
   }
 
-  async function sincronizarBluesoftFirebaseTabela() {
+  async function sincronizarBluesoftFirebaseTabela(forcar = false) {
     const mapa = mapaChavesBluesoftAtuais();
     const chaves = Array.from(mapa.keys()).sort();
     const assinatura = chaves.join("|");
+    const agora = Date.now();
 
     if (!chaves.length) {
       cancelarListenersBluesoft(true);
       return;
     }
 
-    // Se o conjunto de chaves não mudou, os listeners existentes continuam
-    // trazendo apenas as alterações. Zero polling do Firestore.
-    if (assinatura === state.bluesoftAssinaturaChaves && state.bluesoftListeners.length) return;
+    if (
+      !forcar &&
+      assinatura === state.bluesoftAssinaturaChaves &&
+      state.bluesoftUltimaConsultaEm &&
+      agora - state.bluesoftUltimaConsultaEm <
+        (CONFIG.bluesoftCacheMs || 5 * 60 * 1000)
+    ) {
+      return;
+    }
 
-    // Evita martelar em caso de indisponibilidade/auth. Uma nova tentativa pode
-    // ocorrer depois de 2 minutos ou no próximo carregamento do painel.
-    if (state.bluesoftFalhaEm && Date.now() - state.bluesoftFalhaEm < 2 * 60 * 1000) return;
+    if (
+      !forcar &&
+      state.bluesoftFalhaEm &&
+      agora - state.bluesoftFalhaEm < 2 * 60 * 1000
+    ) {
+      return;
+    }
 
     cancelarListenersBluesoft(false);
     state.bluesoftAssinaturaChaves = assinatura;
 
-    const db = await obterFirestoreBluesoft();
+    try {
+      const db = await obterFirestoreBluesoft();
+      const lotes = dividirEmLotes(
+        chaves,
+        BLUESOFT_FIREBASE_MAX_CHAVES_POR_CONSULTA
+      );
 
-    // A lista pode ter mudado enquanto o Firebase inicializava.
-    const assinaturaAgora = Array.from(mapaChavesBluesoftAtuais().keys()).sort().join("|");
-    if (assinaturaAgora !== assinatura) {
-      state.bluesoftAssinaturaChaves = "";
-      agendarSincronizacaoBluesoftFirebase(100);
-      return;
-    }
+      const idsAlterados = new Set();
 
-    const lotes = dividirEmLotes(chaves, BLUESOFT_FIREBASE_MAX_CHAVES_POR_CONSULTA);
-    const listeners = [];
+      for (const lote of lotes) {
+        const snapshot = await db
+          .collection(BLUESOFT_FIREBASE_COLECAO_NOTAS)
+          .where("chaveAcesso", "in", lote)
+          .get();
 
-    for (const lote of lotes) {
-      const consulta = db
-        .collection(BLUESOFT_FIREBASE_COLECAO_NOTAS)
-        .where("chaveAcesso", "in", lote);
-
-      const cancelar = consulta.onSnapshot(function (snapshot) {
         const encontrados = new Map();
-        snapshot.forEach(function (doc) {
-          const dados = doc.data() || {};
-          const chave = somenteDigitos(dados.chaveAcesso || "");
-          if (chave.length !== 44 || !lote.includes(chave)) return;
 
-          encontrados.set(chave, {
-            nfKey: texto(dados.nfKey || doc.id),
-            chaveAcesso: chave,
-            statusRecebimento: texto(dados.statusRecebimento || ""),
-            comprador: texto(dados.comprador || ""),
-            atualizadoEmMs: Number(dados.metadadosLinhaAtualizadosEmMs || dados.atualizadoEmMs || 0),
-          });
+        snapshot.forEach(function (doc) {
+          const registro = montarRegistroBluesoft(doc);
+
+          if (
+            !registro ||
+            !lote.includes(registro.chaveAcesso)
+          ) {
+            return;
+          }
+
+          // Duplicatas históricas: sempre fica o documento mais novo.
+          guardarRegistroMaisNovoBluesoft(encontrados, registro);
         });
 
-        const idsAlterados = new Set();
         lote.forEach(function (chave) {
           const anterior = state.bluesoftNfPorChave[chave] || null;
           const novo = encontrados.get(chave) || null;
-          if (assinaturaRegistroBluesoft(anterior) === assinaturaRegistroBluesoft(novo)) return;
+
+          if (
+            assinaturaRegistroBluesoft(anterior) ===
+            assinaturaRegistroBluesoft(novo)
+          ) {
+            return;
+          }
 
           if (novo) state.bluesoftNfPorChave[chave] = novo;
           else delete state.bluesoftNfPorChave[chave];
 
-          idsChamadosDaChave(chave).forEach(function (id) { idsAlterados.add(id); });
+          (mapa.get(chave) || []).forEach(function (id) {
+            idsAlterados.add(id);
+          });
         });
+      }
 
-        if (idsAlterados.size) agendarAtualizacaoLinhasParciais(Array.from(idsAlterados));
-      }, function (falha) {
-        state.bluesoftFalhaEm = Date.now();
-        console.warn(PREFIXO, "Listener Firebase Bluesoft interrompido.", falha);
+      state.bluesoftUltimaConsultaEm = Date.now();
+      state.bluesoftFalhaEm = 0;
+
+      if (idsAlterados.size) {
+        agendarAtualizacaoLinhasParciais(Array.from(idsAlterados));
+      }
+
+      configurarRealtimeBluesoftQuente().catch(function (falhaRealtime) {
+        console.warn(PREFIXO, "Não consegui ativar realtime econômico Bluesoft.", falhaRealtime);
       });
-
-      listeners.push(cancelar);
+    } catch (falha) {
+      state.bluesoftFalhaEm = Date.now();
+      console.warn(PREFIXO, "Consulta pontual Firebase Bluesoft falhou.", falha);
+      if (forcar) throw falha;
     }
-
-    state.bluesoftListeners = listeners;
-    state.bluesoftFalhaEm = 0;
   }
 
   function visualStatusBluesoft(status) {
@@ -2817,6 +3939,96 @@
 
     // Qualquer status ainda não mapeado continua clicável para abrir o histórico.
     return { iconeUrl: BLUESOFT_ICONES.neutro, rotulo: original };
+  }
+
+  // =========================================================
+  // CARGA_BLUESOFT
+  // Para localizar depois, use CTRL + F e procure por:
+  // CARGA_BLUESOFT
+  // =========================================================
+  function formatarTimestampMs(ms) {
+    const valor = Number(ms || 0);
+    if (!valor) return "";
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return "";
+    return formatarDataHora(data);
+  }
+
+  function classeStatusCargaBluesoft(statusCarga, statusRomaneio) {
+    const n = normalizar(`${statusCarga || ""} ${statusRomaneio || ""}`);
+    if (/fechad|finaliz|ok/.test(n)) return "fechada";
+    if (/diverg/.test(n)) return "divergente";
+    return "";
+  }
+
+  function htmlCargaBluesoft(item, chave) {
+    const registro = registroBluesoftDaChave(chave);
+
+    if (!registro) {
+      return [
+        '<div class="sigma-carga">',
+        '<span class="sigma-carga-nao-sync"><i class="fa-regular fa-circle-question"></i> Não sincronizada</span>',
+        '<small>Aguardando leitura na Bluesoft</small>',
+        '</div>',
+      ].join("");
+    }
+
+    const numeroCarga = Number(registro.numeroCarga || 0);
+    const foiVerificada = Number(registro.cargaVerificadaEmMs || 0) > 0;
+
+    if (numeroCarga <= 0) {
+      const verificadaEm = formatarTimestampMs(registro.cargaVerificadaEmMs);
+      return [
+        '<div class="sigma-carga">',
+        foiVerificada
+          ? '<span class="sigma-carga-sem"><i class="fa-solid fa-circle-minus"></i> Sem carga</span>'
+          : '<span class="sigma-carga-nao-sync"><i class="fa-regular fa-circle-question"></i> Não sincronizada</span>',
+        verificadaEm
+          ? `<small title="Última verificação na Bluesoft">Verificada ${escaparHtml(verificadaEm)}</small>`
+          : '<small>Aguardando verificação na Bluesoft</small>',
+        '</div>',
+      ].join("");
+    }
+
+    const statusCarga = texto(registro.statusCarga || "");
+    const statusRomaneio = texto(registro.statusRomaneio || "");
+    const criadaEm = texto(registro.cargaCriadaEm || registro.dataGeracaoCarga || "");
+    const criadaPor = texto(registro.cargaCriadaPor || "");
+    const geradoPorTela = texto(registro.geradoPorTela || "");
+    const classeStatus = classeStatusCargaBluesoft(statusCarga, statusRomaneio);
+
+    const url = `${BLUESOFT_URL_CARGA}${encodeURIComponent(numeroCarga)}/cargas-pendentes`;
+
+    const linhasExtras = [];
+    if (criadaEm) linhasExtras.push(`Criada: ${escaparHtml(criadaEm)}`);
+    if (criadaPor) {
+      linhasExtras.push(`Por: ${escaparHtml(criadaPor)}`);
+    } else if (geradoPorTela) {
+      // Não chama de "criador": é apenas o campo "Gerado por" exibido pela tela.
+      linhasExtras.push(`Tela: ${escaparHtml(geradoPorTela)}`);
+    }
+
+    const titulo = [
+      `Carga ${numeroCarga}`,
+      statusCarga ? `Status da carga: ${statusCarga}` : "",
+      statusRomaneio ? `Status do romaneio: ${statusRomaneio}` : "",
+      criadaEm ? `Criada em: ${criadaEm}` : "",
+      criadaPor ? `Criada por: ${criadaPor}` : "",
+      registro.conferidoPor ? `Conferido por: ${registro.conferidoPor}` : "",
+      registro.dataFechamentoCarga ? `Fechamento: ${registro.dataFechamentoCarga}` : "",
+    ].filter(Boolean).join(" • ");
+
+    return [
+      `<div class="sigma-carga" title="${escaparHtml(titulo)}">`,
+      '<span class="sigma-carga-numero">',
+      `<a href="${url}" target="_blank" rel="noopener"><i class="fa-solid fa-truck-ramp-box"></i> ${numeroCarga}</a>`,
+      '</span>',
+      statusCarga || statusRomaneio
+        ? `<span class="sigma-carga-status ${classeStatus}">${escaparHtml(statusCarga || statusRomaneio)}</span>`
+        : "",
+      linhasExtras.map(function (linha) { return `<small>${linha}</small>`; }).join(""),
+      '</div>',
+    ].join("");
   }
 
   function htmlBotoesBluesoft(item, chave) {
@@ -2864,6 +4076,12 @@
       responsavel.nome, responsavel.minha ? "1" : "0", responsavel.origem,
       state.capturandoIds[item.id] ? "1" : "0", item.podeCapturar ? "1" : "0",
       bluesoft?.nfKey || "", bluesoft?.statusRecebimento || "", bluesoft?.comprador || "",
+      bluesoft?.numeroCarga || "", bluesoft?.temCarga === true ? "1" : bluesoft?.temCarga === false ? "0" : "",
+      bluesoft?.statusCarga || "", bluesoft?.statusRomaneio || "",
+      bluesoft?.cargaCriadaEm || "", bluesoft?.cargaCriadaPor || "",
+      bluesoft?.dataGeracaoCarga || "", bluesoft?.geradoPorTela || "",
+      bluesoft?.conferidoPor || "", bluesoft?.dataFechamentoCarga || "",
+      bluesoft?.cargaVerificadaEmMs || "",
     ].map(texto).join("|");
   }
 
@@ -2890,7 +4108,7 @@
     const vazio = corpo.querySelector("tr .sigma-vazio")?.closest("tr");
 
     if (!linhas.length && !vazio) {
-      corpo.innerHTML = '<tr><td colspan="11" class="sigma-vazio"><i class="fa-regular fa-folder-open"></i><br><br>Nenhum chamado encontrado com estes filtros.</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="12" class="sigma-vazio"><i class="fa-regular fa-folder-open"></i><br><br>Nenhum chamado encontrado com estes filtros.</td></tr>';
     } else if (linhas.length && vazio) {
       vazio.remove();
     }
@@ -2899,7 +4117,7 @@
   function inserirLinhaNaPosicaoAtual(item, linhaNova) {
     const corpo = document.getElementById("sigma-corpo-tabela");
     if (!corpo || !linhaNova) return;
-    const lista = ordenarLista(chamadosVisiveis());
+    const lista = listaTabelaAtual().lista;
     const indice = lista.findIndex(function (atual) { return atual.id === item.id; });
     let referencia = null;
 
@@ -3205,6 +4423,22 @@
     }
   }
 
+  function agendarPreparoMotorCaptura() {
+    setTimeout(function () {
+      executarQuandoOcioso(function () {
+        if (
+          document.hidden ||
+          state.motorIframe ||
+          state.motorPromise
+        ) {
+          return;
+        }
+
+        obterMotorCaptura().catch(function () {});
+      }, 1800);
+    }, 3500);
+  }
+
   async function obterMotorCaptura() {
     const root = paginaWindow();
     if (root && typeof root.capturarChamadoNew === "function") return root;
@@ -3216,7 +4450,7 @@
     state.motorPromise = new Promise(function (resolve) {
       const iframe = document.createElement("iframe");
       iframe.id = "sigma-motor-infradesk";
-      iframe.style.cssText = "position:fixed;left:-100000px;top:-100000px;width:1200px;height:800px;opacity:0;pointer-events:none;";
+      iframe.style.cssText = "position:fixed;left:-100000px;top:-100000px;width:1px;height:1px;visibility:hidden;opacity:0;pointer-events:none;border:0;";
       iframe.src = montarUrlFonte(1);
       state.motorIframe = iframe;
 
@@ -3434,12 +4668,46 @@
     return out;
   }
 
+  // =========================================================
+  // PERF_TABELA_LIMITADA
+  // Filtros pesquisam TODOS; somente o DOM é limitado.
+  // =========================================================
+  function listaTabelaAtual() {
+    const todos = ordenarLista(chamadosVisiveis());
+    const limite = Math.max(40, Number(CONFIG.maxLinhasTabela) || 120);
+
+    return {
+      todos,
+      lista: todos.slice(0, limite),
+      total: todos.length,
+      exibidos: Math.min(todos.length, limite),
+    };
+  }
+
+  function atualizarAvisoLimiteTabela(info) {
+    const el = document.getElementById("sigma-limite-tabela");
+    if (!el) return;
+
+    if (!info || info.total <= info.exibidos) {
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+
+    el.style.display = "inline-flex";
+    el.textContent = `Mostrando ${info.exibidos} de ${info.total} • use busca/filtros`;
+  }
+
   function sincronizarTabelaIncremental(assinaturasAntes) {
     const corpo = document.getElementById("sigma-corpo-tabela");
     if (!corpo) return;
 
     atualizarContadores();
-    const lista = ordenarLista(chamadosVisiveis());
+
+    const infoTabela = listaTabelaAtual();
+    const lista = infoTabela.lista;
+    atualizarAvisoLimiteTabela(infoTabela);
+
     const desejados = new Set(lista.map(function (item) { return String(item.id); }));
 
     corpo.querySelectorAll("tr[data-sigma-chamado-id]").forEach(function (linha) {
@@ -3473,10 +4741,13 @@
     if (!corpo) return;
 
     atualizarContadores();
-    const lista = ordenarLista(chamadosVisiveis());
+
+    const infoTabela = listaTabelaAtual();
+    const lista = infoTabela.lista;
+    atualizarAvisoLimiteTabela(infoTabela);
 
     if (!lista.length) {
-      corpo.innerHTML = '<tr><td colspan="11" class="sigma-vazio"><i class="fa-regular fa-folder-open"></i><br><br>Nenhum chamado encontrado com estes filtros.</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="12" class="sigma-vazio"><i class="fa-regular fa-folder-open"></i><br><br>Nenhum chamado encontrado com estes filtros.</td></tr>';
       agendarSincronizacaoPonteVisivel();
       atualizarSelecaoVisual();
       agendarSincronizacaoBluesoftFirebase(220);
@@ -3490,7 +4761,7 @@
   }
 
   function atualizarContadores() {
-    const counts = { todos: state.chamados.length, "2": 0, "3": 0, "5": 0, "6": 0 };
+    const counts = { todos: state.chamados.length, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
     const sit = { todas: state.chamados.length, livres: 0, minhas: 0, reservadas: 0 };
 
     state.chamados.forEach(function (item) {
@@ -3547,6 +4818,9 @@
     const selecionado = !!state.selecionados[item.id];
     const assinatura = assinaturaLinhaItem(item);
     const botoesBluesoft = chaveValida ? htmlBotoesBluesoft(item, chaveDigitos) : "";
+    const cargaBluesoft = chaveValida
+      ? htmlCargaBluesoft(item, chaveDigitos)
+      : '<div class="sigma-carga"><span class="sigma-carga-nao-sync">Sem chave válida</span></div>';
 
     return `<tr class="${reservadaOutro ? "sigma-reservado-outro" : ""} ${selecionado ? "sigma-selecionado" : ""}" data-sigma-chamado-id="${item.id}" data-sigma-assinatura="${escaparHtml(assinatura)}">
       <td class="sigma-selecao-celula"><input class="sigma-check-lote sigma-check-item" type="checkbox" data-id="${item.id}" ${selecionado ? "checked" : ""} title="Selecionar chamado #${item.id}"></td>
@@ -3562,6 +4836,7 @@
         </div>
         <div class="sigma-integracoes-resumo ${mostrarIntegracoes ? "aguardando" : ""}" data-integracoes-id="${item.id}"></div>
       </td>
+      <td class="sigma-carga sigma-col-opcional">${cargaBluesoft}</td>
       <td class="sigma-fornecedor" title="${escaparHtml(item.fornecedor)}">${escaparHtml(item.fornecedor || "Não identificado")}</td>
       <td class="sigma-pessoa sigma-representante sigma-col-opcional" title="${escaparHtml(item.representante || item.solicitante)}"><strong>${escaparHtml(item.representante || item.solicitante || "Não identificado")}</strong><small>${escaparHtml(item.solicitanteSetor || "")}</small></td>
       <td class="sigma-data sigma-col-opcional">${escaparHtml(item.atualizadoTexto || item.aberturaTexto || "---")}<small>${escaparHtml(item.atualizadoPor || "")}</small></td>
@@ -3593,8 +4868,8 @@
     const textoBotao = botao.querySelector("span");
     if (textoBotao) textoBotao.textContent = state.mostrarColunasOpcionais ? "Ocultar colunas secundárias" : "Exibir colunas ocultas";
     botao.title = state.mostrarColunasOpcionais
-      ? "Ocultar Chamado, Representante, Última movimentação e SLA"
-      : "Exibir Chamado, Representante, Última movimentação e SLA";
+      ? "Ocultar Chamado, Carga, Representante, Última movimentação e SLA"
+      : "Exibir Chamado, Carga, Representante, Última movimentação e SLA";
   }
 
   function iniciarEspelhoIntegracoes() {
@@ -4279,6 +5554,255 @@
     return texto(doc.body.textContent || "");
   }
   // =========================================================
+  // FILA_CHAVES_BLUESOFT
+  // Para localizar depois, use CTRL + F e procure por:
+  // FILA_CHAVES_BLUESOFT
+  //
+  // Regras:
+  // 1. Se houver linhas MARCADAS e visíveis, usa somente elas.
+  // 2. Sem marcação, usa todas as linhas VISÍVEIS após os filtros.
+  // 3. Só entram chaves válidas com exatamente 44 dígitos.
+  // 4. Chaves duplicadas entram apenas uma vez.
+  // 5. "Copiar próxima" avança uma posição por vez para lançamento na Bluesoft.
+  // =========================================================
+  function montarItensFilaChavesBluesoft() {
+    const idsVisiveis = new Set(idsVisiveisTabela());
+    const selecionadosVisiveis = state.chamados.filter(function (item) {
+      return idsVisiveis.has(String(item.id)) && !!state.selecionados[item.id];
+    });
+
+    const base = ordenarLista(
+      selecionadosVisiveis.length ? selecionadosVisiveis : chamadosVisiveis()
+    );
+
+    const vistas = new Set();
+    const itens = [];
+    let ignoradas = 0;
+    let duplicadas = 0;
+
+    base.forEach(function (item) {
+      const chave = somenteDigitos(item.chaveNf || item.chaveNfTexto || "");
+      if (chave.length !== 44) {
+        ignoradas++;
+        return;
+      }
+      if (vistas.has(chave)) {
+        duplicadas++;
+        return;
+      }
+
+      vistas.add(chave);
+      itens.push({
+        ordem: itens.length + 1,
+        chamadoId: String(item.id || ""),
+        numeroNf: numeroNfDaChave(chave) || texto(item.nota || ""),
+        chaveAcesso: chave,
+        fornecedor: texto(item.fornecedor || ""),
+        representante: texto(item.representante || item.solicitante || ""),
+        status: texto(item.statusNome || ""),
+      });
+    });
+
+    return {
+      itens: itens,
+      escopo: selecionadosVisiveis.length ? "selecionadas_visiveis" : "todas_visiveis",
+      ignoradas: ignoradas,
+      duplicadas: duplicadas,
+    };
+  }
+
+  function atualizarBotaoFilaChavesBluesoft() {
+    const botao = document.getElementById("sigma-fila-chaves");
+    const contador = document.getElementById("sigma-fila-count");
+    if (!botao || !contador) return;
+
+    const dados = montarItensFilaChavesBluesoft();
+    contador.textContent = String(dados.itens.length);
+    botao.disabled = dados.itens.length === 0;
+
+    const origem = dados.escopo === "selecionadas_visiveis"
+      ? "linhas marcadas e visíveis"
+      : "linhas visíveis após os filtros";
+    botao.title = dados.itens.length
+      ? `Criar fila com ${dados.itens.length} chave(s) válida(s) das ${origem}.`
+      : "Nenhuma chave de acesso válida de 44 dígitos está visível.";
+  }
+
+  function abrirFilaChavesBluesoft() {
+    const dados = montarItensFilaChavesBluesoft();
+    if (!dados.itens.length) {
+      toast("Nenhuma chave de acesso válida de 44 dígitos está visível.", "aviso");
+      return;
+    }
+
+    state.filaChaves = {
+      itens: dados.itens,
+      indice: 0,
+      escopo: dados.escopo,
+      geradaEm: new Date().toISOString(),
+      ignoradas: dados.ignoradas,
+      duplicadas: dados.duplicadas,
+    };
+
+    renderizarFilaChavesBluesoft();
+
+    const modal = document.getElementById("sigma-fila-modal");
+    if (modal) {
+      modal.classList.add("ativo");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function fecharFilaChavesBluesoft() {
+    const modal = document.getElementById("sigma-fila-modal");
+    if (!modal) return;
+    modal.classList.remove("ativo");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function payloadFilaChavesBluesoft() {
+    const fila = state.filaChaves || {};
+    return {
+      origem: "InfraDesk Doca",
+      versaoPainel: CONFIG.versao,
+      geradoEm: fila.geradaEm || new Date().toISOString(),
+      escopo: fila.escopo || "todas_visiveis",
+      total: (fila.itens || []).length,
+      proximaPosicao: Math.min((fila.indice || 0) + 1, (fila.itens || []).length + 1),
+      chaves: (fila.itens || []).map(function (item) {
+        return {
+          ordem: item.ordem,
+          chamadoId: item.chamadoId,
+          numeroNf: item.numeroNf,
+          chaveAcesso: item.chaveAcesso,
+          fornecedor: item.fornecedor,
+          representante: item.representante,
+          status: item.status,
+        };
+      }),
+    };
+  }
+
+  function renderizarFilaChavesBluesoft() {
+    const corpo = document.getElementById("sigma-fila-corpo");
+    if (!corpo) return;
+
+    const fila = state.filaChaves || { itens: [], indice: 0 };
+    const itens = fila.itens || [];
+    const total = itens.length;
+    const indice = Math.max(0, Math.min(Number(fila.indice) || 0, total));
+    fila.indice = indice;
+
+    const proxima = indice < total ? itens[indice] : null;
+    const concluidas = Math.min(indice, total);
+    const restantes = Math.max(0, total - concluidas);
+    const escopoTexto = fila.escopo === "selecionadas_visiveis"
+      ? "Marcadas e visíveis"
+      : "Todas as visíveis";
+
+    const avisos = [];
+    if (fila.ignoradas) avisos.push(`${fila.ignoradas} linha(s) sem chave válida de 44 dígitos foram ignoradas.`);
+    if (fila.duplicadas) avisos.push(`${fila.duplicadas} chave(s) duplicada(s) foram removidas.`);
+
+    const linhas = itens.map(function (item, i) {
+      const classe = i < indice ? "copiada" : (i === indice ? "proxima" : "");
+      const situacao = i < indice
+        ? '<i class="fa-solid fa-check"></i> Copiada'
+        : (i === indice ? '<i class="fa-solid fa-arrow-right"></i> Próxima' : "Aguardando");
+
+      return `<tr class="${classe}">
+        <td>${i + 1}</td>
+        <td>${escaparHtml(item.numeroNf || "—")}</td>
+        <td class="chave">${escaparHtml(item.chaveAcesso)}</td>
+        <td>${escaparHtml(item.fornecedor || "—")}</td>
+        <td>${situacao}</td>
+      </tr>`;
+    }).join("");
+
+    const jsonPreview = JSON.stringify(payloadFilaChavesBluesoft(), null, 2);
+
+    corpo.innerHTML = `
+      <div class="sigma-fila-resumo">
+        <div class="sigma-fila-card"><small>Total da fila</small><strong>${total}</strong></div>
+        <div class="sigma-fila-card"><small>Já copiadas</small><strong>${concluidas}</strong></div>
+        <div class="sigma-fila-card"><small>Restantes</small><strong>${restantes}</strong></div>
+        <div class="sigma-fila-card"><small>Origem</small><strong style="font-size:11px">${escaparHtml(escopoTexto)}</strong></div>
+      </div>
+
+      ${avisos.length ? `<div class="sigma-fila-aviso"><i class="fa-solid fa-triangle-exclamation"></i> ${escaparHtml(avisos.join(" "))}</div>` : ""}
+
+      <div class="sigma-fila-proxima">
+        <div>
+          <small>${proxima ? `PRÓXIMA CHAVE • ${indice + 1}/${total}` : "FILA CONCLUÍDA"}</small>
+          <strong>${proxima ? escaparHtml(proxima.chaveAcesso) : "Todas as chaves desta fila já foram copiadas."}</strong>
+          <em>${proxima ? `NF ${escaparHtml(proxima.numeroNf || "—")} • ${escaparHtml(proxima.fornecedor || "Fornecedor não identificado")}` : "Use Reiniciar se quiser começar novamente."}</em>
+        </div>
+        <button class="sigma-fila-btn primario" type="button" data-fila-acao="proxima" ${proxima ? "" : "disabled"}>
+          <i class="fa-regular fa-copy"></i> Copiar próxima
+        </button>
+      </div>
+
+      <div class="sigma-fila-acoes">
+        <button class="sigma-fila-btn" type="button" data-fila-acao="todas">
+          <i class="fa-solid fa-list"></i> Copiar todas • 1 por linha
+        </button>
+        <button class="sigma-fila-btn" type="button" data-fila-acao="json">
+          <i class="fa-solid fa-code"></i> Copiar JSON
+        </button>
+        <button class="sigma-fila-btn" type="button" data-fila-acao="reiniciar" ${indice ? "" : "disabled"}>
+          <i class="fa-solid fa-rotate-left"></i> Reiniciar fila
+        </button>
+      </div>
+
+      <div class="sigma-fila-lista">
+        <table class="sigma-fila-tabela">
+          <thead><tr><th>#</th><th>NF</th><th>Chave de acesso</th><th>Fornecedor</th><th>Situação</th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+
+      <textarea class="sigma-fila-json" readonly spellcheck="false" aria-label="Prévia JSON da fila">${escaparHtml(jsonPreview)}</textarea>
+    `;
+  }
+
+  async function copiarProximaChaveBluesoft() {
+    const fila = state.filaChaves || {};
+    const itens = fila.itens || [];
+    const indice = Number(fila.indice) || 0;
+    if (indice >= itens.length) {
+      toast("Fila concluída. Não há outra chave para copiar.", "aviso");
+      return;
+    }
+
+    const item = itens[indice];
+    await copiarTexto(
+      item.chaveAcesso,
+      `Chave ${indice + 1}/${itens.length} copiada • NF ${item.numeroNf || "—"}`
+    );
+
+    fila.indice = indice + 1;
+    renderizarFilaChavesBluesoft();
+  }
+
+  async function copiarTodasChavesBluesoft() {
+    const itens = state.filaChaves?.itens || [];
+    if (!itens.length) return;
+    await copiarTexto(
+      itens.map(function (item) { return item.chaveAcesso; }).join("\n"),
+      `${itens.length} chave(s) copiadas • uma por linha.`
+    );
+  }
+
+  async function copiarJsonFilaChavesBluesoft() {
+    const itens = state.filaChaves?.itens || [];
+    if (!itens.length) return;
+    await copiarTexto(
+      JSON.stringify(payloadFilaChavesBluesoft(), null, 2),
+      `JSON da fila copiado • ${itens.length} chave(s).`
+    );
+  }
+
+  // =========================================================
   // ACOES_EM_LOTE
   // Para localizar depois, use CTRL + F e procure por:
   // ACOES_EM_LOTE
@@ -4342,6 +5866,8 @@
     if (count) count.textContent = String(totalSel);
     const btn = document.getElementById('sigma-abrir-lote');
     if (btn) btn.disabled = totalSel === 0;
+
+    atualizarBotaoFilaChavesBluesoft();
   }
 
   async function carregarEstruturaFeedback(item) {
@@ -4483,18 +6009,58 @@
   }
 
   function aplicarResultadoFeedbackNoItem(item, novoStatus, mensagemTexto) {
+    const agora = new Date();
+
     if (CONFIG.statusIds.includes(novoStatus)) {
       item.statusId = novoStatus;
       item.statusNome = CONFIG.statusNomes[novoStatus] || item.statusNome;
-      item.atualizado = new Date();
-      item.atualizadoTexto = formatarDataHora(item.atualizado);
-      item.atualizadoPor = state.usuario.nome || state.usuario.login || item.atualizadoPor;
+      item.atualizado = agora;
+      item.atualizadoTexto = formatarDataHora(agora);
+      item.atualizadoPor =
+        state.usuario.nome || state.usuario.login || item.atualizadoPor;
       item.descricaoResumo = mensagemTexto;
-      item.busca += ' ' + normalizar(mensagemTexto);
-    } else {
-      state.chamados = state.chamados.filter(function (chamado) { return chamado.id !== item.id; });
-      delete state.selecionados[item.id];
+      item.busca += " " + normalizar(mensagemTexto);
+      return;
     }
+
+    if (novoStatus === "4") {
+      item.statusId = "4";
+      item.statusNome = CONFIG.statusNomes["4"];
+      item.finalizado = agora;
+      item.finalizadoTexto = formatarDataHora(agora);
+      item.atualizado = agora;
+      item.atualizadoTexto = item.finalizadoTexto;
+      item.atualizadoPor =
+        state.usuario.nome || state.usuario.login || item.atualizadoPor;
+      item.atendente =
+        state.usuario.nome || state.usuario.login || item.atendente;
+      item.descricaoResumo = mensagemTexto;
+      item.busca += " " + normalizar(mensagemTexto);
+
+      sincronizarHistoricoFinalizadosFirebase([item]).catch(function (erro) {
+        console.warn(
+          PREFIXO,
+          "Finalizou no painel, mas o Firebase histórico não atualizou",
+          erro
+        );
+      });
+
+      // No modo normal mantém o comportamento antigo: some da fila.
+      // Com "Incluir finalizados", a linha permanece pesquisável.
+      if (!state.incluirFinalizados) {
+        state.chamados = state.chamados.filter(function (chamado) {
+          return chamado.id !== item.id;
+        });
+      }
+
+      delete state.selecionados[item.id];
+      return;
+    }
+
+    state.chamados = state.chamados.filter(function (chamado) {
+      return chamado.id !== item.id;
+    });
+    delete state.selecionados[item.id];
   }
 
   async function enviarFeedbackParaItem(item, statusId, mensagemHtml) {
@@ -5062,7 +6628,7 @@
   // =========================================================
   // ATUALIZACAO
   // =========================================================
-  async function atualizarTudo() {
+  async function atualizarTudo(opcoes = {}) {
     const assinaturasAntes = new Map(state.chamados.map(function (item) {
       return [String(item.id), assinaturaLinhaItem(item)];
     }));
@@ -5075,6 +6641,14 @@
     reconstruirFiltros();
     sincronizarTabelaIncremental(assinaturasAntes);
     agendarComplementoNfEmOciosidade();
+
+    if (opcoes.forcarBluesoft) {
+      state.bluesoftFalhaEm = 0;
+      state.bluesoftUltimaConsultaEm = 0;
+      await sincronizarBluesoftFirebaseTabela(true);
+    } else {
+      agendarSincronizacaoBluesoftFirebase(250);
+    }
   }
 
   function configurarAtualizacaoAutomatica() {
@@ -5082,7 +6656,25 @@
     if (!CONFIG.atualizarAutomaticamenteMs) return;
     state.autoTimer = setInterval(function () {
       const selecao = window.getSelection?.();
-      if (document.hidden || state.carregando || state.enriquecendoDadosNf || Object.keys(state.capturandoIds).length || (selecao && !selecao.isCollapsed)) return;
+      const foco = document.activeElement;
+
+      if (
+        document.hidden ||
+        state.carregando ||
+        state.enriquecendoDadosNf ||
+        Object.keys(state.capturandoIds).length ||
+        (selecao && !selecao.isCollapsed) ||
+        (
+          foco &&
+          (
+            foco.matches?.("input,select,textarea,[contenteditable='true'],[contenteditable='plaintext-only']") ||
+            foco.closest?.(".sigma-modal")
+          )
+        )
+      ) {
+        return;
+      }
+
       atualizarTudo();
     }, CONFIG.atualizarAutomaticamenteMs);
   }
@@ -5102,7 +6694,19 @@
     if (state.filtrosObserver) state.filtrosObserver.disconnect();
     if (state.integracaoObserver) state.integracaoObserver.disconnect();
     if (state.complementoNfTimer) clearTimeout(state.complementoNfTimer);
+
+    if (state.finalizadosSyncSilenciosoTimer) {
+      clearTimeout(state.finalizadosSyncSilenciosoTimer);
+    }
+
+    if (state.finalizadosSyncSilenciosoInterval) {
+      clearInterval(state.finalizadosSyncSilenciosoInterval);
+    }
+
     if (state.bluesoftSyncTimer) clearTimeout(state.bluesoftSyncTimer);
+    if (state.bluesoftRealtimeReconfigTimer) {
+      clearTimeout(state.bluesoftRealtimeReconfigTimer);
+    }
     cancelarListenersBluesoft(false);
     if (state.integracaoViewportTimer) clearTimeout(state.integracaoViewportTimer);
     const wrap = document.querySelector(".sigma-grade-wrap");
