@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      5.1.3
-// @description  Reserva despesas em tempo real na tela original e oferece um painel financeiro rápido, unificado e integrado ao Firebase.
+// @version      5.3.3
+// @description  Reserva despesas em tempo real, painel financeiro unificado, relatório para PDF e integração Firebase.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
@@ -25,7 +25,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "5.1.3",
+    versao: "5.3.3",
     parametroPainel: "sigma_painel_financeiro_v5",
     urlPainel: "/backend/despesas?sigma_painel_financeiro_v5=1",
     statusFilaFixo: "P",
@@ -43,6 +43,10 @@
     firebaseBase: "https://infradesk-operadores-default-rtdb.firebaseio.com",
     firebaseReservas: "despesas_updates/by_id",
     firebaseEstadoPainel: "despesas_painel/estado/by_id",
+    // Dados persistentes para histórico/relatórios; NÃO entram na limpeza de estados.
+    firebaseDados: "despesas_painel/dados/by_id",
+    // Registro permanente por evento: cada reserva/liberação possui seu ID único.
+    firebaseHistorico: "despesas_painel/historico/by_id",
 
     // Uma conclusão recente some imediatamente da tela dos outros usuários.
     // Em uma nova consulta, depois desse prazo, o InfraDesk volta a ser
@@ -74,6 +78,21 @@
     modalDespesaId: "",
     abrindoIds: new Set(),
     salvandoIds: new Set(),
+  };
+
+  // A fila do histórico deve existir ANTES da saída antecipada da página
+  // normal: somente o painel continua executando o restante deste IIFE.
+  const CHAVE_FILA_METADADOS = "sigma-financeiro-fila-dados-v1";
+  const CHAVE_FILA_EVENTOS = "sigma-financeiro-fila-eventos-v1";
+  const filaMetadados = {
+    iniciada: false,
+    pendentes: {},
+    eventos: {},
+    ultimoSnapshot: {},
+    timer: null,
+    timerCaptura: null,
+    enviando: false,
+    errosConsecutivos: 0,
   };
 
   if (!modoPainel) {
@@ -184,6 +203,7 @@
     const iniciar = function () {
       if (normalState.iniciado || !document.body) return;
       normalState.iniciado = true;
+      iniciarFilaMetadados();
 
       instalarBotaoAbrirPainel();
       injetarEstiloPaginaPrincipal();
@@ -597,6 +617,12 @@
     if (primeira) primeira.style.boxShadow = owner ? `${cor} 6px 0 0 inset` : "";
 
     atualizarBotoesFinanceirosDaLinhaNormal(tr, id, owner);
+    // Só arquiva a despesa quando há responsável conhecido. A reserva em tempo
+    // real pode chegar depois do HTML; nesse caso esta função roda novamente.
+    if (owner) {
+      const item = extrairMetadadosDaLinhaNormal(tr, id);
+      if (item) registrarMetadadosDespesa(item, owner);
+    }
     if (normalState.modalDespesaId === id) atualizarBotoesModalNormal();
   }
 
@@ -1119,7 +1145,7 @@
       overflow: hidden;
       background: var(--sigma-bg);
       color: var(--sigma-text);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
     button, input, select { font: inherit; }
@@ -1205,7 +1231,7 @@
       background: transparent;
       color: #cbd5e1;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
     }
@@ -1236,7 +1262,7 @@
       background: rgba(255, 255, 255, .09);
       color: #e5edf8;
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
     }
 
     .sigma-btn {
@@ -1251,7 +1277,7 @@
       background: rgba(255, 255, 255, .09);
       color: #fff;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 700;
       cursor: pointer;
     }
 
@@ -1305,7 +1331,7 @@
       margin: 0 0 3px;
       color: #475569;
       font-size: 10px;
-      font-weight: 900;
+      font-weight: 700;
     }
 
     /* Os filtros do painel são propositalmente nativos.
@@ -1372,7 +1398,7 @@
       background: #f8fafc;
       color: #475569;
       font-size: 10px;
-      font-weight: 900;
+      font-weight: 700;
       cursor: pointer;
     }
     .sigma-chip:hover, .sigma-chip.ativo { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
@@ -1381,7 +1407,7 @@
     #sigma-status-carregamento {
       color: #64748b;
       font-size: 10px;
-      font-weight: 800;
+      font-weight: 600;
       white-space: nowrap;
     }
 
@@ -1408,11 +1434,14 @@
       z-index: 20;
       padding: 9px 8px;
       border: 0;
-      background: var(--sigma-dark);
-      color: #fff;
-      font-size: 10px;
+      border-bottom: 2px solid #dbe5ef;
+      background: #fff;
+      color: #1c84c6;
+      font-size: 11px;
+      font-weight: 700;
       text-align: left;
       white-space: nowrap;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, .03);
     }
 
     .sigma-grade tbody td {
@@ -1468,7 +1497,7 @@
     .sigma-numero-id {
       color: #0f172a;
       font-size: 13px;
-      font-weight: 950;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -1482,13 +1511,13 @@
       background: #f1f5f9;
       color: #475569;
       font-size: 10px;
-      font-weight: 800;
+      font-weight: 600;
       white-space: nowrap;
     }
 
     .sigma-fluxo strong {
       color: #1e293b;
-      font-weight: 950;
+      font-weight: 700;
     }
 
     .sigma-despesa-rodape td {
@@ -1516,21 +1545,21 @@
       overflow: hidden;
       color: #334155;
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .sigma-plano-conta strong {
       color: #0f172a;
-      font-weight: 950;
+      font-weight: 700;
     }
 
     .sigma-setor-contratante {
       overflow: hidden;
       color: #475569;
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -1538,11 +1567,11 @@
       content: "•";
       margin-right: 8px;
       color: #94a3b8;
-      font-weight: 950;
+      font-weight: 700;
     }
     .sigma-setor-contratante strong {
       color: #0f172a;
-      font-weight: 950;
+      font-weight: 700;
     }
 
     .sigma-pgto-antecipado {
@@ -1555,7 +1584,7 @@
       background: #fee2e2;
       color: #b91c1c;
       font-size: 9px;
-      font-weight: 950;
+      font-weight: 700;
       white-space: nowrap;
     }
     .sigma-grade tbody tr.sigma-grupo td {
@@ -1567,13 +1596,13 @@
       background: #e9eff7;
       color: #172033;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 700;
     }
 
-    .sigma-id p { display: inline; margin: 0; color: #172033; font-size: 13px; font-weight: 950; }
-    .sigma-id small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; font-weight: 850; }
-    .sigma-desc { max-width: 320px; color: #243247; font-size: 12px; font-weight: 750; }
-    .sigma-fornecedor { max-width: 270px; font-size: 12px; font-weight: 750; }
+    .sigma-id p { display: inline; margin: 0; color: #172033; font-size: 13px; font-weight: 700; }
+    .sigma-id small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; font-weight: 600; }
+    .sigma-desc { max-width: 320px; color: #243247; font-size: 12px; font-weight: 600; }
+    .sigma-fornecedor { max-width: 270px; font-size: 12px; font-weight: 600; }
     .sigma-tipo { white-space: nowrap; }
     .sigma-tipo-conteudo {
       display: inline-flex;
@@ -1611,15 +1640,17 @@
       background: #e0f2fe;
       color: #075985;
       font-size: 8px;
-      font-weight: 900;
+      font-weight: 700;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: middle;
     }
-    .sigma-data { white-space: nowrap; font-size: 12px; font-weight: 850; }
-    .sigma-data.vencida { color: #dc2626; }
-    .sigma-data.hoje { color: #b45309; }
-    .sigma-valor { white-space: nowrap; color: #172033; font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: 950; }
+    .sigma-data { white-space: nowrap; font-size: 12px; font-weight: 600; }
+    /* A cor por faixa de vencimento é responsabilidade do Tampermonkey
+       InfraDesk Assistente, evitando duas regras visuais diferentes. */
+    .sigma-data.vencida,
+    .sigma-data.hoje { color: inherit; }
+    .sigma-valor { white-space: nowrap; color: #172033; font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700; }
 
     .sigma-competencia {
       display: inline-flex;
@@ -1630,7 +1661,7 @@
       background: #e0e7ff;
       color: #3730a3;
       font-size: 10px;
-      font-weight: 900;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -1646,7 +1677,7 @@
       background: #fff;
       color: #475569;
       font-size: 10px;
-      font-weight: 900;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -1823,7 +1854,7 @@
       background: #ead8ff;
       color: #5b21b6;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 600;
       line-height: 1.4;
       overflow-wrap: anywhere;
     }
@@ -1903,7 +1934,7 @@
       color: #fff;
       box-shadow: 0 14px 35px rgba(0,0,0,.27);
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
     }
     #sigma-toast.erro { background: #991b1b; }
     #sigma-toast.sucesso { background: #166534; }
@@ -1930,6 +1961,7 @@
         </div>
         <span class="sigma-usuario" id="sigma-usuario"><i class="fa-solid fa-user"></i> Identificando usuário...</span>
         <button class="sigma-btn" id="sigma-atualizar" type="button"><i class="fa-solid fa-rotate"></i> Atualizar InfraDesk</button>
+        <button class="sigma-btn" id="sigma-gerar-relatorio" type="button"><i class="fa-solid fa-print"></i> Gerar relatório</button>
         <a class="sigma-btn" href="/backend/despesas" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Tela original</a>
       </div>
     </header>
@@ -2176,6 +2208,7 @@
       return document.body && paginaWindow().jQuery && paginaWindow().jQuery.fn;
     });
 
+    iniciarFilaMetadados();
     configurarEventosDaTela();
     atualizarAbasPainel();
     forcarFiltrosNativos();
@@ -2195,11 +2228,12 @@
       carregarTodasDespesas(),
     ]);
 
-    // Estados finais servem apenas para retirar rapidamente da fila uma
-    // gravação já confirmada. Registros antigos são limpos em um único PATCH
-    // para o histórico temporário não crescer indefinidamente.
-    void limparEstadosFirebaseExpirados();
-    setTimeout(function () { void limparEstadosFirebaseExpirados(); }, 5000);
+    // HISTORICO_SEM_APAGAR_V5_3_3:
+    // A limpeza anterior removia conclusões antigas de estado/by_id. Como
+    // esses registros contêm ações e usuários históricos, NÃO apagamos nada
+    // automaticamente. A validade de 12h continua sendo respeitada apenas
+    // na leitura da fila por estaFinalizadaRecentemente().
+    // Não chamar limparEstadosFirebaseExpirados().
 
     reconstruirOpcoesFiltros();
     restaurarPreferenciasPainel(false);
@@ -2232,12 +2266,17 @@
             try { $(select).select2("destroy"); } catch (_) {}
           }
 
-          select.classList.remove("select2-hidden-accessible");
-          select.removeAttribute("data-select2-id");
-          select.removeAttribute("tabindex");
-          select.removeAttribute("aria-hidden");
-          select.style.removeProperty("position");
-          select.style.removeProperty("width");
+          // Evita realimentar o MutationObserver com alterações de class
+          // desnecessárias: um filtro nativo não precisa ser refeito.
+          if (select.classList.contains("select2-hidden-accessible")) {
+            select.classList.remove("select2-hidden-accessible");
+          }
+          for (const atributo of ["data-select2-id", "tabindex", "aria-hidden"]) {
+            if (select.hasAttribute(atributo)) select.removeAttribute(atributo);
+          }
+          for (const propriedade of ["position", "width"]) {
+            if (select.style.getPropertyValue(propriedade)) select.style.removeProperty(propriedade);
+          }
 
           const proximo = select.nextElementSibling;
           if (proximo && proximo.classList && proximo.classList.contains("select2")) {
@@ -2265,6 +2304,272 @@
     limparSelect2();
     const observer = new MutationObserver(agendarLimpeza);
     observer.observe(filtros, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  }
+
+
+  // =========================================================
+  // RELATORIO_FINANCEIRO_PDF
+  // CTRL + F: RELATORIO_FINANCEIRO_PDF
+  //
+  // Gera uma página A4 paisagem usando EXATAMENTE as despesas que
+  // estão visíveis pelos filtros atuais. O navegador faz a impressão
+  // ou "Salvar como PDF"; não há biblioteca de PDF nem nova consulta.
+  // =========================================================
+  function valorBRLNumero(valor) {
+    const limpo = texto(valor)
+      .replace(/R\$\s*/gi, "")
+      .replace(/\./g, "")
+      .replace(",", ".")
+      .replace(/[^\d.-]/g, "");
+    const numero = Number(limpo);
+    return Number.isFinite(numero) ? numero : 0;
+  }
+
+  function nomeCriadorRelatorio(item) {
+    const fluxo = item && item.fluxo ? item.fluxo : {};
+    return texto(fluxo.criado && fluxo.criado.usuario ? fluxo.criado.usuario : "") || "—";
+  }
+
+  function resumoFiltrosRelatorio() {
+    const partes = [];
+    const busca = valorFiltro("sigma-busca");
+    const competencia = valorFiltro("sigma-filtro-competencia");
+    const setor = valorFiltro("sigma-filtro-setor");
+    const fornecedor = valorFiltro("sigma-filtro-fornecedor");
+    const tipo = valorFiltro("sigma-filtro-tipo");
+    const responsavel = valorFiltro("sigma-filtro-owner");
+    const situacao = situacaoAtual();
+
+    if (busca) partes.push("Busca: " + busca);
+    if (competencia) partes.push("Competência: " + competencia);
+    if (setor) partes.push("Setor: " + setor);
+    if (fornecedor) partes.push("Fornecedor: " + fornecedor);
+    if (tipo) partes.push("Tipo: " + tipo);
+    if (responsavel) partes.push("Responsável: " + (responsavel === "__livre__" ? "Sem usuário" : responsavel));
+    if (situacao && situacao !== "todas") partes.push("Situação: " + situacao);
+
+    return partes.length ? partes.join(" • ") : "Sem filtros adicionais";
+  }
+
+  function abrirRelatorioFinanceiro() {
+    const lista = despesasVisiveis().slice();
+    const organizacao = valorFiltro("sigma-organizacao") || "competencia";
+    ordenarLista(lista, organizacao);
+
+    if (!lista.length) {
+      toast("Não há despesas visíveis para gerar o relatório.", "erro");
+      return;
+    }
+
+    const janela = window.open("", "_blank");
+    if (!janela) {
+      toast("O navegador bloqueou a janela do relatório. Libere pop-ups para o InfraDesk.", "erro");
+      return;
+    }
+
+    try { janela.opener = null; } catch (_) {}
+
+    const total = lista.reduce(function (soma, item) {
+      return soma + valorBRLNumero(item.valor);
+    }, 0);
+
+    const totalFormatado = total.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
+    const linhas = lista.map(function (item) {
+      return `
+        <tr>
+          <td class="numero">${escaparHtml(item.id || "—")}</td>
+          <td>${escaparHtml(nomeCriadorRelatorio(item))}</td>
+          <td class="setor">${escaparHtml(item.setorContratante || "—")}</td>
+          <td><span class="status">${escaparHtml(item.statusTexto || "—")}</span></td>
+          <td>${escaparHtml(item.numeroDocumento || "—")}</td>
+          <td class="fornecedor">${escaparHtml(item.fornecedor || "—")}</td>
+          <td class="valor">${escaparHtml(item.valor || "—")}</td>
+          <td class="data">${escaparHtml(item.vencimentoTexto || "—")}</td>
+        </tr>`;
+    }).join("");
+
+    const geradoEm = new Date().toLocaleString("pt-BR");
+    const tituloAba = nomeAba(state.abaAtual);
+    const filtros = resumoFiltrosRelatorio();
+
+    const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Relatório Financeiro • InfraDesk</title>
+  <style>
+    @page { size: A4 landscape; margin: 9mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f3f6f9;
+      color: #334155;
+      font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 11px;
+    }
+    .pagina {
+      width: 100%;
+      padding: 18px;
+    }
+    .topo {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 12px;
+      padding: 14px 16px;
+      border: 1px solid #dbe5ef;
+      border-radius: 8px;
+      background: #fff;
+    }
+    h1 {
+      margin: 0 0 4px;
+      color: #1c84c6;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .subtitulo { color: #64748b; font-size: 11px; }
+    .meta { color: #64748b; text-align: right; line-height: 1.6; white-space: nowrap; }
+    .filtros {
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #475569;
+    }
+    .acoes {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+    }
+    button {
+      height: 34px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 6px;
+      background: #1c84c6;
+      color: #fff;
+      font: 700 11px "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      cursor: pointer;
+    }
+    .tabela-wrap {
+      overflow: hidden;
+      border: 1px solid #dbe5ef;
+      border-radius: 7px;
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th {
+      padding: 8px 7px;
+      border-bottom: 2px solid #dbe5ef;
+      background: #fff;
+      color: #1c84c6;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: left;
+    }
+    td {
+      padding: 7px;
+      border-bottom: 1px solid #e7edf4;
+      color: #475569;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+    }
+    tbody tr:nth-child(even) td { background: #fbfcfe; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .numero { width: 72px; font-weight: 700; color: #1e293b; }
+    .setor { width: 23%; }
+    .fornecedor { width: 19%; }
+    .valor { width: 92px; white-space: nowrap; font-weight: 700; color: #1e293b; }
+    .data { width: 88px; white-space: nowrap; }
+    .status {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .rodape {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      padding: 9px 11px;
+      border: 1px solid #dbe5ef;
+      border-radius: 6px;
+      background: #fff;
+      font-weight: 600;
+    }
+    @media print {
+      body { background: #fff; }
+      .pagina { padding: 0; }
+      .acoes { display: none !important; }
+      .topo, .filtros, .tabela-wrap, .rodape { break-inside: avoid; box-shadow: none; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pagina">
+    <div class="topo">
+      <div>
+        <h1>Relatório Financeiro • InfraDesk</h1>
+        <div class="subtitulo">${escaparHtml(tituloAba)} • visão atual do Painel Financeiro</div>
+      </div>
+      <div class="meta">
+        <div><strong>${lista.length}</strong> despesa(s)</div>
+        <div>Gerado em ${escaparHtml(geradoEm)}</div>
+      </div>
+    </div>
+
+    <div class="filtros"><strong>Filtros:</strong> ${escaparHtml(filtros)}</div>
+
+    <div class="acoes">
+      <button type="button" onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+
+    <div class="tabela-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:72px">Chamado</th>
+            <th style="width:110px">Criador</th>
+            <th style="width:23%">Setor</th>
+            <th style="width:105px">Status</th>
+            <th style="width:92px">Nº documento</th>
+            <th style="width:19%">Fornecedor</th>
+            <th style="width:92px">Valor</th>
+            <th style="width:88px">Vencimento</th>
+          </tr>
+        </thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+
+    <div class="rodape">
+      <span>Total de documentos: ${lista.length}</span>
+      <span>Valor bruto total: ${escaparHtml(totalFormatado)}</span>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    janela.document.open();
+    janela.document.write(html);
+    janela.document.close();
   }
 
   function configurarEventosDaTela() {
@@ -2319,6 +2624,11 @@
       restaurarPreferenciasPainel(false);
       renderizar();
     });
+
+    const botaoRelatorio = document.getElementById("sigma-gerar-relatorio");
+    if (botaoRelatorio) {
+      botaoRelatorio.addEventListener("click", abrirRelatorioFinanceiro);
+    }
 
     document.addEventListener("click", function (evento) {
       const reservar = evento.target.closest("[data-reservar-id]");
@@ -2408,6 +2718,7 @@
     const cache = state.cacheAbas[aba];
     if (Array.isArray(cache)) {
       state.despesas = cache.slice();
+      agendarCapturaMetadadosPainel();
       reconstruirOpcoesFiltros();
       restaurarPreferenciasPainel(false);
       renderizar();
@@ -2504,6 +2815,8 @@
       // a lista ativa. A aba Pendentes só chega aqui depois do primeiro clique.
       if (state.abaAtual === abaCarregando) {
         state.despesas = carregadas;
+        // Captura DEPOIS da nova lista estar pronta; apenas as reservadas.
+        agendarCapturaMetadadosPainel();
       }
 
       atualizarStatus(
@@ -2819,6 +3132,38 @@
   }
 
   // =========================================================
+  // METADADOS_DA_LINHA_NORMAL
+  // Lê exclusivamente os campos necessários à base de dados persistentes.
+  // As linhas expandidas continuam no DOM mesmo quando visualmente fechadas.
+  // =========================================================
+  function extrairMetadadosDaLinhaNormal(tr, id) {
+    if (!tr || !/^\d+$/.test(texto(id))) return null;
+    const celulas = tr.children || [];
+    if (celulas.length < 6) return null;
+
+    const fornecedorEl = celulas[3].querySelector("[data-original-title]");
+    const valorEl = celulas[5].querySelector('[data-original-title="Valor Bruto"]')
+      || celulas[5].querySelector("b");
+    const datas = texto(celulas[4].textContent).match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g) || [];
+    const item = {
+      id: id,
+      tipo: texto(celulas[2].textContent),
+      fornecedor: texto((fornecedorEl && fornecedorEl.getAttribute("data-original-title")) || celulas[3].textContent),
+      valor: texto(valorEl ? valorEl.textContent : celulas[5].textContent),
+      vencimentoTexto: datas.length ? datas[datas.length - 1] : "",
+      fluxo: {},
+    };
+
+    let proxima = tr.nextElementSibling;
+    let lidas = 0;
+    while (proxima && lidas++ < 12 && proxima.classList.contains("expandir-" + id)) {
+      extrairComplementosDespesa(item, proxima);
+      proxima = proxima.nextElementSibling;
+    }
+    return item;
+  }
+
+  // =========================================================
   // CONTEXTO_DO_USUARIO
   // Identifica o usuário pela página real consultada no InfraDesk.
   // =========================================================
@@ -2881,6 +3226,256 @@
       }
       reject(new Error("GM_xmlhttpRequest não está disponível."));
     });
+  }
+
+  // =========================================================
+  // DADOS_PERSISTENTES_FIREBASE_V5_3
+  // Dados para auditoria/BI separados de reservas e estados temporários.
+  // Só grava linhas reservadas, ao reservar ou após concluir pelo painel.
+  // A fila em localStorage reenvia falhas de rede sem travar o InfraDesk.
+  // =========================================================
+
+  function formatarDataHoraFinanceira(valor) {
+    const v = texto(valor);
+    const match = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (!match) return v;
+    const ano = match[3].length === 2 ? "20" + match[3] : match[3];
+    return [match[1].padStart(2, "0"), match[2].padStart(2, "0"), ano].join("/")
+      + " " + [match[4].padStart(2, "0"), match[5], match[6]].join(":");
+  }
+
+  function formatarDataFinanceira(valor) {
+    const v = texto(valor);
+    const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (!m) return v;
+    return m[1].padStart(2, "0") + "/" + m[2].padStart(2, "0") + "/"
+      + (m[3].length === 2 ? "20" + m[3] : m[3]);
+  }
+
+  function valorBrutoNumericoFinanceiro(valor) {
+    const limpo = texto(valor).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    if (!limpo || !/^-?\d+(?:\.\d+)?$/.test(limpo)) return null;
+    const n = Number(limpo);
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  }
+
+  function montarDadosPersistentes(item, responsavel) {
+    if (!item || !/^\d+$/.test(texto(item.id))) return null;
+    const fluxo = item.fluxo || {};
+    const criado = fluxo.criado || {};
+    const aprovado = fluxo.aprovado || {};
+    const valor = valorBrutoNumericoFinanceiro(item.valor);
+    const dados = { id: texto(item.id) };
+
+    // O responsável é a última pessoa que assumiu a despesa. Não zeramos
+    // esse campo quando a reserva é liberada: ele permanece para o histórico.
+    if (texto(responsavel)) dados.responsavel = texto(responsavel);
+    if (texto(criado.data)) dados.criadoEm = formatarDataHoraFinanceira(criado.data);
+    if (texto(criado.usuario)) dados.criadoPor = texto(criado.usuario);
+    if (texto(aprovado.data)) dados.aprovadoEm = formatarDataHoraFinanceira(aprovado.data);
+    if (texto(aprovado.usuario)) dados.aprovadoPor = texto(aprovado.usuario);
+    if (texto(item.tipo)) dados.tipoDocumento = texto(item.tipo);
+    if (texto(item.fornecedor)) dados.fornecedor = texto(item.fornecedor);
+    if (valor !== null) dados.valorBruto = valor;
+    if (texto(item.vencimentoTexto)) dados.vencimento = formatarDataFinanceira(item.vencimentoTexto);
+
+    return Object.keys(dados).length > 1 ? dados : null;
+  }
+
+  function iniciarFilaMetadados() {
+    if (filaMetadados.iniciada) return;
+    filaMetadados.iniciada = true;
+    try {
+      const fila = JSON.parse(localStorage.getItem(CHAVE_FILA_METADADOS) || "{}");
+      if (fila && typeof fila === "object" && !Array.isArray(fila)) filaMetadados.pendentes = fila;
+    } catch (_) {}
+    try {
+      const eventos = JSON.parse(localStorage.getItem(CHAVE_FILA_EVENTOS) || "{}");
+      if (eventos && typeof eventos === "object" && !Array.isArray(eventos)) filaMetadados.eventos = eventos;
+    } catch (_) {}
+    if (Object.keys(filaMetadados.pendentes).length || Object.keys(filaMetadados.eventos).length) {
+      agendarEnvioMetadados(600);
+    }
+  }
+
+  function salvarFilaMetadados() {
+    try {
+      if (Object.keys(filaMetadados.pendentes).length) {
+        localStorage.setItem(CHAVE_FILA_METADADOS, JSON.stringify(filaMetadados.pendentes));
+      } else {
+        localStorage.removeItem(CHAVE_FILA_METADADOS);
+      }
+    } catch (falha) {
+      console.warn(PREFIXO, "Fila local de metadados indisponível", falha);
+    }
+    try {
+      if (Object.keys(filaMetadados.eventos).length) {
+        localStorage.setItem(CHAVE_FILA_EVENTOS, JSON.stringify(filaMetadados.eventos));
+      } else {
+        localStorage.removeItem(CHAVE_FILA_EVENTOS);
+      }
+    } catch (falha) {
+      console.warn(PREFIXO, "Fila local de eventos indisponível", falha);
+    }
+  }
+
+  // Cada ação efetivamente confirmada gera um evento único. A gravação é
+  // feita por PUT com ID estável, permitindo repetição sem eventos duplicados.
+  // Nunca usamos DELETE nos dois novos caminhos de histórico.
+  function registrarEventoHistorico(id, acao, usuario, responsavelAntes, responsavelDepois) {
+    id = texto(id);
+    if (!/^\d+$/.test(id)) return;
+    iniciarFilaMetadados();
+    const ts = Date.now();
+    const chave = "e" + ts.toString(36) + "_" + Math.random().toString(36).slice(2, 12);
+    const evento = {
+      id: id,
+      acao: texto(acao),
+      realizadoPor: texto(usuario && usuario.nome) || "Não identificado",
+      realizadoPorId: texto(usuario && usuario.id),
+      realizadoPorLogin: texto(usuario && usuario.login),
+      responsavelAntes: texto(responsavelAntes),
+      responsavelDepois: texto(responsavelDepois),
+      ts: ts,
+      dataHora: new Date(ts).toISOString(),
+    };
+    filaMetadados.eventos[chave] = { id: id, evento: evento };
+    salvarFilaMetadados();
+    agendarEnvioMetadados(400);
+  }
+
+  function registrarMetadadosDespesa(item, responsavel) {
+    iniciarFilaMetadados();
+    const dados = montarDadosPersistentes(item, responsavel);
+    if (!dados) return;
+    const id = dados.id;
+    // Completa campos de uma coleta anterior; não apaga data de aprovação
+    // quando um HTML parcial chega sem a linha expandida.
+    const anterior = filaMetadados.pendentes[id];
+    const composto = Object.assign({}, anterior && anterior.dados || {}, dados);
+    const assinatura = JSON.stringify(composto);
+    if (filaMetadados.ultimoSnapshot[id] === assinatura && !anterior) return;
+    if (anterior && JSON.stringify(anterior.dados) === assinatura) return;
+
+    filaMetadados.ultimoSnapshot[id] = assinatura;
+    filaMetadados.pendentes[id] = { dados: composto };
+    salvarFilaMetadados();
+    agendarEnvioMetadados(500);
+  }
+
+  function agendarEnvioMetadados(atraso) {
+    if (filaMetadados.timer) clearTimeout(filaMetadados.timer);
+    filaMetadados.timer = setTimeout(function () {
+      filaMetadados.timer = null;
+      void enviarMetadadosPendentes();
+    }, Math.max(0, Number(atraso || 0)));
+  }
+
+  async function enviarMetadadosPendentes() {
+    if (filaMetadados.enviando) return;
+    filaMetadados.enviando = true;
+    let falhou = false;
+    try {
+      const ids = Object.keys(filaMetadados.pendentes).slice(0, 30);
+      for (const id of ids) {
+        const registro = filaMetadados.pendentes[id];
+        if (!registro || !registro.dados) { delete filaMetadados.pendentes[id]; continue; }
+        const dados = registro.dados;
+        try {
+          const url = firebaseUrl(CONFIG.firebaseDados + "/" + encodeURIComponent(id));
+          // Consulta o estado salvo antes de escrever. Várias abas/dispositivos
+          // não devem regravar as mesmas informações a cada carregamento.
+          const leitura = await gmRequest({ method: "GET", url: url, timeout: 12000 });
+          if (!leitura || leitura.status < 200 || leitura.status >= 300) {
+            throw new Error("Leitura dos dados: HTTP " + (leitura ? leitura.status : "sem resposta"));
+          }
+          const remoto = parseJsonSeguro(leitura.responseText || "null", null);
+          const anterior = remoto && typeof remoto === "object" && !Array.isArray(remoto)
+            ? remoto : {};
+          const alteracoes = {};
+          Object.keys(dados).forEach(function (campo) {
+            if (!Object.prototype.hasOwnProperty.call(anterior, campo)
+                || JSON.stringify(anterior[campo]) !== JSON.stringify(dados[campo])) {
+              alteracoes[campo] = dados[campo];
+            }
+          });
+          // PATCH apenas dos campos diferentes, preservando dados antigos.
+          // atualizadoEm muda somente quando algo da despesa realmente mudou.
+          if (Object.keys(alteracoes).length) {
+            alteracoes.atualizadoEm = Date.now();
+            const resposta = await gmRequest({
+              method: "PATCH", url: url,
+              headers: { "Content-Type": "application/json" },
+              data: JSON.stringify(alteracoes), timeout: 12000,
+            });
+            if (!resposta || resposta.status < 200 || resposta.status >= 300) {
+              throw new Error("Gravação dos dados: HTTP " + (resposta ? resposta.status : "sem resposta"));
+            }
+          }
+          // Se houve nova coleta durante a requisição, preserve a versão nova.
+          if (filaMetadados.pendentes[id] === registro) delete filaMetadados.pendentes[id];
+          filaMetadados.errosConsecutivos = 0;
+        } catch (falha) {
+          falhou = true;
+          filaMetadados.errosConsecutivos++;
+          console.warn(PREFIXO, "Não consegui guardar os dados da despesa " + id, falha);
+          break;
+        }
+      }
+      // Eventos independentes dos dados: uma falha em uma despesa não deve
+      // bloquear a trilha das ações de outras despesas.
+      const chaves = Object.keys(filaMetadados.eventos).slice(0, 30);
+      for (const chave of chaves) {
+        const registro = filaMetadados.eventos[chave];
+        if (!registro || !registro.id || !registro.evento) {
+          delete filaMetadados.eventos[chave];
+          continue;
+        }
+        try {
+          const resposta = await gmRequest({
+            method: "PUT",
+            url: firebaseUrl(CONFIG.firebaseHistorico + "/" + encodeURIComponent(registro.id)
+              + "/" + encodeURIComponent(chave)),
+            headers: { "Content-Type": "application/json" },
+            data: JSON.stringify(registro.evento),
+            timeout: 12000,
+          });
+          if (!resposta || resposta.status < 200 || resposta.status >= 300) {
+            throw new Error("HTTP " + (resposta ? resposta.status : "sem resposta"));
+          }
+          if (filaMetadados.eventos[chave] === registro) delete filaMetadados.eventos[chave];
+          filaMetadados.errosConsecutivos = 0;
+        } catch (falha) {
+          falhou = true;
+          filaMetadados.errosConsecutivos++;
+          console.warn(PREFIXO, "Não consegui arquivar o evento " + chave, falha);
+          break;
+        }
+      }
+      salvarFilaMetadados();
+    } finally {
+      filaMetadados.enviando = false;
+      if (Object.keys(filaMetadados.pendentes).length || Object.keys(filaMetadados.eventos).length) {
+        const atraso = falhou
+          ? Math.min(5 * 60 * 1000, 10000 * Math.pow(2, Math.min(filaMetadados.errosConsecutivos - 1, 5)))
+          : 700;
+        agendarEnvioMetadados(atraso);
+      }
+    }
+  }
+
+  function agendarCapturaMetadadosPainel() {
+    // Não varre milhares de despesas a cada evento SSE. Somente a lista
+    // visível e somente as que têm dono de reserva.
+    if (modoPainel === false) return;
+    if (filaMetadados.timerCaptura) clearTimeout(filaMetadados.timerCaptura);
+    filaMetadados.timerCaptura = setTimeout(function () {
+      filaMetadados.timerCaptura = null;
+      (state.despesas || []).forEach(function (item) {
+        const dono = donoReservaNoMapa(state.reservas, item.id);
+        if (dono) registrarMetadadosDespesa(item, dono);
+      });
+    }, 220);
   }
 
   function donoReserva(id) {
@@ -2989,6 +3584,7 @@
       if (!resposta || resposta.status < 200 || resposta.status >= 300) {
         throw new Error("Firebase não confirmou a reserva.");
       }
+      registrarEventoHistorico(id, owner ? "transferencia" : "reserva", usuario, owner, nome);
       return { ok: true, codigo: owner ? "assumida" : "reservada", owner: nome, item: payload };
     }
 
@@ -3010,6 +3606,10 @@
       if (opcoes.donoEsperado != null && normalizar(owner) !== normalizar(opcoes.donoEsperado)) {
         return { ok: false, codigo: "alterada", owner: owner, item: leitura.item };
       }
+      if (opcoes.tsMaximoReserva != null && Number(leitura.item && leitura.item.ts || 0)
+          > Number(opcoes.tsMaximoReserva)) {
+        return { ok: false, codigo: "alterada", owner: owner, item: leitura.item };
+      }
 
       const nomeAtual = texto(usuario && usuario.nome);
       if (!opcoes.permitirOutro && (!nomeAtual || !mesmaPessoa(owner, nomeAtual))) {
@@ -3029,6 +3629,9 @@
       if (!resposta || resposta.status < 200 || resposta.status >= 300) {
         throw new Error("Firebase não confirmou a liberação.");
       }
+      if (opcoes.permitirOutro) {
+        registrarEventoHistorico(id, "liberacao", usuario, owner, "");
+      }
       return { ok: true, codigo: "liberada", owner: "", item: null };
     }
 
@@ -3045,6 +3648,11 @@
       delete state.reservas[id];
     }
     state.reservandoIds.delete(id);
+    const owner = donoItemReserva(resultado.item);
+    if (owner) {
+      const item = itemDespesaPorId(id);
+      if (item) registrarMetadadosDespesa(item, owner);
+    }
     renderizar();
   }
 
@@ -3253,15 +3861,25 @@
       throw new Error("Firebase não confirmou o estado final.");
     }
 
-    const resultadoReserva = await liberarReservaFirebaseSeguro(
-      id,
-      state.usuario,
-      { permitirOutro: false }
-    );
+    // A liberação só pode atingir a reserva existente quando a conclusão
+    // aconteceu. Nunca apague uma reserva criada APÓS a confirmação antiga.
+    const leituraAtual = await lerReservaComVersao(id);
+    const donoAtual = donoItemReserva(leituraAtual.item);
+    const reservadoEm = Number(leituraAtual.item && leituraAtual.item.ts || 0);
+    const mesmoResponsavel = donoAtual && mesmaPessoa(donoAtual, payload.usuario);
+    const reservaAnteriorAoEvento = reservadoEm > 0 && reservadoEm <= Number(payload.ts || 0);
+    const resultadoReserva = (mesmoResponsavel && reservaAnteriorAoEvento)
+      ? await liberarReservaFirebaseSeguro(
+          id,
+          { nome: payload.usuario },
+          { permitirOutro: false, donoEsperado: donoAtual, tsMaximoReserva: Number(payload.ts) }
+        )
+      : { ok: true, codigo: "preservada", item: leituraAtual.item };
 
     // Se outra pessoa assumiu depois da conclusão, nunca apagamos a reserva
     // dela. O estado final já foi salvo e continuará ocultando a linha antiga.
-    if (!resultadoReserva.ok && resultadoReserva.codigo !== "ocupada") {
+    if (!resultadoReserva.ok && resultadoReserva.codigo !== "ocupada"
+        && resultadoReserva.codigo !== "alterada") {
       throw new Error(mensagemFalhaReserva(resultadoReserva));
     }
 
@@ -3283,12 +3901,35 @@
     }, Math.max(0, Number(atraso || 0)));
   }
 
+  // SEGURANCA_PENDENCIA_ANTIGA_V5_3_3
+  // Uma pendência guardada meses atrás NÃO é um evento novo. Depois que as
+  // regras do Firebase foram liberadas, versões anteriores reenviavam esses
+  // dados ao estado ativo e tentavam liberar reservas de hoje. Não fazemos
+  // mais nenhuma dessas operações para pendências vencidas. Permanecem no
+  // localStorage original, sem modificação, para importação histórica manual.
+  function pendenciaOperacionalRecente(registro) {
+    const payload = registro && registro.payload ? registro.payload : registro;
+    const ts = Number(payload && payload.ts || 0);
+    const idade = Date.now() - ts;
+    return Number.isFinite(ts) && ts > 0 && idade >= -60000
+      && idade <= CONFIG.validadeEstadoFinalMs;
+  }
+
   async function sincronizarPendenciasFirebase() {
     if (state.sincronizandoFirebase) return;
 
     const pendencias = carregarPendenciasFirebase();
-    const ids = Object.keys(pendencias);
-    if (!ids.length) return;
+    const ids = Object.keys(pendencias).filter(function (id) {
+      return pendenciaOperacionalRecente(pendencias[id]);
+    });
+    if (!ids.length) {
+      const antigas = Object.keys(pendencias).length;
+      if (antigas) {
+        console.info(PREFIXO, antigas + " pendência(s) antiga(s) preservada(s) localmente, "
+          + "sem reenviar à fila atual nem liberar reservas. Nenhum dado foi apagado.");
+      }
+      return;
+    }
 
     state.sincronizandoFirebase = true;
     try {
@@ -3308,8 +3949,10 @@
     } finally {
       state.sincronizandoFirebase = false;
 
+      // Apenas pendências recentes são repetidas; as antigas ficam intactas
+      // no armazenamento local, sem gerar escritas contínuas no Firebase.
       const restantes = carregarPendenciasFirebase();
-      const registros = Object.values(restantes);
+      const registros = Object.values(restantes).filter(pendenciaOperacionalRecente);
       if (registros.length) {
         const maiorTentativa = registros.reduce(function (maior, registro) {
           return Math.max(maior, Number(registro && registro.tentativas || 0));
@@ -3327,6 +3970,12 @@
     if (!item || !item.id) return null;
 
     const payload = criarPayloadEstadoFinal(item, resetar);
+
+    // Guarda os campos do documento de forma permanente ANTES de remover a
+    // reserva temporária. O envio possui uma fila local para repetir falhas.
+    registrarMetadadosDespesa(item, donoReserva(item.id) || state.usuario.nome);
+    registrarEventoHistorico(item.id, resetar ? "retorno" : "conclusao", state.usuario,
+      donoReserva(item.id), "");
 
     // Atualiza a tela imediatamente após a confirmação do InfraDesk.
     // A sincronização remota é idempotente e será repetida até funcionar.
@@ -3390,6 +4039,8 @@
       const evento = JSON.parse(raw || "{}");
       const caminho = String(evento.path || "");
       const data = evento.data;
+      // Reconnects/SSE idempotentes não devem reconstruir a tabela inteira.
+      const estadoAnterior = JSON.stringify(alvo);
       if (caminho === "/" || caminho === "") {
         Object.keys(alvo).forEach(function (k) { delete alvo[k]; });
         if (data && typeof data === "object") Object.assign(alvo, data);
@@ -3404,6 +4055,8 @@
           if (data == null) delete alvo[id][partes[1]]; else alvo[id][partes[1]] = data;
         }
       }
+      if (JSON.stringify(alvo) === estadoAnterior) return;
+      if (alvo === state.reservas) agendarCapturaMetadadosPainel();
       if (!state.inicializando && state.filtrosProntos) {
         atualizarOpcoesResponsavel();
         agendarRender(60);
@@ -3963,7 +4616,7 @@
   // =========================================================
   // MODAL_FINANCEIRO_REAL
   // O conteúdo vem do endpoint verdadeiro do InfraDesk.
-  // A extensão que lê boletos continua podendo atuar no modal.
+  // O Tampermonkey Assistente atua no modal e usa a extensão somente como motor de PDF.
   // =========================================================
   function corpoPrincipalModal() {
     const conteudo = document.querySelector("#ModalDespesas > .modal-dialog > .modal-content");
@@ -4847,7 +5500,7 @@
     // Última proteção: nunca deixar a aba em branco, mesmo se a falha
     // acontecer antes da estrutura principal ser criada.
     document.body.innerHTML = `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px;background:#eef2f7;font-family:Arial,sans-serif">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px;background:#eef2f7;font-family:"Open Sans","Helvetica Neue",Helvetica,Arial,sans-serif">
         <div style="max-width:720px;padding:24px;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,23,42,.16);color:#991b1b">
           <h2 style="margin:0 0 12px">O Painel Financeiro não conseguiu iniciar</h2>
           <p style="color:#475569">${escaparHtml(mensagem)}</p>
