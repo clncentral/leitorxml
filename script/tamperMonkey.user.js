@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfraDesk Despesas • Trava por usuário logado
 // @namespace    clncentral/infradesk
-// @version      5.3.3
-// @description  Reserva despesas em tempo real, painel financeiro unificado, relatório para PDF e integração Firebase.
+// @version      5.3.5
+// @description  Reserva permanente por operador, painel financeiro unificado, relatório PDF e integração Firebase.
 // @author       CLN Central
 // @match        https://asp.infradesk.app/backend/despesas*
 // @match        https://asp.infradesk.app/backend/despesas/*
@@ -16,6 +16,7 @@
 // @noframes
 // ==/UserScript==
 
+
 (function () {
   "use strict";
 
@@ -25,7 +26,7 @@
   // CONFIGURACAO_PRINCIPAL
   // =========================================================
   const CONFIG = {
-    versao: "5.3.3",
+    versao: "5.3.5",
     parametroPainel: "sigma_painel_financeiro_v5",
     urlPainel: "/backend/despesas?sigma_painel_financeiro_v5=1",
     statusFilaFixo: "P",
@@ -78,12 +79,15 @@
     modalDespesaId: "",
     abrindoIds: new Set(),
     salvandoIds: new Set(),
+    enviandoConclusoes: false,
+    timerConclusoes: null,
   };
 
   // A fila do histórico deve existir ANTES da saída antecipada da página
   // normal: somente o painel continua executando o restante deste IIFE.
   const CHAVE_FILA_METADADOS = "sigma-financeiro-fila-dados-v1";
   const CHAVE_FILA_EVENTOS = "sigma-financeiro-fila-eventos-v1";
+  const CHAVE_CONCLUSOES_NORMAL = "sigma-financeiro-conclusoes-confirmadas-v1";
   const filaMetadados = {
     iniciada: false,
     pendentes: {},
@@ -204,6 +208,7 @@
       if (normalState.iniciado || !document.body) return;
       normalState.iniciado = true;
       iniciarFilaMetadados();
+      agendarReenvioConclusoesNormal(600);
 
       instalarBotaoAbrirPainel();
       injetarEstiloPaginaPrincipal();
@@ -214,6 +219,8 @@
 
       document.addEventListener("click", tratarCliquePaginaPrincipal, true);
       document.addEventListener("submit", tratarSubmitPaginaPrincipal, true);
+      // O listener de bolha executa depois dos validadores nativos do formulário.
+      document.addEventListener("submit", auditarEnvioFinanceiroNormal, false);
       conectarRealtimePaginaPrincipal();
 
       // Algumas partes do InfraDesk chegam logo depois do DOMContentLoaded.
@@ -987,6 +994,17 @@
     return "";
   }
 
+  // =========================================================
+  // CONCLUSAO_CONFIRMADA_NA_PAGINA_NORMAL_V5_3_4
+  // A v5.3.3 gravava "conclusao" somente pelo painel customizado.
+  // No InfraDesk normal, a reserva era criada, mas o POST financeiro
+  // prosseguia sem registrar o operador da conclusão para o gráfico.
+  // Esta correção preserva os validadores do formulário: o primeiro
+  // submit confirma a reserva e solicita o envio nativo; o listener de
+  // BOLHA intercepta somente o POST já validado, acompanha a resposta
+  // do InfraDesk e só registra o evento se não voltou o formulário.
+  // Nenhum dado histórico é apagado ou reatribuído aqui.
+  // =========================================================
   function tratarSubmitPaginaPrincipal(evento) {
     const form = evento.target;
     if (!form || !form.matches || !form.matches("form")) return;
@@ -1004,21 +1022,40 @@
     if (normalState.salvandoIds.has(id)) return;
     normalState.salvandoIds.add(id);
     const submitter = evento.submitter || null;
-
     atualizarUsuarioPaginaPrincipal();
-    reservarDespesaFirebaseSeguro(id, normalState.usuario, { permitirAssumir: false })
+    const usuarioConfirmado = Object.assign({}, normalState.usuario);
+
+    reservarDespesaFirebaseSeguro(id, usuarioConfirmado, { permitirAssumir: false })
       .then(function (resultado) {
         aplicarResultadoReservaNormal(id, resultado);
         if (!resultado.ok) {
           notificarPaginaPrincipal("warning", mensagemFalhaReserva(resultado));
           return;
         }
+        const financeiroPost = String(form.method || "post").toLowerCase() === "post"
+          && /\/backend\/despesas\/financeiro\/\d+/i.test(form.action || "");
+        if (financeiroPost) {
+          form.dataset.sigmaAuditoriaNormalPendente = "1";
+          // Congela o operador autenticado ANTES de qualquer navegação.
+          form.sigmaUsuarioDaGravacao = usuarioConfirmado;
+        }
         form.dataset.sigmaReservaPermitirEnvio = "1";
-        if (typeof form.requestSubmit === "function") {
-          if (submitter) form.requestSubmit(submitter);
-          else form.requestSubmit();
-        } else {
-          HTMLFormElement.prototype.submit.call(form);
+        try {
+          if (typeof form.requestSubmit === "function") {
+            if (submitter && submitter.form === form) form.requestSubmit(submitter);
+            else form.requestSubmit();
+          } else {
+            // Navegadores muito antigos preservam o comportamento legado,
+            // sem inventar uma conclusão que não pudemos confirmar.
+            HTMLFormElement.prototype.submit.call(form);
+          }
+        } finally {
+          // Um validador pode barrar o segundo envio antes da fase de bolha.
+          // Nunca deixar uma autorização antiga válida para o próximo clique.
+          setTimeout(function () {
+            delete form.dataset.sigmaReservaPermitirEnvio;
+            delete form.dataset.sigmaAuditoriaNormalPendente;
+          }, 0);
         }
       })
       .catch(function (falha) {
@@ -1027,6 +1064,225 @@
       .finally(function () {
         normalState.salvandoIds.delete(id);
       });
+  }
+
+  // Fica na fase de bolha: validadores ligados ao formulário têm precedência.
+  // Se o InfraDesk já tratou o envio via AJAX e cancelou o evento, não duplica POST.
+  function auditarEnvioFinanceiroNormal(evento) {
+    const form = evento.target;
+    if (!form || form.dataset.sigmaAuditoriaNormalPendente !== "1") return;
+    delete form.dataset.sigmaAuditoriaNormalPendente;
+    if (evento.defaultPrevented) {
+      console.warn(PREFIXO, "Envio controlado por outra rotina; não duplicamos POST nem atribuímos conclusão sem confirmação.");
+      return;
+    }
+    const id = idFormularioFinanceiroNormal(form);
+    if (!id) return;
+    evento.preventDefault();
+    evento.stopPropagation();
+    const usuario = form.sigmaUsuarioDaGravacao || Object.assign({}, normalState.usuario);
+    const submitter = evento.submitter || null;
+    void enviarFormularioNormalConfirmandoConclusao(form, id, usuario, submitter);
+  }
+
+  function coletarFormularioFinanceiroNormal(form, submitter) {
+    let dados;
+    try { dados = submitter ? new FormData(form, submitter) : new FormData(form); }
+    catch (_) { dados = new FormData(form); }
+    if (submitter && submitter.name && !dados.has(submitter.name)) {
+      dados.append(submitter.name, submitter.value || "");
+    }
+    return dados;
+  }
+
+  async function enviarFormularioNormalConfirmandoConclusao(form, id, usuario, submitter) {
+    if (form.dataset.sigmaFinanceiroEnviando === "1") return;
+    form.dataset.sigmaFinanceiroEnviando = "1";
+    const botao = submitter && submitter.disabled !== undefined ? submitter : null;
+    if (botao) botao.disabled = true;
+    const url = new URL(form.action, window.location.href);
+    if (url.origin !== window.location.origin) {
+      notificarPaginaPrincipal("error", "Por segurança, não enviei o formulário para outra origem.");
+      form.dataset.sigmaFinanceiroEnviando = "0";
+      if (botao) botao.disabled = false;
+      return;
+    }
+    const linha = obterLinhaNormal(id);
+    const item = extrairMetadadosDaLinhaNormal(linha, id) || { id: id };
+    const owner = donoReservaNormal(id) || texto(usuario && usuario.nome);
+    const resetarBruto = texto(form.querySelector('[name="resetar"]')?.value || "");
+    const resetar = /^(?:0|false|nao|não)$/i.test(resetarBruto) ? "" : resetarBruto;
+
+    try {
+      const resposta = await fetch(url.href, {
+        method: "POST",
+        body: coletarFormularioFinanceiroNormal(form, submitter),
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "follow",
+      });
+      const corpo = await resposta.text();
+      if (!resposta.ok) throw new Error("InfraDesk retornou HTTP " + resposta.status);
+      if (/\/(?:login|entrar|signin)(?:[/?#]|$)/i.test(resposta.url || "")) {
+        throw new Error("A sessão expirou. Confirme o login no InfraDesk.");
+      }
+      const tipo = texto(resposta.headers.get("content-type") || "");
+      if (/application\/json/i.test(tipo)) {
+        let json;
+        try { json = JSON.parse(corpo); } catch (_) { throw new Error("Resposta JSON não pôde ser validada."); }
+        if (!json || json.success !== true && json.sucesso !== true && json.ok !== true) {
+          throw new Error(texto(json && (json.message || json.mensagem)) || "InfraDesk não confirmou a gravação.");
+        }
+      } else {
+        const doc = new DOMParser().parseFromString(corpo, "text/html");
+        const formularioDevolvido = Array.from(doc.querySelectorAll("form")).find(function (f) {
+          return /\/backend\/despesas\/financeiro\/\d+/i.test(f.action || "")
+            && idFormularioFinanceiroNormal(f) === id;
+        });
+        if (formularioDevolvido) {
+          const modalBody = corpoPrincipalModal();
+          const root = paginaWindow();
+          const $ = root.jQuery || root.$ || window.jQuery || window.$;
+          if (modalBody && $) {
+            const area = formularioDevolvido.parentElement;
+            const conteudo = area && area.tagName.toLowerCase() !== "body"
+              ? area.outerHTML : formularioDevolvido.outerHTML;
+            $(modalBody).empty().append(conteudo);
+          }
+          atualizarBotoesModalNormal();
+          throw new Error("InfraDesk devolveu o formulário. Confira campos obrigatórios e mensagens de validação.");
+        }
+        if (doc.querySelector('form[action*="/login"], input[type="password"][name="password"]')) {
+          throw new Error("InfraDesk devolveu tela de login; não marquei a despesa como concluída.");
+        }
+        // Critério de confirmação usado pelo painel: resposta HTTP 2xx
+        // sem o formulário financeiro devolvido. Não conta falhas de validação.
+      }
+
+      // Somente após a resposta do InfraDesk, preserva o operador da ação.
+      registrarConclusaoFinanceiraNormalConfirmada(id, item, usuario, owner, resetar);
+      notificarPaginaPrincipal("success", "Despesa " + id + " gravada. Operador registrado na auditoria.");
+      // A fila está salva no localStorage ANTES de recarregar. No próximo
+      // carregamento continua o envio se o Firebase ficou indisponível.
+      window.location.reload();
+    } catch (falha) {
+      console.error(PREFIXO, "Gravação normal com auditoria", falha);
+      notificarPaginaPrincipal("error", "Não consegui confirmar a gravação: " + texto(falha.message || falha));
+    } finally {
+      form.dataset.sigmaFinanceiroEnviando = "0";
+      if (botao && botao.isConnected) botao.disabled = false;
+    }
+  }
+
+  function carregarConclusoesNormais() {
+    try {
+      const registros = JSON.parse(localStorage.getItem(CHAVE_CONCLUSOES_NORMAL) || "{}");
+      return registros && typeof registros === "object" && !Array.isArray(registros) ? registros : {};
+    } catch (_) { return {}; }
+  }
+
+  function salvarConclusoesNormais(registros) {
+    try { localStorage.setItem(CHAVE_CONCLUSOES_NORMAL, JSON.stringify(registros)); }
+    catch (falha) { console.error(PREFIXO, "Falha ao preservar conclusões pendentes", falha); }
+  }
+
+  function registrarConclusaoFinanceiraNormalConfirmada(id, item, usuario, owner, resetar) {
+    const ts = Date.now();
+    const nome = texto(usuario && usuario.nome);
+    const payload = {
+      status: resetar ? "retornada" : "concluida",
+      etapa: resetar || "",
+      usuario: nome,
+      login: texto(usuario && usuario.login),
+      usuarioId: texto(usuario && usuario.id),
+      ts: ts,
+      competencia: texto(item && item.competencia),
+      fornecedor: texto(item && item.fornecedor),
+      tipo_documento: texto(item && item.tipo),
+      valor: texto(item && item.valor),
+    };
+    // Metadados e evento possuem trilhas persistentes próprias; nenhum DELETE.
+    if (item) registrarMetadadosDespesa(item, owner || nome);
+    registrarEventoHistorico(id, resetar ? "retorno" : "conclusao", usuario, owner, owner || nome);
+    const registros = carregarConclusoesNormais();
+    registros[id] = payload;
+    salvarConclusoesNormais(registros);
+    agendarReenvioConclusoesNormal(0);
+  }
+
+  function agendarReenvioConclusoesNormal(atraso) {
+    if (normalState.timerConclusoes) clearTimeout(normalState.timerConclusoes);
+    normalState.timerConclusoes = setTimeout(function () {
+      normalState.timerConclusoes = null;
+      void reenviarConclusoesNormais();
+    }, Math.max(0, Number(atraso || 0)));
+  }
+
+  async function reenviarConclusoesNormais() {
+    if (normalState.enviandoConclusoes) return;
+    normalState.enviandoConclusoes = true;
+    let falhaOcorreu = false;
+    try {
+      const registros = carregarConclusoesNormais();
+      for (const id of Object.keys(registros).slice(0, 30)) {
+        const payload = registros[id];
+        if (!payload || !payload.ts || !payload.usuario) continue;
+        try {
+          const url = firebaseUrl(CONFIG.firebaseEstadoPainel + "/" + encodeURIComponent(id));
+          let preservouMaisRecente = false;
+          let gravou = false;
+          for (let tentativa = 0; tentativa < 3; tentativa++) {
+            const leitura = await gmRequest({
+              method: "GET", url: url,
+              headers: { "X-Firebase-ETag": "true", "Accept": "application/json" },
+              timeout: 12000,
+            });
+            if (!leitura || leitura.status < 200 || leitura.status >= 300) {
+              throw new Error("Consulta do histórico: HTTP " + (leitura ? leitura.status : "sem resposta"));
+            }
+            const anterior = parseJsonSeguro(leitura.responseText || "null", null);
+            if (anterior && Number(anterior.ts || 0) >= Number(payload.ts)) {
+              if (Number(anterior.ts || 0) === Number(payload.ts)
+                  && texto(anterior.usuario) === texto(payload.usuario)
+                  && texto(anterior.status) === texto(payload.status)) gravou = true;
+              else preservouMaisRecente = true;
+              break;
+            }
+            const headers = { "Content-Type": "application/json" };
+            const etag = obterCabecalhoResposta(leitura, "etag");
+            if (!etag) throw new Error("Sem ETag; atualização não será feita para proteger o operador histórico.");
+            headers["If-Match"] = etag;
+            const resposta = await gmRequest({
+              method: "PUT", url: url, headers: headers,
+              data: JSON.stringify(payload), timeout: 12000,
+            });
+            if (resposta && resposta.status === 412) continue;
+            if (!resposta || resposta.status < 200 || resposta.status >= 300) {
+              throw new Error("Arquivo de conclusão: HTTP " + (resposta ? resposta.status : "sem resposta"));
+            }
+            gravou = true;
+            break;
+          }
+          if (!gravou && !preservouMaisRecente) throw new Error("Concorrência na atualização do histórico");
+          // REGRA_RESERVA_PERMANENTE_V5_3_5:
+          // Registrar conclusão não remove nem altera a reserva do operador.
+          // Liberação/transferência é EXCLUSIVAMENTE manual para correções.
+          const atuais = carregarConclusoesNormais();
+          if (JSON.stringify(atuais[id]) === JSON.stringify(payload)) {
+            delete atuais[id];
+            salvarConclusoesNormais(atuais);
+          }
+        } catch (falha) {
+          falhaOcorreu = true;
+          console.warn(PREFIXO, "Conclusão permanece na fila para repetição: " + id, falha);
+        }
+      }
+    } finally {
+      normalState.enviandoConclusoes = false;
+      if (Object.keys(carregarConclusoesNormais()).length) {
+        agendarReenvioConclusoesNormal(falhaOcorreu ? 30000 : 800);
+      }
+    }
   }
 
   function notificarPaginaPrincipal(tipo, mensagem) {
@@ -3629,9 +3885,8 @@
       if (!resposta || resposta.status < 200 || resposta.status >= 300) {
         throw new Error("Firebase não confirmou a liberação.");
       }
-      if (opcoes.permitirOutro) {
-        registrarEventoHistorico(id, "liberacao", usuario, owner, "");
-      }
+      // Toda liberação EXPLÍCITA, mesmo pelo próprio operador, é auditada.
+      registrarEventoHistorico(id, "liberacao", usuario, owner, "");
       return { ok: true, codigo: "liberada", owner: "", item: null };
     }
 
@@ -3843,52 +4098,53 @@
     salvarPendenciasFirebase(pendencias);
   }
 
+  // ESTADO_FINAL_SEM_SOBRESCREVER_OPERADOR_V5_3_4:
+  // Retransmissões não podem substituir uma conclusão MAIS RECENTE de
+  // outro operador. O estado por ID é somente o último estado; o histórico
+  // completo está nos eventos imutáveis em historico/by_id.
+  async function gravarEstadoFinalComVersao(id, payload) {
+    const url = firebaseUrl(CONFIG.firebaseEstadoPainel + "/" + encodeURIComponent(id));
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      const leitura = await gmRequest({
+        method: "GET", url: url,
+        headers: { "Accept": "application/json", "X-Firebase-ETag": "true" },
+        timeout: 12000,
+      });
+      if (!leitura || leitura.status < 200 || leitura.status >= 300) {
+        throw new Error("Firebase não confirmou a leitura do estado final.");
+      }
+      const remoto = parseJsonSeguro(leitura.responseText || "null", null);
+      if (remoto && Number(remoto.ts || 0) >= Number(payload.ts || 0)) {
+        return remoto;
+      }
+      const headers = { "Content-Type": "application/json" };
+      const etag = obterCabecalhoResposta(leitura, "etag");
+      if (!etag) throw new Error("Sem ETag; atualização suspensa para proteger o operador histórico.");
+      headers["If-Match"] = etag;
+      const resposta = await gmRequest({
+        method: "PUT", url: url, headers: headers,
+        data: JSON.stringify(payload), timeout: 12000,
+      });
+      if (resposta && resposta.status === 412) continue;
+      if (!resposta || resposta.status < 200 || resposta.status >= 300) {
+        throw new Error("Firebase não confirmou a gravação do estado final.");
+      }
+      return payload;
+    }
+    throw new Error("Concorrência na gravação do estado final; será tentada novamente.");
+  }
+
   async function sincronizarUmaPendenciaFirebase(id, registro) {
     const payload = registro && registro.payload ? registro.payload : registro;
     if (!id || !payload) return false;
 
-    // Primeiro registra o estado final. Enquanto isso não acontecer,
-    // mantemos a reserva no Firebase para ninguém abrir uma linha antiga.
-    const respostaEstado = await gmRequest({
-      method: "PUT",
-      url: firebaseUrl(CONFIG.firebaseEstadoPainel + "/" + encodeURIComponent(id)),
-      headers: { "Content-Type": "application/json" },
-      data: JSON.stringify(payload),
-      timeout: 12000,
-    });
+    // Grava condicionalmente, sem substituir uma atribuição mais recente.
+    const estadoPreservado = await gravarEstadoFinalComVersao(id, payload);
 
-    if (!respostaEstado || respostaEstado.status < 200 || respostaEstado.status >= 300) {
-      throw new Error("Firebase não confirmou o estado final.");
-    }
-
-    // A liberação só pode atingir a reserva existente quando a conclusão
-    // aconteceu. Nunca apague uma reserva criada APÓS a confirmação antiga.
-    const leituraAtual = await lerReservaComVersao(id);
-    const donoAtual = donoItemReserva(leituraAtual.item);
-    const reservadoEm = Number(leituraAtual.item && leituraAtual.item.ts || 0);
-    const mesmoResponsavel = donoAtual && mesmaPessoa(donoAtual, payload.usuario);
-    const reservaAnteriorAoEvento = reservadoEm > 0 && reservadoEm <= Number(payload.ts || 0);
-    const resultadoReserva = (mesmoResponsavel && reservaAnteriorAoEvento)
-      ? await liberarReservaFirebaseSeguro(
-          id,
-          { nome: payload.usuario },
-          { permitirOutro: false, donoEsperado: donoAtual, tsMaximoReserva: Number(payload.ts) }
-        )
-      : { ok: true, codigo: "preservada", item: leituraAtual.item };
-
-    // Se outra pessoa assumiu depois da conclusão, nunca apagamos a reserva
-    // dela. O estado final já foi salvo e continuará ocultando a linha antiga.
-    if (!resultadoReserva.ok && resultadoReserva.codigo !== "ocupada"
-        && resultadoReserva.codigo !== "alterada") {
-      throw new Error(mensagemFalhaReserva(resultadoReserva));
-    }
-
-    state.estados[id] = payload;
-    if (donoItemReserva(resultadoReserva.item)) {
-      state.reservas[id] = resultadoReserva.item;
-    } else {
-      delete state.reservas[id];
-    }
+    // REGRA_RESERVA_PERMANENTE_V5_3_5:
+    // Ao salvar a conclusão no estado, NÃO excluir o operador da reserva.
+    // Nunca apagar a reserva apenas porque o chamado saiu da fila financeira.
+    state.estados[id] = estadoPreservado;
     removerPendenciaFirebase(id);
     return true;
   }
@@ -3971,16 +4227,16 @@
 
     const payload = criarPayloadEstadoFinal(item, resetar);
 
-    // Guarda os campos do documento de forma permanente ANTES de remover a
-    // reserva temporária. O envio possui uma fila local para repetir falhas.
+    // Salva a trilha do documento sem alterar a reserva permanente do operador.
+    // O envio possui uma fila local para repetir falhas.
     registrarMetadadosDespesa(item, donoReserva(item.id) || state.usuario.nome);
     registrarEventoHistorico(item.id, resetar ? "retorno" : "conclusao", state.usuario,
-      donoReserva(item.id), "");
+      donoReserva(item.id), donoReserva(item.id));
 
     // Atualiza a tela imediatamente após a confirmação do InfraDesk.
     // A sincronização remota é idempotente e será repetida até funcionar.
     state.estados[item.id] = payload;
-    delete state.reservas[item.id];
+    // Reserva mantida: o gráfico continua atribuindo ao operador original.
     guardarPendenciaFirebase(item.id, payload);
     agendarSincronizacaoFirebase(0);
 
