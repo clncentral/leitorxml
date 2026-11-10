@@ -569,6 +569,30 @@ tr:hover td {
 }
 
 /* =========================
+   DETALHES DO CHAMADO (somente leitura)
+========================= */
+.tableBox { max-height: min(65vh, 600px); }
+#detailsPanel .tableBox table { min-width: 1180px; }
+#detailsPanel td { vertical-align: middle; }
+#detailsPanel .minor { display: block; margin-top: 4px; font-size: 10px; color: #64748b; }
+#detailsPanel .emptyCell { color: #94a3b8; }
+#detailsPanel .valueCell { white-space: nowrap; font-weight: 800; }
+#detailsPanel .detailsBtn {
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  font-weight: 900; border-radius: 9px; padding: 7px 11px; cursor: pointer;
+}
+#detailsPanel .detailsBtn:hover { background: #dbeafe; }
+#detailsPanel .expandedRow td { background: #f8fbff !important; border-bottom: 2px solid #dbeafe; }
+#detailsPanel .expandedGrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px; padding: 8px 4px;
+}
+#detailsPanel .expandedField { border: 1px solid #e2e8f0; background: white; border-radius: 10px; padding: 10px; }
+#detailsPanel .expandedField small { display: block; color: #64748b; font-size: 10px; font-weight: 800; margin-bottom: 6px; }
+#detailsPanel .expandedField strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 800; }
+#detailsPanel .sourceNote { color: #64748b; font-size: 11px; padding: 4px 2px 2px; }
+
+/* =========================
    EXTRAS
 ========================= */
 
@@ -782,7 +806,7 @@ tr:hover td {
         <div class="panelHead">
           <div>
             <h2 id="chartTitle" class="panelTitle">Semana</h2>
-            <div id="chartHint" class="hint">Chamados únicos por operador.</div>
+            <div id="chartHint" class="hint">IDs únicos por operador: dados legados intactos + reservas recuperadas desde 09/11.</div>
           </div>
 
           <button id="toggleDetailsBtn" class="idsBtn" type="button">Ver IDs</button>
@@ -815,19 +839,25 @@ tr:hover td {
     <div id="detailsPanel" class="panel detailsPanel hidden">
       <div class="detailsTop">
         <div>
-          <h2 class="panelTitle">IDs</h2>
+          <h2 class="panelTitle">Chamados por operador</h2>
           <div id="detailsHint" class="hint">0 chamado(s).</div>
         </div>
 
-        <input id="searchInput" class="search" type="text" placeholder="Buscar ID ou operador..." />
+        <input id="searchInput" class="search" type="text" placeholder="Buscar ID, operador, fornecedor ou tipo..." />
       </div>
 
       <div class="tableBox">
         <table>
           <thead>
             <tr>
-              <th style="width: 160px;">ID</th>
+              <th style="width:100px">ID</th>
               <th>Operador</th>
+              <th>Fornecedor</th>
+              <th>Documento</th>
+              <th>Valor bruto</th>
+              <th>Vencimento</th>
+              <th>Reservado em</th>
+              <th>Informações</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -843,10 +873,27 @@ tr:hover td {
 
     PainelOperadores.FIREBASE_DB_URL = 'https://infradesk-operadores-default-rtdb.firebaseio.com';
     PainelOperadores.PATH = '/despesas_updates/by_id.json';
+    // Compatibilidade: o gráfico continua lendo TODOS os lançamentos legados.
+    // Historico de reservas entra só para IDs ausentes do caminho legado.
+    PainelOperadores.HISTORY_PATH = '/despesas_painel/historico/by_id.json';
+    PainelOperadores.DADOS_PATH = '/despesas_painel/dados/by_id.json';
+    PainelOperadores.ESTADOS_PATH = '/despesas_painel/estado/by_id.json';
+    PainelOperadores.RECUPERAR_DESDE_TS = Date.parse('2026-11-09T00:00:00-03:00');
 
     PainelOperadores.state = {
       byId: {},
+      historicoById: {},
       eventSource: null,
+      historicoEventSource: null,
+      historicoCarregado: false,
+      dadosById: {},
+      estadosById: {},
+      dadosCarregados: false,
+      estadosCarregados: false,
+      dadosEventSource: null,
+      estadosEventSource: null,
+      carregandoDetalhes: false,
+      expandedIds: new Set(),
       renderFrame: null,
       selectedUsers: new Set(),
       userTouchedSelection: false,
@@ -1077,10 +1124,45 @@ tr:hover td {
       return out;
     };
 
+    // Não modifica um único registro anterior do gráfico.
+    // Se um ID já existe em despesas_updates/by_id, é SEMPRE ele que vale.
+    // Apenas se foi removido, buscamos a última reserva confirmada no ledger.
+    // A partir de 09/11/2026: a série anterior a essa data fica intocada.
+    PainelOperadores.reservaHistoricaPorId = function (id, eventos) {
+      if (!eventos || typeof eventos !== 'object') return null;
+      let resultado = null;
+      let ultimaLiberacao = 0;
+      for (const evento of Object.values(eventos)) {
+        if (!evento || typeof evento !== 'object') continue;
+        const acao = PainelOperadores.norm(evento.acao);
+        const ts = PainelOperadores.toNumber(evento.ts);
+        if (!Number.isFinite(ts) || ts < PainelOperadores.RECUPERAR_DESDE_TS) continue;
+        // Uma liberação manual depois da última reserva tem precedência:
+        // não reatribuir automaticamente um chamado retirado para correção.
+        if (acao === 'liberacao') { ultimaLiberacao = Math.max(ultimaLiberacao, ts); continue; }
+        if (acao !== 'reserva' && acao !== 'transferencia') continue;
+        const operador = PainelOperadores.clean(evento.responsavelDepois || evento.realizadoPor);
+        if (!operador) continue;
+        if (!resultado || ts > resultado.ts) {
+          resultado = {id: PainelOperadores.clean(id), operador, ts, origem: 'historico'};
+        }
+      }
+      return resultado && resultado.ts > ultimaLiberacao ? resultado : null;
+    };
+
     PainelOperadores.getItems = function () {
-      return Object.entries(PainelOperadores.state.byId || {})
-        .map(([key, item]) => PainelOperadores.normalizeItem(key, item))
-        .filter(Boolean);
+      // Preserva integralmente nome, timestamp e contagem de todos os IDs legados.
+      const porId = new Map();
+      for (const [key, item] of Object.entries(PainelOperadores.state.byId || {})) {
+        const original = PainelOperadores.normalizeItem(key, item);
+        if (original) porId.set(original.id, {...original, origem: 'original'});
+      }
+      for (const [id, eventos] of Object.entries(PainelOperadores.state.historicoById || {})) {
+        if (porId.has(id)) continue; // nunca recontar ou redistribuir
+        const resgatado = PainelOperadores.reservaHistoricaPorId(id, eventos);
+        if (resgatado && !porId.has(resgatado.id)) porId.set(resgatado.id, resgatado);
+      }
+      return [...porId.values()];
     };
 
     PainelOperadores.getAllUsers = function () {
@@ -2010,52 +2092,207 @@ tr:hover td {
       PainelOperadores.state.lastTotalCount = totalCount;
     };
 
+    // DADOS_DETALHES_V2: campos opcionais não interferem no gráfico.
+    PainelOperadores.detailInfo = function (item) {
+      const meta = PainelOperadores.state.dadosById[item.id] || {};
+      const estado = PainelOperadores.state.estadosById[item.id] || {};
+      const campo = (...xs) => xs.find(x => x !== undefined && x !== null && String(x).trim() !== '') ?? '';
+      return {
+        fornecedor: campo(meta.fornecedor, estado.fornecedor),
+        tipo: campo(meta.tipoDocumento, estado.tipo_documento),
+        valor: campo(meta.valorBruto, estado.valor),
+        vencimento: campo(meta.vencimento),
+        criadoEm: campo(meta.criadoEm), criadoPor: campo(meta.criadoPor),
+        aprovadoEm: campo(meta.aprovadoEm), aprovadoPor: campo(meta.aprovadoPor),
+        responsavelCadastro: campo(meta.responsavel),
+        competencia: campo(estado.competencia),
+        status: campo(estado.status),
+        etapa: campo(estado.etapa),
+        usuarioEstado: campo(estado.usuario),
+        tsEstado: PainelOperadores.toNumber(estado.ts)
+      };
+    };
+
+    PainelOperadores.formatarValor = function (valor) {
+      if (typeof valor === 'number' && Number.isFinite(valor)) {
+        return valor.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+      }
+      const s = PainelOperadores.clean(valor);
+      return s || '—';
+    };
+    PainelOperadores.formatarDataHora = function (ts) {
+      return PainelOperadores.toNumber(ts) > 0
+        ? new Date(Number(ts)).toLocaleString('pt-BR') : '—';
+    };
+    PainelOperadores.rotuloEstado = function (valor) {
+      const v = PainelOperadores.norm(valor);
+      if (v === 'concluida') return 'Conclusão registrada no Firebase';
+      if (v === 'retornada') return 'Retorno registrado no Firebase';
+      return valor || 'Não informado';
+    };
+
+    // O estado dos chamados é proveniente do Firebase, não representa consulta
+    // à tela atual do InfraDesk e não deve ser confundido com confirmação de pagamento.
+    PainelOperadores.lerDetalhes = async function () {
+      if (PainelOperadores.state.carregandoDetalhes) return;
+      PainelOperadores.state.carregandoDetalhes = true;
+      const endpoints = [
+        ['dadosById', 'dadosCarregados', PainelOperadores.DADOS_PATH],
+        ['estadosById', 'estadosCarregados', PainelOperadores.ESTADOS_PATH]
+      ];
+      try {
+        await Promise.all(endpoints.map(async ([campo, flag, path]) => {
+          try {
+            const res = await fetch(PainelOperadores.FIREBASE_DB_URL + path + '?_=' + Date.now(), {cache:'no-store'});
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const json = await res.json();
+            PainelOperadores.state[campo] = json && typeof json === 'object' && !Array.isArray(json) ? json : {};
+            PainelOperadores.state[flag] = true;
+          } catch (err) { console.warn('Dados adicionais indisponíveis:', campo, err); }
+        }));
+      } finally {
+        PainelOperadores.state.carregandoDetalhes = false;
+        PainelOperadores.renderTable(PainelOperadores.getVisibleItems());
+      }
+    };
+
+    PainelOperadores.assinarDetalhes = function () {
+      for (const [path, field, streamField] of [
+        [PainelOperadores.DADOS_PATH, 'dadosById', 'dadosEventSource'],
+        [PainelOperadores.ESTADOS_PATH, 'estadosById', 'estadosEventSource']
+      ]) {
+        if (PainelOperadores.state[streamField]) continue;
+        try {
+          const es = new EventSource(PainelOperadores.FIREBASE_DB_URL + path);
+          const handle = function(ev) {
+            let msg;
+            try { msg = JSON.parse(ev.data || '{}'); } catch (_) { return; }
+            const parts = String(msg.path || '/').replace(/^\/+/, '').split('/').filter(Boolean);
+            const data = msg.data;
+            const isObject = data && typeof data === 'object' && !Array.isArray(data);
+            const dest = PainelOperadores.state[field];
+            if (!parts.length) {
+              PainelOperadores.state[field] = isObject ? data : {};
+            } else {
+              const id = parts[0];
+              if (parts.length === 1) {
+                if (data === null) delete dest[id];
+                else if (ev.type === 'patch' && isObject) dest[id] = Object.assign({}, dest[id] || {}, data);
+                else dest[id] = data;
+              } else {
+                if (!dest[id] || typeof dest[id] !== 'object') dest[id] = {};
+                const key = parts[1];
+                if (parts.length === 2) {
+                  if (data === null) delete dest[id][key];
+                  else dest[id][key] = data;
+                }
+              }
+            }
+            if (!document.getElementById('detailsPanel').classList.contains('hidden')) {
+              PainelOperadores.renderTable(PainelOperadores.getVisibleItems());
+            }
+          };
+          es.addEventListener('put', handle);
+          es.addEventListener('patch', handle);
+          es.onerror = () => console.warn('Realtime de informações do chamado indisponível:', path);
+          PainelOperadores.state[streamField] = es;
+        } catch(err) { console.warn('Erro no realtime de detalhes:', err); }
+      }
+    };
+
+    PainelOperadores.makeField = function (label, value) {
+      const box = document.createElement('div'); box.className = 'expandedField';
+      const titulo = document.createElement('small'); titulo.textContent = label;
+      const conteudo = document.createElement('strong'); conteudo.textContent =
+        value !== undefined && value !== null && String(value).trim() !== '' ? String(value) : 'Não informado';
+      box.append(titulo, conteudo); return box;
+    };
+
     PainelOperadores.renderTable = function (items) {
       const body = document.getElementById('tableBody');
       const search = PainelOperadores.norm(document.getElementById('searchInput').value);
-
-      let rows = [...items].sort((a, b) => b.ts - a.ts || a.id.localeCompare(b.id, 'pt-BR'));
-
+      const detalhes = PainelOperadores.state.expandedIds;
+      let rows = [...items].sort((a, b) => b.ts - a.ts || a.id.localeCompare(b.id,'pt-BR'));
       if (search) {
         rows = rows.filter(item => {
-          const text = PainelOperadores.norm(`${item.id} ${item.operador}`);
-          return text.includes(search);
+          const d = PainelOperadores.detailInfo(item);
+          return PainelOperadores.norm(`${item.id} ${item.operador} ${d.fornecedor} ${d.tipo} ${d.criadoPor} ${d.aprovadoPor}`)
+            .includes(search);
         });
       }
-
-      document.getElementById('detailsHint').textContent = `${rows.length} chamado(s).`;
-
+      const complemento = !PainelOperadores.state.dadosCarregados || !PainelOperadores.state.estadosCarregados
+        ? ' • informações adicionais podem estar indisponíveis' : '';
+      document.getElementById('detailsHint').textContent = `${rows.length} chamado(s)${complemento}. Dados do Firebase; sem alterar a contagem.`;
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="2" class="empty">Nenhum ID para mostrar.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="empty">Nenhum chamado para mostrar.</td></tr>';
         return;
       }
-
       const frag = document.createDocumentFragment();
-
+      const addTextCell = (tr, value, classe='') => {
+        const td = document.createElement('td');
+        if (classe) td.className = classe;
+        td.textContent = value === undefined || value === null || value === '' ? '—' : String(value);
+        tr.appendChild(td);
+        return td;
+      };
       for (const item of rows) {
+        const d = PainelOperadores.detailInfo(item);
         const tr = document.createElement('tr');
-
-        const tdId = document.createElement('td');
-        const strong = document.createElement('strong');
-        strong.textContent = item.id;
-        tdId.appendChild(strong);
-
-        const tdOperador = document.createElement('td');
-        const pill = document.createElement('span');
-        pill.className = 'pill';
+        const idCell = addTextCell(tr, item.id);
+        idCell.style.fontWeight = '900';
+        if (item.origem === 'historico') {
+          const origem = document.createElement('small'); origem.className = 'minor';
+          origem.textContent = 'Resgatado do histórico'; idCell.appendChild(origem);
+        }
+        const opCell = document.createElement('td');
+        const pill = document.createElement('span'); pill.className = 'pill';
         pill.style.background = PainelOperadores.colorFor(item.operador);
         pill.style.color = PainelOperadores.textColorFor(item.operador);
-        pill.textContent = item.operador;
-        tdOperador.appendChild(pill);
-
-        tr.appendChild(tdId);
-        tr.appendChild(tdOperador);
-
-        frag.appendChild(tr);
+        pill.textContent = item.operador; opCell.appendChild(pill); tr.appendChild(opCell);
+        addTextCell(tr, d.fornecedor || '—');
+        addTextCell(tr, d.tipo || '—');
+        addTextCell(tr, PainelOperadores.formatarValor(d.valor), 'valueCell');
+        addTextCell(tr, d.vencimento || '—');
+        addTextCell(tr, PainelOperadores.formatarDataHora(item.ts));
+        const acao = document.createElement('td');
+        const btn = document.createElement('button'); btn.type = 'button'; btn.className='detailsBtn';
+        btn.textContent = detalhes.has(item.id) ? 'Fechar' : 'Detalhes';
+        btn.setAttribute('aria-expanded', detalhes.has(item.id) ? 'true' : 'false');
+        btn.addEventListener('click', function () {
+          if (detalhes.has(item.id)) detalhes.delete(item.id);
+          else detalhes.add(item.id);
+          PainelOperadores.renderTable(PainelOperadores.getVisibleItems());
+        });
+        acao.appendChild(btn); tr.appendChild(acao); frag.appendChild(tr);
+        if (detalhes.has(item.id)) {
+          const extra = document.createElement('tr'); extra.className='expandedRow';
+          const wrapper = document.createElement('td'); wrapper.colSpan=8;
+          const grid = document.createElement('div'); grid.className='expandedGrid';
+          const fields = [
+            ['ID da despesa', item.id],
+            ['Operador atribuído no gráfico', item.operador],
+            ['Origem da atribuição', item.origem === 'historico' ? 'Histórico recuperado' : 'Reserva atual / base antiga'],
+            ['Data da reserva', PainelOperadores.formatarDataHora(item.ts)],
+            ['Fornecedor', d.fornecedor], ['Tipo de documento', d.tipo],
+            ['Valor bruto', PainelOperadores.formatarValor(d.valor)],
+            ['Vencimento', d.vencimento],
+            ['Criado em', d.criadoEm], ['Criado por', d.criadoPor],
+            ['Aprovado em', d.aprovadoEm], ['Aprovado por', d.aprovadoPor],
+            ['Responsável nos metadados', d.responsavelCadastro],
+            ['Competência registrada', d.competencia],
+            ['Último estado salvo', PainelOperadores.rotuloEstado(d.status)],
+            ['Operador do último estado', d.usuarioEstado],
+            ['Data do último estado', PainelOperadores.formatarDataHora(d.tsEstado)],
+            ['Etapa informada pelo último estado', d.etapa]
+          ];
+          fields.forEach(([label, value]) => grid.appendChild(PainelOperadores.makeField(label, value)));
+          wrapper.appendChild(grid);
+          const note = document.createElement('div'); note.className='sourceNote';
+          note.textContent = 'Informações de despesas_painel/dados e despesas_painel/estado; podem faltar dados de chamados antigos. O estado registrado não equivale à situação atual confirmada no InfraDesk.';
+          wrapper.appendChild(note); extra.appendChild(wrapper); frag.appendChild(extra);
+        }
       }
-
-      body.innerHTML = '';
-      body.appendChild(frag);
+      body.replaceChildren(frag);
     };
 
     PainelOperadores.renderChart = function (items) {
@@ -2193,6 +2430,95 @@ tr:hover td {
       }
     };
 
+    // HISTORICO_RECUPERACAO_V1
+    // Reconstitui SOMENTE os IDs ausentes dos dados legados, sem escrever no banco.
+    PainelOperadores.historyUrl = function () {
+      return PainelOperadores.FIREBASE_DB_URL.replace(/\/+$/, '') + PainelOperadores.HISTORY_PATH;
+    };
+
+    PainelOperadores.applyHistoryEvent = function (raw, tipo) {
+      let payload;
+      try { payload = JSON.parse(raw || '{}'); } catch (_) { return; }
+      const path = String(payload.path || '/');
+      const data = payload.data;
+      const partes = path.replace(/^\/+/, '').split('/').filter(Boolean);
+      const historico = PainelOperadores.state.historicoById;
+      const objeto = data && typeof data === 'object' && !Array.isArray(data);
+
+      if (!partes.length) {
+        if (tipo === 'patch' && objeto) {
+          Object.entries(data).forEach(([id, eventos]) => {
+            if (eventos === null) delete historico[id];
+            else historico[id] = eventos;
+          });
+        } else {
+          PainelOperadores.state.historicoById = objeto ? data : {};
+        }
+      } else {
+        const id = partes[0];
+        if (partes.length === 1) {
+          if (data === null) delete historico[id];
+          else if (tipo === 'patch' && objeto) {
+            historico[id] = Object.assign({}, historico[id] || {}, data);
+          } else historico[id] = data;
+        } else {
+          const chave = partes[1];
+          if (!historico[id] || typeof historico[id] !== 'object') historico[id] = {};
+          if (partes.length === 2) {
+            if (data === null) delete historico[id][chave];
+            else if (tipo === 'patch' && objeto) {
+              historico[id][chave] = Object.assign({}, historico[id][chave] || {}, data);
+            } else historico[id][chave] = data;
+          } else {
+            let atual = historico[id][chave];
+            if (!atual || typeof atual !== 'object') atual = {};
+            let alvo = atual;
+            for (let i = 2; i < partes.length - 1; i++) {
+              const campo = partes[i];
+              if (!alvo[campo] || typeof alvo[campo] !== 'object') alvo[campo] = {};
+              alvo = alvo[campo];
+            }
+            const campo = partes[partes.length - 1];
+            if (data === null) delete alvo[campo];
+            else alvo[campo] = data;
+            historico[id][chave] = atual;
+          }
+        }
+      }
+      PainelOperadores.state.historicoCarregado = true;
+      PainelOperadores.scheduleRender();
+    };
+
+    PainelOperadores.loadHistorico = async function () {
+      try {
+        const resposta = await fetch(PainelOperadores.historyUrl() + '?_=' + Date.now(), {
+          cache: 'no-store'
+        });
+        if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+        const dados = await resposta.json();
+        PainelOperadores.state.historicoById = dados && typeof dados === 'object' ? dados : {};
+        PainelOperadores.state.historicoCarregado = true;
+        PainelOperadores.scheduleRender();
+      } catch (erro) {
+        console.warn('Histórico indisponível; mantendo contagem original sem mudanças.', erro);
+      }
+    };
+
+    PainelOperadores.connectHistoricoRealtime = function () {
+      if (PainelOperadores.state.historicoEventSource) {
+        PainelOperadores.state.historicoEventSource.close();
+      }
+      try {
+        const es = new EventSource(PainelOperadores.historyUrl());
+        es.addEventListener('put', evento => PainelOperadores.applyHistoryEvent(evento.data, 'put'));
+        es.addEventListener('patch', evento => PainelOperadores.applyHistoryEvent(evento.data, 'patch'));
+        es.onerror = () => console.warn('Realtime do histórico desconectado; reconexão automática.');
+        PainelOperadores.state.historicoEventSource = es;
+      } catch (erro) {
+        console.warn('Não foi possível abrir o realtime do histórico.', erro);
+      }
+    };
+
     PainelOperadores.resetPulseMemory = function () {
       PainelOperadores.state.lastTotals = new Map();
       PainelOperadores.state.lastTotalCount = 0;
@@ -2249,6 +2575,10 @@ tr:hover td {
       btn.textContent = panel.classList.contains('hidden')
         ? 'Ver IDs'
         : 'Ocultar IDs';
+      if (!panel.classList.contains('hidden')) {
+        void PainelOperadores.lerDetalhes();
+        PainelOperadores.assinarDetalhes();
+      }
     };
 
     PainelOperadores.toggleSummary = function () {
@@ -2309,6 +2639,11 @@ tr:hover td {
         if (PainelOperadores.state.eventSource) {
           PainelOperadores.state.eventSource.close();
         }
+        if (PainelOperadores.state.historicoEventSource) {
+          PainelOperadores.state.historicoEventSource.close();
+        }
+        if (PainelOperadores.state.dadosEventSource) PainelOperadores.state.dadosEventSource.close();
+        if (PainelOperadores.state.estadosEventSource) PainelOperadores.state.estadosEventSource.close();
       });
     };
 
@@ -2322,6 +2657,10 @@ tr:hover td {
       PainelOperadores.render();
       PainelOperadores.loadInitial();
       PainelOperadores.connectRealtime();
+      // Carrega primeiro, assina os próximos eventos em seguida.
+      void PainelOperadores.loadHistorico().finally(function () {
+        PainelOperadores.connectHistoricoRealtime();
+      });
     };
 
     PainelOperadores.start();
